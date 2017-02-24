@@ -7,8 +7,10 @@ Ball run
 """
 import glob, os, sys
 
+from direct.gui.OnscreenText import OnscreenText
 from direct.showbase.ShowBase import ShowBase
 from panda3d.core import Vec3
+from panda3d.core import TextNode
 from panda3d.core import AmbientLight, DirectionalLight
 from panda3d.bullet import (BulletWorld, BulletRigidBodyNode, BulletDebugNode,
                             BulletBoxShape, BulletSphereShape,
@@ -96,7 +98,13 @@ class BallRun(ShowBase):
         self.accept('escape', sys.exit)
         self.accept('space', self.toggle_physics)
         self.play_physics = True
-
+        ## Visual informations
+        # Time
+        self.world_time = 0.
+        self.wtime_text = OnscreenText(
+            parent=self.a2dTopLeft, align=TextNode.ALeft,
+            pos=(0.05, -0.1), scale=.05)
+        # Coordinate grid
         ThreeAxisGrid(gridstep=0, subdiv=0).create().reparentTo(self.render)
 
     def load_models_in(self, dic, from_="assets/"):
@@ -127,6 +135,10 @@ class BallRun(ShowBase):
         if self.play_physics:
             dt = self.taskMgr.globalClock.getDt()
             self.world.doPhysics(dt)
+            # Time
+            self.world_time += dt
+            self.wtime_text.setText(
+                "World time: {:.1f}".format(self.world_time))
         return task.cont
 
 
