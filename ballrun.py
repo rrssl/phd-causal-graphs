@@ -10,6 +10,7 @@ import glob, os, sys
 from direct.gui.OnscreenText import OnscreenText
 from direct.showbase.ShowBase import ShowBase
 from panda3d.core import Vec3
+from panda3d.core import TransparencyAttrib
 from panda3d.core import TextNode
 from panda3d.core import AmbientLight, DirectionalLight
 from panda3d.bullet import (BulletWorld, BulletRigidBodyNode, BulletDebugNode,
@@ -66,10 +67,10 @@ class BallRun(ShowBase):
         for i, p in enumerate(params):
             node = BulletRigidBodyNode("plank_{}".format(i+1))
             node.addShape(BulletBoxShape(halfdims))
-            np = objects.attachNewNode(node)
-            np.setPosHpr(*p)
+            node_path = objects.attachNewNode(node)
+            node_path.setPosHpr(*p)
             world.attachRigidBody(node)
-            model.instanceTo(np)
+            model.instanceTo(node_path)
         # Ball
         model = self.models['ball']
         bounds = model.getTightBounds()
@@ -78,23 +79,27 @@ class BallRun(ShowBase):
         node = BulletRigidBodyNode("ball")
         node.setMass(1.0)
         node.addShape(shape)
-        np = objects.attachNewNode(node)
-        np.setPos(0, 0, 8)
+        node_path = objects.attachNewNode(node)
+        node_path.setPos(0, 0, 8)
+        self.init_ball_coord = node_path.getTransform()
         world.attachRigidBody(node)
-        model.reparentTo(np)
+        model.reparentTo(node_path)
         # Goblet
         model = self.models['goblet']
         shape = BulletTriangleMeshShape(model2btm(model), dynamic=False)
         node = BulletRigidBodyNode("goblet")
         node.addShape(shape)
-        np = objects.attachNewNode(node)
-        np.setPosHpr(0, -6, -2, 0, -15, 0)
+        node_path = objects.attachNewNode(node)
+        node_path.setPosHpr(0, -6, -2, 0, -15, 0)
         world.attachRigidBody(node)
-        model.reparentTo(np)
-        np.setTwoSided(True)  # Show inside
+        model.reparentTo(node_path)
+        node_path.setTwoSided(True)  # Show inside
+        node_path.setTransparency(TransparencyAttrib.M_alpha)
         ## Events & controls
-        self.taskMgr.add(self.update, 'update')
+        self.taskMgr.add(self.update_physics, "update_physics")
+        self.taskMgr.add(self.update_goblet, "update_goblet")
         self.accept('d', self.toggle_bullet_debug)
+        self.accept('r', self.reset_physics)
         self.accept('escape', sys.exit)
         self.accept('space', self.toggle_physics)
         self.play_physics = True
@@ -111,6 +116,15 @@ class BallRun(ShowBase):
         for model_path in glob.iglob(from_ + "*.egg"):
             name = os.path.splitext(os.path.basename(model_path))[0]
             dic[name] = self.loader.loadModel(model_path)
+
+    def reset_physics(self):
+        bnp = self.render.find("objects/ball")
+        bnp.setTransform(self.init_ball_coord)
+        bn = bnp.node()
+        bn.clearForces()
+        bn.setLinearVelocity(0.)
+        bn.setAngularVelocity(0.)
+        self.world_time = 0.
 
     def toggle_bullet_debug(self):
         try:
@@ -131,7 +145,7 @@ class BallRun(ShowBase):
     def toggle_physics(self):
         self.play_physics = not self.play_physics
 
-    def update(self, task):
+    def update_physics(self, task):
         if self.play_physics:
             dt = self.taskMgr.globalClock.getDt()
             self.world.doPhysics(dt)
@@ -139,6 +153,16 @@ class BallRun(ShowBase):
             self.world_time += dt
             self.wtime_text.setText(
                 "World time: {:.1f}".format(self.world_time))
+        return task.cont
+
+    def update_goblet(self, task):
+        gnp = self.render.find("objects/goblet")
+        bnp = self.render.find("objects/ball")
+        if gnp.getDistance(bnp) < 1.5:
+            gnp.setColorScale(0., 4., 0., .8)
+        else:
+            gnp.clearColorScale()
+            gnp.setAlphaScale(.8)
         return task.cont
 
 
