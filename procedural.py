@@ -37,13 +37,13 @@ def make_plane(name="plane"):
     vertexWriter.addData3f(0, 10, 0)
 
     # 2. Make primitives and assign vertices to them
-    tris=GeomTriangles(Geom.UHStatic)
+    tris = GeomTriangles(Geom.UHStatic)
     # First way of adding vertices: specify each index
     tris.addVertices(0, 1, 3)
     # Indicates that we have finished adding vertices for the first triangle.
     tris.closePrimitive()
     # Since the coordinates are in order we can use this convenience function.
-    tris.addConsecutiveVertices(1,3) #add vertex 1, 2 and 3
+    tris.addConsecutiveVertices(1, 3) #add vertex 1, 2 and 3
     tris.closePrimitive()
 
     # 3. Make a Geom object to hold the primitives.
