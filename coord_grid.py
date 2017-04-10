@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Taken from https://www.panda3d.org/forums/viewtopic.php?t=4784
+Source: https://www.panda3d.org/forums/viewtopic.php?t=4784
 (see _ext/coord_grid.py for the original).
 
 @author: Mathew 'Forklift' Lloyd & Robin Roussel

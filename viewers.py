@@ -10,6 +10,10 @@ from direct.showbase.ShowBase import ShowBase
 from panda3d.core import AmbientLight, DirectionalLight
 from panda3d.core import ShadeModelAttrib
 from panda3d.core import Point2
+from panda3d.core import LineSegs
+from panda3d.core import NodePath
+
+from coord_grid import ThreeAxisGrid
 
 class TurntableViewer(ShowBase):
     """Provides a Blender-like 'turntable' viewer, more convenient than
@@ -45,14 +49,14 @@ class TurntableViewer(ShowBase):
 
         # Control parameters
         # TODO set them from input parameters rather than hard-coded values.
-        self.camDistance = 10.
+        self.camDistance = 30.
         self.maxCamDistance = 100.
-        self.minCamDistance = .01  # Must be > 0
-        self.zoomSpeed = 5.
-        self.mouseSpeed = 50.
+        self.minCamDistance = 2.  # Must be > 0
+        self.zoomSpeed = 3.
+        self.mouseSpeed = 100.
 
         # Pivot node
-        self.pivot = self.render.attachNewNode("Pivot Point")
+        self.pivot = self.render.attachNewNode("Pivot point")
         self.pivot.setPos(0, 0, 0)
         self.camera.reparentTo(self.pivot)
 
@@ -118,15 +122,35 @@ class TurntableViewer(ShowBase):
         return task.cont
 
 
+def createAxes():
+    axes = LineSegs()
+    axes.setThickness(2)
+    axesSize = .1
+
+    axes.setColor((1, 0, 0, 1))
+    axes.moveTo(axesSize, 0, 0)
+    axes.drawTo(0, 0, 0)
+
+    axes.setColor((0, 1, 0, 1))
+    axes.moveTo(0, axesSize, 0)
+    axes.drawTo(0, 0, 0)
+
+    axes.setColor((0, 0, 1, 1))
+    axes.moveTo(0, 0, axesSize)
+    axes.drawTo(0, 0, 0)
+
+    return NodePath(axes.create())
+
+
 class Modeler(TurntableViewer):
     """Provides the look and feel of a basic 3D modeler.
 
     - Flat shading
     - Slightly visible wireframe
     - Directional light towards the object
+    - Axes and 'ground' indicator
 
     TODO:
-        - add axes indicator + plane
         - add option to reset the view
         - add option to place the camera s.t. all objects are visible
         - (optional) add a shaded background
@@ -135,20 +159,43 @@ class Modeler(TurntableViewer):
     def __init__(self):
         super().__init__()
 
-        # View
-        self.render.setAttrib(ShadeModelAttrib.make(ShadeModelAttrib.MFlat))
-        self.render.setRenderModeFilledWireframe(.3)
-
+        self.models = self.render.attachNewNode("Models")
+        # Shading
+        self.models.setAttrib(ShadeModelAttrib.make(ShadeModelAttrib.MFlat))
+        self.models.setRenderModeFilledWireframe(.3)
+        # Lights
         dlight = DirectionalLight('dlight')
         dlnp = self.camera.attachNewNode(dlight)
         dlnp.lookAt(-self.cam.getPos())
         self.render.setLight(dlnp)
-
         alight = AmbientLight("alight")
         alight.setColor(.1)
         self.render.setLight(self.render.attachNewNode(alight))
-
+        # Background
         self.setBackgroundColor(.9, .9, .9)
+        # Axes indicator (source: panda3dcodecollection, with modifications.)
+        # Load the axes that should be displayed
+        axes = createAxes()
+        corner = self.aspect2d.attachNewNode("Axes indicator")
+        corner.setPos(self.a2dLeft+.15, 0, self.a2dBottom+.1)
+        axes.reparentTo(corner)
+        # Make sure it will be drawn above all other elements
+        axes.setDepthTest(False)
+        axes.setBin("fixed", 0)
+        # Now make sure it will stay in the correct rotation to render.
+        self.axes = axes
+        self.taskMgr.add(self.updateAxes, "update_axes", priority=-4)
+        # Ground plane
+        gridMaker = ThreeAxisGrid(xsize=10, ysize=10, zsize=0)
+        gridMaker.gridColor = gridMaker.subdivColor = .35
+        gridMaker.create().reparentTo(self.render)
 
         # Controls
         self.accept("escape", sys.exit)
+
+    def updateAxes(self, task):
+        # Point of reference for each rotation is super important here.
+        # We want the axes have the same orientation wrt the screen (render2d),
+        # as the orientation of the scene (render) wrt the camera.
+        self.axes.setHpr(self.render2d, self.render.getHpr(self.camera))
+        return task.cont
