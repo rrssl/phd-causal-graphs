@@ -9,9 +9,10 @@ import sys
 from direct.showbase.ShowBase import ShowBase
 from panda3d.core import AmbientLight, DirectionalLight
 from panda3d.core import ShadeModelAttrib
-from panda3d.core import Point2
+from panda3d.core import Point2, Vec3
 from panda3d.core import LineSegs
 from panda3d.core import NodePath
+from panda3d.bullet import BulletWorld, BulletDebugNode
 
 from coord_grid import ThreeAxisGrid
 
@@ -111,8 +112,9 @@ class TurntableViewer(ShowBase):
                     self.pivot.setP(self.pivot, mouseMoveY)
                 else:
                     # Move the pivot point
-                    self.pivot.setX(self.pivot, -mouseMoveX)
-                    self.pivot.setZ(self.pivot,  mouseMoveY)
+                    ratio = self.camDistance / self.maxCamDistance
+                    self.pivot.setX(self.pivot, -mouseMoveX * ratio)
+                    self.pivot.setZ(self.pivot,  mouseMoveY * ratio)
 
         # Set the camera zoom
         self.camera.setY(self.camDistance)
@@ -159,9 +161,10 @@ class Modeler(TurntableViewer):
     def __init__(self):
         super().__init__()
 
-        self.models = self.render.attachNewNode("Models")
+        self.models = self.render.attachNewNode("models")
+        self.visual = self.render.attachNewNode("visual")
         # Shading
-        self.models.setAttrib(ShadeModelAttrib.make(ShadeModelAttrib.MFlat))
+        self.models.setAttrib(ShadeModelAttrib.make(ShadeModelAttrib.M_flat))
         self.models.setRenderModeFilledWireframe(.3)
         # Lights
         dlight = DirectionalLight('dlight')
@@ -188,7 +191,7 @@ class Modeler(TurntableViewer):
         # Ground plane
         gridMaker = ThreeAxisGrid(xsize=10, ysize=10, zsize=0)
         gridMaker.gridColor = gridMaker.subdivColor = .35
-        gridMaker.create().reparentTo(self.render)
+        gridMaker.create().reparentTo(self.visual)
 
         # Controls
         self.accept("escape", sys.exit)
@@ -198,4 +201,68 @@ class Modeler(TurntableViewer):
         # We want the axes have the same orientation wrt the screen (render2d),
         # as the orientation of the scene (render) wrt the camera.
         self.axes.setHpr(self.render2d, self.render.getHpr(self.camera))
+        return task.cont
+
+class PhysicsViewer(Modeler):
+
+    def __init__(self):
+        super().__init__()
+
+        self.world = BulletWorld()
+        self.world.set_gravity(Vec3(0, 0, -9.81))
+#        self.world_time = 0.
+
+        self.task_mgr.add(self.update_physics, "update_physics")
+        self.accept('d', self.toggle_bullet_debug)
+        self.accept('r', self.reset_physics)
+        self.accept('space', self.toggle_physics)
+        self.play_physics = False
+        # Initialize cache after __init__ is done.
+        self._physics_cache = {}
+        self.task_mgr.do_method_later(
+                0, self._create_cache, "init_physics_cache", [], sort=0)
+
+    def _create_cache(self):
+        for path in self.get_dynamic():
+            self._physics_cache[path] = path.get_transform()
+
+    def get_dynamic(self):
+        return [NodePath.any_path(body)
+                for body in self.world.get_rigid_bodies()
+                if not (body.is_static() or body.is_kinematic())]
+
+    def reset_physics(self):
+        for path in self.get_dynamic():
+            path.set_transform(self._physics_cache[path])
+            body = path.node()
+            body.clear_forces()
+            body.set_linear_velocity(0.)
+            body.set_angular_velocity(0.)
+            body.setActive(True)
+#        self.world_time = 0.
+
+    def toggle_bullet_debug(self):
+        try:
+            if self._debug_np.isHidden():
+                self._debug_np.show()
+            else:
+                self._debug_np.hide()
+        except AttributeError:
+            dn = BulletDebugNode("debug")
+            dn.show_wireframe(True)
+#            dn.show_constraints(True)
+            dn.show_bounding_boxes(True)
+#            dn.show_normals(True)
+            self._debug_np = self.render.attach_new_node(dn)
+            self._debug_np.show()
+            self.world.set_debug_node(dn)
+
+    def toggle_physics(self):
+        self.play_physics = not self.play_physics
+
+    def update_physics(self, task):
+        if self.play_physics:
+            dt = self.task_mgr.globalClock.get_dt()
+            self.world.do_physics(dt)
+#            self.world_time += dt
         return task.cont
