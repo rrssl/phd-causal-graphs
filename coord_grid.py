@@ -206,10 +206,10 @@ class ThreeAxisGrid:
 
             if(self.XSize != 0):
                 adjustedstep = self.gridStep / self.subdiv
-                print(self.gridStep)
-                print(self.subdiv)
-                print(adjustedstep)
-                print(self.gridStep/self.subdiv)
+#                print(self.gridStep)
+#                print(self.subdiv)
+#                print(adjustedstep)
+#                print(self.gridStep/self.subdiv)
 
                 if((self.YSize != 0) and (self.XYPlaneShow != 0)):
                 #Draw y lines across x axis starting from center moving out

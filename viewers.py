@@ -8,7 +8,7 @@ import sys
 from direct.showbase.ShowBase import ShowBase
 from panda3d.core import AmbientLight, DirectionalLight
 from panda3d.core import ShadeModelAttrib
-from panda3d.core import Point2, Vec3
+from panda3d.core import Point2
 from panda3d.core import LineSegs
 from panda3d.core import NodePath
 from panda3d.bullet import BulletWorld, BulletDebugNode
@@ -19,7 +19,15 @@ class TurntableViewer(ShowBase):
     """Provides a Blender-like 'turntable' viewer, more convenient than
     Panda3D's default trackball viewer.
 
-    Source: 'camera/free.py' in https://launchpad.net/panda3dcodecollection
+    Features
+    --------
+    - Rotate around pivot (head and pan)
+    - Move pivot
+    - Zoom
+
+    TODO:
+        - add view reset
+        - simplify the controls
 
     Notes
     -----
@@ -29,10 +37,8 @@ class TurntableViewer(ShowBase):
     >>> self.pivot.set_h(self.pivot, -15)
     >>> self.pivot.set_p(self.pivot, 15)
 
-
-    TODO:
-        - add view reset
-        - simplify the controls
+    Source:
+        'camera/free.py' in https://launchpad.net/panda3dcodecollection
     """
 
     def __init__(self):
@@ -137,6 +143,7 @@ class TurntableViewer(ShowBase):
 
 
 def create_axes():
+    """Create the XYZ-axes indicator."""
     axes = LineSegs()
     axes.set_thickness(2)
     axes_size = .1
@@ -159,13 +166,14 @@ def create_axes():
 class Modeler(TurntableViewer):
     """Provides the look and feel of a basic 3D modeler.
 
+    Features
+    --------
     - Flat shading
     - Slightly visible wireframe
     - Directional light towards the object
     - Axes and 'ground' indicator
 
     TODO:
-        - add option to reset the view
         - add option to place the camera s.t. all objects are visible
         - (optional) add a shaded background
     """
@@ -217,12 +225,23 @@ class Modeler(TurntableViewer):
 
 
 class PhysicsViewer(Modeler):
+    """Provides control and visualization for the physical simulation.
+
+    Features
+    --------
+    - Play/pause/reset physics
+    - Bullet debug mode
+
+    TODO:
+        - Add visual timeline
+
+    """
 
     def __init__(self):
         super().__init__()
 
         self.world = BulletWorld()
-        self.world.set_gravity(Vec3(0, 0, -9.81))
+        self.world.set_gravity((0, 0, -9.81))
 #        self.world_time = 0.
 
         self.task_mgr.add(self.update_physics, "update_physics")
@@ -240,12 +259,14 @@ class PhysicsViewer(Modeler):
             self._physics_cache[path] = path.get_transform()
 
     def get_dynamic(self):
+        """Return a list of paths to the dynamic objects in the world."""
         return [NodePath.any_path(body)
                 for body in self.world.get_rigid_bodies()
                 if not (body.is_static() or body.is_kinematic())]
 
     def reset_physics(self):
-        for path in self.get_dynamic():
+        """Reset the position/velocities/forces of each dynamic object."""
+        for path in self._physics_cache.keys():
             path.set_transform(self._physics_cache[path])
             body = path.node()
             body.clear_forces()

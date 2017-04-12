@@ -7,7 +7,6 @@ Basic primitives for the RGMs.
 """
 import numpy as np
 from panda3d.core import GeomNode
-from panda3d.core import Vec3
 import panda3d.bullet as bullet
 import solid
 import trimesh
@@ -16,20 +15,19 @@ from utils import trimesh2panda, solid2panda
 
 
 class Floor:
-    """Basic floor."""
+    """Create an infinite floor.
+
+    Parameters
+    ----------
+    path : NodePath
+        Path of the node in the scene tree where where objects are added.
+    world : BulletWorld
+        Physical world where the bullet nodes are added.
+    make_geom : bool
+        True if a visible geometry should be added to the scene.
+    """
 
     def __init__(self, path, world, make_geom=False):
-        """Create an infinite floor.
-
-        Parameters
-        ----------
-        path : NodePath
-            Path of the node in the scene tree where where objects are added.
-        world : BulletWorld
-            Physical world where the bullet nodes are added.
-        make_geom : bool
-            True if a visible geometry should be added to the scene.
-        """
         self.parent_path = path
         self.world = world
         self.make_geom = make_geom
@@ -58,39 +56,39 @@ class Floor:
         floor_bn = bullet.BulletRigidBodyNode("floor_solid")
         floor_bn.add_shape(bullet.BulletPlaneShape((0, 0, 1), 0))
         # Add to the world
-        self.world.attach_rigid_body(floor_bn)
+        self.world.attach(floor_bn)
         floor_path = self.parent_path.attach_new_node(floor_bn)
         if self.make_geom:
             floor_path.attach_new_node(floor_gn)
 
 
 class BallRun:
-    """Ball rolling on an inclined block."""
+    """Create a ball rolling on a track.
+
+    Parameters
+    ----------
+    path : NodePath
+        Path of the node in the scene tree where where objects are added.
+    world : BulletWorld
+        Physical world where the bullet nodes are added.
+    ball_pos : (3,) floats
+        Center of the ball.
+    ball_rad : float
+        Radius of the ball.
+    ball_mass : float
+        Mass of the ball.
+    block_pos : (3,) floats
+        Center of the support block.
+    block_hpr : (3,) floats
+        Heading-pitch-roll of the block.
+    block_ext : (3,) floats
+        Spatial half-extents of the block.
+    """
 
     def __init__(self, path, world,
                  ball_pos, ball_rad, ball_mass,
                  block_pos, block_hpr, block_ext):
-        """Create a rolling ball.
 
-        Parameters
-        ----------
-        path : NodePath
-            Path of the node in the scene tree where where objects are added.
-        world : BulletWorld
-            Physical world where the bullet nodes are added.
-        ball_pos : (3,) floats
-            Center of the ball.
-        ball_rad : float
-            Radius of the ball.
-        ball_mass : float
-            Mass of the ball.
-        block_pos : (3,) floats
-            Center of the support block.
-        block_hpr : (3,) floats
-            Heading-pitch-roll of the block.
-        block_ext : (3,) floats
-            Spatial half-extents of the block.
-        """
         self.parent_path = path
         self.world = world
 
@@ -122,7 +120,7 @@ class BallRun:
         ball_bn.set_mass(self.ball_mass)
         ball_bn.add_shape(ball_shape)
         # Add it to the world
-        self.world.attach_rigid_body(ball_bn)
+        self.world.attach(ball_bn)
         ball_path = self.parent_path.attach_new_node(ball_bn)
         ball_path.attach_new_node(ball_gn)
         ball_path.set_pos(self.ball_pos)
@@ -146,7 +144,7 @@ class BallRun:
         block_bn = bullet.BulletRigidBodyNode("block_solid")
         block_bn.add_shape(block_shape)
         # Add it to the world
-        self.world.attach_rigid_body(block_bn)
+        self.world.attach(block_bn)
         block_path = self.parent_path.attach_new_node(block_bn)
         block_path.attach_new_node(block_gn)
         block_path.set_pos(self.block_pos)
@@ -154,24 +152,24 @@ class BallRun:
 
 
 class DominoRun:
-    """Sequence of domino-like boxes."""
+    """Create a domino run.
+
+    Parameters
+    ----------
+    path : NodePath
+        Path of the node in the scene tree where where objects are added.
+    world : BulletWorld
+        Physical world where the bullet nodes are added.
+    pos : (n,3) float array
+        Coordinates of the center of each domino.
+    extents : (n,3) array of floats or (3,) sequence of floats
+        Spatial extents, per domino or global.
+    masses : (n,) sequence of floats, or float
+        Masses, per domino or extrapolated from first domino.
+    """
 
     def __init__(self, path, world, pos, extents, masses):
-        """Create a domino run.
 
-        Parameters
-        ----------
-        path : NodePath
-            Path of the node in the scene tree where where objects are added.
-        world : BulletWorld
-            Physical world where the bullet nodes are added.
-        pos : (n,3) float array
-            Coordinates of the center of each domino.
-        extents : (n,3) array of floats or (3,) sequence of floats
-            Spatial extents, per domino or global.
-        masses : (n,) sequence of floats, or float
-            Masses, per domino or extrapolated from first domino.
-        """
         self.parent_path = path
         self.world = world
 
@@ -181,6 +179,8 @@ class DominoRun:
 
     def create(self):
         """Initialize all the objects in the block."""
+        # Note: if all blocks were identical we could create a single model and
+        # then call instance_to on the node.
 
         for i, (p, e, m) in enumerate(zip(self.pos, self.extents, self.masses)):
             # Geometry
@@ -190,10 +190,10 @@ class DominoRun:
             block_gn.add_geom(block_geom)
             # Physics
             block_bn = bullet.BulletRigidBodyNode("domino_{}_solid".format(i))
-            block_bn.add_shape(bullet.BulletBoxShape(Vec3(*e)*.5))
+            block_bn.add_shape(bullet.BulletBoxShape(tuple(e*.5)))
             block_bn.set_mass(m)
             # Add it to the world
-            self.world.attach_rigid_body(block_bn)
+            self.world.attach(block_bn)
             block_path = self.parent_path.attach_new_node(block_bn)
             block_path.attach_new_node(block_gn)
             block_path.set_pos(*p)
