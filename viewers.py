@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Custom classes to improve on the basic Panda3D viewer.
@@ -21,27 +20,40 @@ class TurntableViewer(ShowBase):
     Panda3D's default trackball viewer.
 
     Source: 'camera/free.py' in https://launchpad.net/panda3dcodecollection
+
+    Notes
+    -----
+    To change the initial camera view:
+
+    >>> self.cam_distance = 10
+    >>> self.pivot.set_h(self.pivot, -15)
+    >>> self.pivot.set_p(self.pivot, 15)
+
+
+    TODO:
+        - add view reset
+        - simplify the controls
     """
 
     def __init__(self):
         super().__init__()
 
-        self.disableMouse()
+        self.disable_mouse()
 
         # Camera movement
-        self.mousePos = None
-        self.startCameraMovement = False
-        self.movePivot = False
-        self.accept("mouse1", self.setMoveCamera, [True])
-        self.accept("mouse1-up", self.setMoveCamera, [False])
-        self.accept("mouse2", self.setMoveCamera, [True])
-        self.accept("mouse2-up", self.setMoveCamera, [False])
-        self.accept("mouse3", self.setAndMovePivot, [True])
-        self.accept("mouse3-up", self.setAndMovePivot, [False])
-        self.accept("shift", self.setMovePivot, [True])
-        self.accept("shift-up", self.setMovePivot, [False])
-        self.accept("shift-mouse2", self.setMoveCamera, [True])
-        self.accept("shift-mouse2-up", self.setMoveCamera, [False])
+        self.mouse_pos = None
+        self.start_camera_movement = False
+        self.move_pivot = False
+        self.accept("mouse1", self.set_move_camera, [True])
+        self.accept("mouse1-up", self.set_move_camera, [False])
+        self.accept("mouse2", self.set_move_camera, [True])
+        self.accept("mouse2-up", self.set_move_camera, [False])
+        self.accept("mouse3", self.set_move_pivot_and_camera, [True])
+        self.accept("mouse3-up", self.set_move_pivot_and_camera, [False])
+        self.accept("shift", self.set_move_pivot, [True])
+        self.accept("shift-up", self.set_move_pivot, [False])
+        self.accept("shift-mouse2", self.set_move_camera, [True])
+        self.accept("shift-mouse2-up", self.set_move_camera, [False])
         # Zoom
         self.accept("wheel_up", self.zoom, [True])
         self.accept("wheel_down", self.zoom, [False])
@@ -49,97 +61,97 @@ class TurntableViewer(ShowBase):
         self.acceptOnce("-", self.zoom, [False])
 
         # Control parameters
-        # TODO set them from input parameters rather than hard-coded values.
-        self.camDistance = 30.
-        self.maxCamDistance = 100.
-        self.minCamDistance = 2.  # Must be > 0
-        self.zoomSpeed = 3.
-        self.mouseSpeed = 100.
+        self.cam_distance = 30.
+        self.max_cam_distance = 100.
+        self.min_cam_distance = 2.  # Must be > 0
+        self.zoom_speed = 3.
+        self.mouse_speed = 100.
 
         # Pivot node
-        self.pivot = self.render.attachNewNode("Pivot point")
-        self.pivot.setPos(0, 0, 0)
-        self.camera.reparentTo(self.pivot)
+        self.pivot = self.render.attach_new_node("Pivot point")
+        self.pivot.set_pos(0, 0, 0)
+        self.camera.reparent_to(self.pivot)
 
         # TODO check why the priority value is -4
-        self.taskMgr.add(self.updateCam, "task_camActualisation", priority=-4)
+        self.task_mgr.add(self.update_cam, "update_cam", priority=-4)
 
-    def setMoveCamera(self, moveCamera):
-        if self.mouseWatcherNode.hasMouse():
-            self.mousePos = self.mouseWatcherNode.getMouse()
-        self.startCameraMovement = moveCamera
+    def set_move_camera(self, move_camera):
+        if self.mouseWatcherNode.has_mouse():
+            self.mouse_pos = self.mouseWatcherNode.get_mouse()
+        self.start_camera_movement = move_camera
 
-    def setMovePivot(self, movePivot):
-        self.movePivot = movePivot
+    def set_move_pivot(self, move_pivot):
+        self.move_pivot = move_pivot
 
-    def setAndMovePivot(self, move):
-        self.setMovePivot(move)
-        self.setMoveCamera(move)
+    def set_move_pivot_and_camera(self, move):
+        self.set_move_pivot(move)
+        self.set_move_camera(move)
 
-    def zoom(self, zoomIn):
-        if zoomIn:
-            if self.camDistance > self.minCamDistance:
+    def zoom(self, zoom_in):
+        if zoom_in:
+            if self.cam_distance > self.min_cam_distance:
                 # Prevent the distance from becoming negative
-                self.camDistance -= min(self.zoomSpeed,
-                                        self.camDistance - self.minCamDistance)
+                self.cam_distance -= min(
+                        self.zoom_speed,
+                        self.cam_distance - self.min_cam_distance)
                 # Reaccept the zoom in key
                 self.acceptOnce("+", self.zoom, [True])
         else:
-            if self.camDistance < self.maxCamDistance:
-                self.camDistance += self.zoomSpeed
+            if self.cam_distance < self.max_cam_distance:
+                self.cam_distance += self.zoom_speed
                 # Reaccept the zoom out key
                 self.acceptOnce("-", self.zoom, [False])
 
-    def updateCam(self, task):
-        if self.mouseWatcherNode.hasMouse():
-            x = self.mouseWatcherNode.getMouseX()
-            y = self.mouseWatcherNode.getMouseY()
+    def update_cam(self, task):
+        if self.mouseWatcherNode.has_mouse():
+            x = self.mouseWatcherNode.get_mouse_x()
+            y = self.mouseWatcherNode.get_mouse_y()
 
             # Move the camera if a mouse key is pressed and the mouse moved
-            if self.mousePos is not None and self.startCameraMovement:
-                mouseMoveX = (self.mousePos.getX() - x) * (
-                        self.mouseSpeed + self.taskMgr.globalClock.getDt())
-                mouseMoveY = (self.mousePos.getY() - y) * (
-                        self.mouseSpeed + self.taskMgr.globalClock.getDt())
-                self.mousePos = Point2(x, y)
+            if self.mouse_pos is not None and self.start_camera_movement:
+                move_move_x = (self.mouse_pos.get_x() - x) * (
+                        self.mouse_speed + self.task_mgr.globalClock.get_dt())
+                move_move_y = (self.mouse_pos.get_y() - y) * (
+                        self.mouse_speed + self.task_mgr.globalClock.get_dt())
+                self.mouse_pos = Point2(x, y)
 
-                if not self.movePivot:
+                if not self.move_pivot:
                     # Rotate the pivot point
-                    preP = self.pivot.getP()
-                    self.pivot.setP(0)
-                    self.pivot.setH(self.pivot, mouseMoveX)
-                    self.pivot.setP(preP)
-                    self.pivot.setP(self.pivot, mouseMoveY)
+                    pre_p = self.pivot.get_p()
+                    self.pivot.set_p(0)
+                    self.pivot.set_h(self.pivot, move_move_x)
+                    self.pivot.set_p(pre_p)
+                    self.pivot.set_p(self.pivot, move_move_y)
                 else:
                     # Move the pivot point
-                    ratio = self.camDistance / self.maxCamDistance
-                    self.pivot.setX(self.pivot, -mouseMoveX * ratio)
-                    self.pivot.setZ(self.pivot,  mouseMoveY * ratio)
+                    ratio = self.cam_distance / self.max_cam_distance
+                    self.pivot.set_x(self.pivot, -move_move_x * ratio)
+                    self.pivot.set_z(self.pivot,  move_move_y * ratio)
 
         # Set the camera zoom
-        self.camera.setY(self.camDistance)
+        self.camera.set_y(self.cam_distance)
         # Always look at the pivot point
-        self.camera.lookAt(self.pivot)
+        self.camera.look_at(self.pivot)
 
         return task.cont
 
 
-def createAxes():
+def create_axes():
     axes = LineSegs()
-    axes.setThickness(2)
-    axesSize = .1
+    axes.set_thickness(2)
+    axes_size = .1
 
-    axes.setColor((1, 0, 0, 1))
-    axes.moveTo(axesSize, 0, 0)
-    axes.drawTo(0, 0, 0)
+    axes.set_color((1, 0, 0, 1))
+    axes.move_to(axes_size, 0, 0)
+    axes.draw_to(0, 0, 0)
 
-    axes.setColor((0, 1, 0, 1))
-    axes.moveTo(0, axesSize, 0)
-    axes.drawTo(0, 0, 0)
+    axes.set_color((0, 1, 0, 1))
+    axes.move_to(0, axes_size, 0)
+    axes.draw_to(0, 0, 0)
 
-    axes.setColor((0, 0, 1, 1))
-    axes.moveTo(0, 0, axesSize)
-    axes.drawTo(0, 0, 0)
+    axes.set_color((0, 0, 1, 1))
+    axes.move_to(0, 0, axes_size)
+    axes.draw_to(0, 0, 0)
 
     return NodePath(axes.create())
 
@@ -161,47 +173,48 @@ class Modeler(TurntableViewer):
     def __init__(self):
         super().__init__()
 
-        self.models = self.render.attachNewNode("models")
-        self.visual = self.render.attachNewNode("visual")
+        self.models = self.render.attach_new_node("models")
+        self.visual = self.render.attach_new_node("visual")
         # Shading
-        self.models.setAttrib(ShadeModelAttrib.make(ShadeModelAttrib.M_flat))
-        self.models.setRenderModeFilledWireframe(.3)
+        self.models.set_attrib(ShadeModelAttrib.make(ShadeModelAttrib.M_flat))
+        self.models.set_render_mode_filled_wireframe(.3)
         # Lights
         dlight = DirectionalLight('dlight')
-        dlnp = self.camera.attachNewNode(dlight)
-        dlnp.lookAt(-self.cam.getPos())
-        self.render.setLight(dlnp)
+        dlnp = self.camera.attach_new_node(dlight)
+        dlnp.look_at(-self.cam.get_pos())
+        self.render.set_light(dlnp)
         alight = AmbientLight("alight")
-        alight.setColor(.1)
-        self.render.setLight(self.render.attachNewNode(alight))
+        alight.set_color(.1)
+        self.render.set_light(self.render.attach_new_node(alight))
         # Background
-        self.setBackgroundColor(.9, .9, .9)
+        self.set_background_color(.9, .9, .9)
         # Axes indicator (source: panda3dcodecollection, with modifications.)
         # Load the axes that should be displayed
-        axes = createAxes()
-        corner = self.aspect2d.attachNewNode("Axes indicator")
-        corner.setPos(self.a2dLeft+.15, 0, self.a2dBottom+.1)
-        axes.reparentTo(corner)
+        axes = create_axes()
+        corner = self.aspect2d.attach_new_node("Axes indicator")
+        corner.set_pos(self.a2dLeft+.15, 0, self.a2dBottom+.1)
+        axes.reparent_to(corner)
         # Make sure it will be drawn above all other elements
-        axes.setDepthTest(False)
-        axes.setBin("fixed", 0)
+        axes.set_depth_test(False)
+        axes.set_bin("fixed", 0)
         # Now make sure it will stay in the correct rotation to render.
         self.axes = axes
-        self.taskMgr.add(self.updateAxes, "update_axes", priority=-4)
+        self.task_mgr.add(self.update_axes, "update_axes", priority=-4)
         # Ground plane
-        gridMaker = ThreeAxisGrid(xsize=10, ysize=10, zsize=0)
-        gridMaker.gridColor = gridMaker.subdivColor = .35
-        gridMaker.create().reparentTo(self.visual)
+        grid_maker = ThreeAxisGrid(xsize=10, ysize=10, zsize=0)
+        grid_maker.gridColor = grid_maker.subdivColor = .35
+        grid_maker.create().reparent_to(self.visual)
 
         # Controls
         self.accept("escape", sys.exit)
 
-    def updateAxes(self, task):
+    def update_axes(self, task):
         # Point of reference for each rotation is super important here.
         # We want the axes have the same orientation wrt the screen (render2d),
         # as the orientation of the scene (render) wrt the camera.
-        self.axes.setHpr(self.render2d, self.render.getHpr(self.camera))
+        self.axes.set_hpr(self.render2d, self.render.get_hpr(self.camera))
         return task.cont
+
 
 class PhysicsViewer(Modeler):
 
@@ -243,7 +256,7 @@ class PhysicsViewer(Modeler):
 
     def toggle_bullet_debug(self):
         try:
-            if self._debug_np.isHidden():
+            if self._debug_np.is_hidden():
                 self._debug_np.show()
             else:
                 self._debug_np.hide()
