@@ -105,7 +105,7 @@ class BallRun:
         """Initialize all the objects in the block."""
         # Ball
 #        ball = trimesh.creation.uv_sphere(self.ball_rad, count=[12, 12])
-        ball = solid.sphere(self.ball_rad, segments=2**3)
+        ball = solid.sphere(self.ball_rad, segments=2**4)
 #        ball.visual.vertex_colors = (255, 0, 0)
         ball_geom = solid2panda(ball)
 #        ball_geom = trimesh2panda(ball.vertices, ball.faces,
@@ -162,18 +162,21 @@ class DominoRun:
         Physical world where the bullet nodes are added.
     pos : (n,3) float array
         Coordinates of the center of each domino.
+    head : (n,) float array
+        Heading of each domino.
     extents : (n,3) array of floats or (3,) sequence of floats
         Spatial extents, per domino or global.
     masses : (n,) sequence of floats, or float
         Masses, per domino or extrapolated from first domino.
     """
 
-    def __init__(self, path, world, pos, extents, masses):
+    def __init__(self, path, world, pos, head, extents, masses):
 
         self.parent_path = path
         self.world = world
 
         self.pos = pos
+        self.head = head
         self.extents = extents
         self.masses = masses
 
@@ -182,7 +185,8 @@ class DominoRun:
         # Note: if all blocks were identical we could create a single model and
         # then call instance_to on the node.
 
-        for i, (p, e, m) in enumerate(zip(self.pos, self.extents, self.masses)):
+        for i, (p, h, e, m) in enumerate(
+                zip(self.pos, self.head, self.extents, self.masses)):
             # Geometry
             block = solid.cube(tuple(e), center=True)
             block_geom = solid2panda(block)
@@ -197,4 +201,4 @@ class DominoRun:
             block_path = self.parent_path.attach_new_node(block_bn)
             block_path.attach_new_node(block_gn)
             block_path.set_pos(*p)
-#            block_path.set_hpr(self.block_hpr)
+            block_path.set_h(h)
