@@ -187,13 +187,16 @@ class Modeler(TurntableViewer):
         self.models.set_attrib(ShadeModelAttrib.make(ShadeModelAttrib.M_flat))
         self.models.set_render_mode_filled_wireframe(.3)
         # Lights
-        dlight = DirectionalLight('dlight')
+        dlight = DirectionalLight("models_dlight")
         dlnp = self.camera.attach_new_node(dlight)
         dlnp.look_at(-self.cam.get_pos())
-        self.render.set_light(dlnp)
-        alight = AmbientLight("alight")
+        self.models.set_light(dlnp)
+        alight = AmbientLight("models_alight")
         alight.set_color(.1)
-        self.render.set_light(self.render.attach_new_node(alight))
+        self.models.set_light(self.render.attach_new_node(alight))
+        alight = AmbientLight("visual_alight")
+        alight.set_color(.9)
+        self.visual.set_light(self.render.attach_new_node(alight))
         # Background
         self.set_background_color(.9, .9, .9)
         # Axes indicator (source: panda3dcodecollection, with modifications.)
@@ -300,3 +303,64 @@ class PhysicsViewer(Modeler):
             self.world.do_physics(dt)
 #            self.world_time += dt
         return task.cont
+
+
+class FutureViewer(PhysicsViewer):
+    """Provides a glimpse into the future motion of each dynamic object.
+
+    Features
+    --------
+    - Show and update the motion path of each dynamic object
+
+    """
+
+    def __init__(self):
+        super().__init__()
+
+        self.future_vision_horizon = 20. #seconds
+        self.future_vision_resol = 1 / 10. # hertz
+        self._future_cache = {}
+        self.future_vision = self.visual.attach_new_node("future")
+        self.future_vision.hide()
+        self.task_mgr.do_method_later(
+                0, self.update_future, "init_future_cache", [], sort=1)
+
+        self.accept('f', self.toggle_future)
+
+    def redraw_future(self):
+        path = self.future_vision.find("trajectories")
+        if not path.is_empty(): path.remove_node()
+        # Less subtle method:
+        # self.future_vision.node().removeAllChildren()
+
+        polyline = LineSegs("trajectories")
+        polyline.set_thickness(2)
+        polyline.set_color((1, 1, 0, 1))
+        for trajectory in self._future_cache.values():
+            polyline.move_to(trajectory[0])
+            for pos in trajectory[1:]:
+                polyline.draw_to(pos)
+        self.future_vision.attach_new_node(polyline.create())
+#        print(self.future_vision.get_children())
+
+    def toggle_future(self):
+        if self.future_vision.is_hidden():
+            self.future_vision.show()
+        else:
+            self.future_vision.hide()
+
+    def update_future(self):
+        for path in self._physics_cache.keys():
+            self._future_cache[path] = []
+
+        self.reset_physics()
+        time = 0.
+        nb_bullet_substeps = max(int(self.future_vision_resol * 60) + 1, 1)
+        while time <= self.future_vision_horizon:
+            for path, trajectory in self._future_cache.items():
+                trajectory.append(path.get_pos())
+            self.world.do_physics(self.future_vision_resol, nb_bullet_substeps)
+            time += self.future_vision_resol
+
+        self.reset_physics()
+        self.redraw_future()
