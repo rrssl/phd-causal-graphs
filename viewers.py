@@ -4,7 +4,6 @@ Custom classes to improve on the basic Panda3D viewer.
 
 @author: Robin Roussel
 """
-import sys
 from direct.showbase.ShowBase import ShowBase
 from panda3d.core import AmbientLight, DirectionalLight
 from panda3d.core import ShadeModelAttrib
@@ -27,7 +26,6 @@ class TurntableViewer(ShowBase):
 
     TODO:
         - add view reset
-        - simplify the controls
 
     Notes
     -----
@@ -50,16 +48,16 @@ class TurntableViewer(ShowBase):
         self.mouse_pos = None
         self.start_camera_movement = False
         self.move_pivot = False
-        self.accept("mouse1", self.set_move_camera, [True])
-        self.accept("mouse1-up", self.set_move_camera, [False])
+#        self.accept("mouse1", self.set_move_camera, [True])
+#        self.accept("mouse1-up", self.set_move_camera, [False])
         self.accept("mouse2", self.set_move_camera, [True])
         self.accept("mouse2-up", self.set_move_camera, [False])
         self.accept("mouse3", self.set_move_pivot_and_camera, [True])
         self.accept("mouse3-up", self.set_move_pivot_and_camera, [False])
-        self.accept("shift", self.set_move_pivot, [True])
-        self.accept("shift-up", self.set_move_pivot, [False])
-        self.accept("shift-mouse2", self.set_move_camera, [True])
-        self.accept("shift-mouse2-up", self.set_move_camera, [False])
+#        self.accept("shift", self.set_move_pivot, [True])
+#        self.accept("shift-up", self.set_move_pivot, [False])
+#        self.accept("shift-mouse2", self.set_move_camera, [True])
+#        self.accept("shift-mouse2-up", self.set_move_camera, [False])
         # Zoom
         self.accept("wheel_up", self.zoom, [True])
         self.accept("wheel_down", self.zoom, [False])
@@ -195,7 +193,7 @@ class Modeler(TurntableViewer):
         alight.set_color(.1)
         self.models.set_light(self.render.attach_new_node(alight))
         alight = AmbientLight("visual_alight")
-        alight.set_color(.9)
+        alight.set_color(.8)
         self.visual.set_light(self.render.attach_new_node(alight))
         # Background
         self.set_background_color(.9, .9, .9)
@@ -203,7 +201,7 @@ class Modeler(TurntableViewer):
         # Load the axes that should be displayed
         axes = create_axes()
         corner = self.aspect2d.attach_new_node("Axes indicator")
-        corner.set_pos(self.a2dLeft+.15, 0, self.a2dBottom+.1)
+        corner.set_pos(self.a2dLeft+.15, 0, self.a2dBottom+.12)
         axes.reparent_to(corner)
         # Make sure it will be drawn above all other elements
         axes.set_depth_test(False)
@@ -215,9 +213,6 @@ class Modeler(TurntableViewer):
         grid_maker = ThreeAxisGrid(xsize=10, ysize=10, zsize=0)
         grid_maker.gridColor = grid_maker.subdivColor = .35
         grid_maker.create().reparent_to(self.visual)
-
-        # Controls
-        self.accept("escape", sys.exit)
 
     def update_axes(self, task):
         # Point of reference for each rotation is super important here.
@@ -335,7 +330,7 @@ class FutureViewer(PhysicsViewer):
 
         polyline = LineSegs("trajectories")
         polyline.set_thickness(2)
-        polyline.set_color((1, 1, 0, 1))
+        polyline.set_color((1, 0, 1, 1))
         for trajectory in self._future_cache.values():
             polyline.move_to(trajectory[0])
             for pos in trajectory[1:]:
