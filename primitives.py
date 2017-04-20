@@ -9,7 +9,7 @@ import numpy as np
 from panda3d.core import GeomNode
 import panda3d.bullet as bullet
 import solid
-import trimesh
+#import trimesh
 
 from utils import trimesh2panda, solid2panda
 
@@ -177,7 +177,16 @@ class DominoRun:
 
         self.pos = pos
         self.head = head
+
+        extents = np.asarray(extents)
+        if extents.shape == (3,):
+            extents = np.tile(extents, (len(pos), 1))
         self.extents = extents
+
+        # TODO. Extrpolate from extents.
+        masses = np.asarray(masses)
+        if masses.shape == ():
+            masses = np.tile(masses, (len(pos), 1))
         self.masses = masses
 
     def create(self):

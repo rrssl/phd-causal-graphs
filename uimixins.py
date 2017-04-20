@@ -125,18 +125,26 @@ class Tileable:
             self.task_mgr.remove("highlight_tile")
         self.move_highlight = show
 
+    def mouse_to_ground(self, mouse_pos, target_point):
+        """Get the 3D point where a mouse ray hits the ground plane. If it does
+        hit the ground, return True; False otherwise.
+
+        Source: http://www.panda3d.org/forums/viewtopic.php?t=5409
+        """
+        near_point = Point3()
+        far_point = Point3()
+        self.camLens.extrude(mouse_pos, near_point, far_point)
+        return self.plane.intersects_line(
+                target_point,
+                self.render.get_relative_point(self.camera, near_point),
+                self.render.get_relative_point(self.camera, far_point)
+                )
+
     def highlight_tile(self, task):
         if self.move_highlight and self.mouseWatcherNode.has_mouse():
             mpos = self.mouseWatcherNode.get_mouse()
             pos3d = Point3()
-            near_point = Point3()
-            far_point = Point3()
-            self.camLens.extrude(mpos, near_point, far_point)
-            if self.plane.intersects_line(
-                    pos3d,
-                    self.render.get_relative_point(self.camera, near_point),
-                    self.render.get_relative_point(self.camera, far_point)
-                    ):
+            if self.mouse_to_ground(mpos, pos3d):
                 pos3d = np.asarray(pos3d).clip(-self.tlims, self.tlims).round()
                 self.tile.set_pos(self.render, *pos3d)
         return task.cont

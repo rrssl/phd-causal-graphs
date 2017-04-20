@@ -6,6 +6,7 @@ Playing with Panda3D and Bullet
 @author: Robin Roussel
 """
 import sys
+import numpy as np
 
 #from direct.filter.CommonFilters import CommonFilters
 from direct.gui.DirectGui import DirectButton
@@ -15,18 +16,20 @@ load_prc_file_data("", "win-size 1600 900")
 load_prc_file_data("", "window-title RGM Designer")
 
 
-#from primitives import BallRun, Floor, DominoRun
+from primitives import DominoRun #, BallRun, Floor
 from uimixins import Tileable, Focusable, Drawable
-from viewers import Modeler
+from viewers import PhysicsViewer
 
 
+from panda3d.core import Point3
+from panda3d.core import LineSegs
+from direct.showutil.Rope import Rope
 
 
-
-class MyApp(Tileable, Focusable, Drawable, Modeler):
+class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
 
     def __init__(self):
-        Modeler.__init__(self)
+        PhysicsViewer.__init__(self)
         Tileable.__init__(self)
         Focusable.__init__(self)
         Drawable.__init__(self)
@@ -38,6 +41,7 @@ class MyApp(Tileable, Focusable, Drawable, Modeler):
 
         # Controls
         self.accept("escape", sys.exit)
+        self.accept("s", self.make_primitive)
 
         # TODO.
         # Slide in (out) menu when getting in (out of) focus
@@ -83,6 +87,50 @@ class MyApp(Tileable, Focusable, Drawable, Modeler):
         self.ignore("mouse1")
         self.ignore("mouse1-up")
         self.clear_drawing()
+
+    def make_primitive(self):
+        ls = LineSegs(self.strokes)
+        ls.create()
+
+        points = []
+        for v in ls.get_vertices():
+            p = Point3()
+            self.mouse_to_ground((v[0], v[2]), p)
+            points.append((None, p))
+
+        rope = Rope()
+        rope.setup(4, points)
+        rope.set_color((1, 0, 0, 1))
+        rope.reparent_to(self.render)
+
+        nb_dom = 40
+        result = rope.curve.evaluate()
+        start = result.getStartT()
+        end = result.getEndT()
+
+        pos = []
+        head = []
+        for t in np.linspace(start, end, nb_dom):
+            pt = Point3()
+            tan = Vec3()
+            result.evalPoint(t, pt)
+            result.evalTangent(t, tan)
+
+            pos.append(pt + (0, 0, .2))
+
+            if tan.normalize():
+                head.append(Vec3(1, 0, 0).signedAngleDeg(tan, Vec3(0, 0, 1)))
+            else:
+                head.append(0)
+
+        dominorun_path = self.models.attach_new_node("domino_run")
+        dominorun = DominoRun(
+                dominorun_path, self.world,
+                pos=pos, head=head, extents=(.05, .2, .4), masses=1)
+        dominorun.create()
+
+        self.clear_drawing()
+
 
 
 def main():
