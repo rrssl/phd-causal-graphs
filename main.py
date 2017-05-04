@@ -7,23 +7,24 @@ Playing with Panda3D and Bullet
 """
 import sys
 import numpy as np
+from scipy.integrate import quad
+from scipy.interpolate import splprep, splev
 
 #from direct.filter.CommonFilters import CommonFilters
 from direct.gui.DirectGui import DirectButton
-from panda3d.core import Vec3
+from panda3d.core import Vec3, Vec4
 from panda3d.core import load_prc_file_data
 load_prc_file_data("", "win-size 1600 900")
 load_prc_file_data("", "window-title RGM Designer")
 
 
-from primitives import DominoRun #, BallRun, Floor
+from primitives import DominoRun, Floor #, BallRun
 from uimixins import Tileable, Focusable, Drawable
 from viewers import PhysicsViewer
 
 
 from panda3d.core import Point3
 from panda3d.core import LineSegs
-from direct.showutil.Rope import Rope
 
 
 class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
@@ -41,12 +42,17 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
 
         # Controls
         self.accept("escape", sys.exit)
+        self.accept("a", self.click_add_button)
         self.accept("s", self.make_primitive)
 
         # TODO.
         # Slide in (out) menu when getting in (out of) focus
-        # Smooth the drawing curve
-        # Sample it and instantiate dominos
+        # Sample it and instantiate dominoes
+
+        # RGM primitives
+        floor_path = self.models.attach_new_node("floor")
+        floor = Floor(floor_path, self.world)
+        floor.create()
 
 #        self.gui = self.render.attach_new_node("gui")
         font = self.loader.load_font("assets/Roboto_regular.ttf")
@@ -54,7 +60,7 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
                 command=self.click_add_button,
                 # Background
                 relief='flat',
-                frameColor=(65/255, 105/255, 225/255, 1),
+                frameColor=Vec4(65, 105, 225, 255)/255,
                 pad=(.75, .75),
                 # Text
                 text="+ ADD",
@@ -91,46 +97,56 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
     def make_primitive(self):
         ls = LineSegs(self.strokes)
         ls.create()
-
+        # Prepare the points for smoothing.
         points = []
-        for v in ls.get_vertices():
-            p = Point3()
-            self.mouse_to_ground((v[0], v[2]), p)
-            points.append((None, p))
+        mouse_to_ground = self.mouse_to_ground
+        vertices = ls.get_vertices()
+        last_added = None
+        for v in vertices:
+            # Ensure that no two consecutive points are duplicates.
+            # Alternatively we could do before the loop:
+            # vertices = [v[0] for v in itertools.groupby(vertices)]
+            if v != last_added:
+                last_added = v
 
-        rope = Rope()
-        rope.setup(4, points)
-        rope.set_color((1, 0, 0, 1))
-        rope.reparent_to(self.render)
+                p = Point3()
+                mouse_to_ground((v[0], v[2]), p)
+                points.append((p[0], p[1]))
+        # Smooth the trajectory.
+        # scipy's splprep is more convenient here than panda3d's Rope class,
+        # since it gives better control over curve smoothing.
+        tck, _ = splprep(np.array(points).T, s=.1)
 
-        nb_dom = 40
-        result = rope.curve.evaluate()
-        start = result.getStartT()
-        end = result.getEndT()
-
-        pos = []
-        head = []
-        for t in np.linspace(start, end, nb_dom):
-            pt = Point3()
-            tan = Vec3()
-            result.evalPoint(t, pt)
-            result.evalTangent(t, tan)
-
-            pos.append(pt + (0, 0, .2))
-
-            if tan.normalize():
-                head.append(Vec3(1, 0, 0).signedAngleDeg(tan, Vec3(0, 0, 1)))
-            else:
-                head.append(0)
-
-        dominorun_path = self.models.attach_new_node("domino_run")
-        dominorun = DominoRun(
-                dominorun_path, self.world,
-                pos=pos, head=head, extents=(.05, .2, .4), masses=1)
-        dominorun.create()
-
+        # Remove the drawing...
         self.clear_drawing()
+        # ... and show the smoothed curve.
+        t = np.linspace(0., 1., 100)
+        new_vertices = np.column_stack(splev(t, tck) + [np.zeros(len(t))])
+        ls = LineSegs("smoothed")
+        ls.set_thickness(4)
+        ls.set_color((0, 1, 0, 1))
+        ls.move_to(*new_vertices[0])
+        for v in new_vertices[1:]:
+            ls.draw_to(*v)
+        self.render.attach_new_node(ls.create())
 
+        # Compute the arc length: in Cartesian coords,
+        # s = integral( sqrt(x'**2 + y'**2) )
+        def speed(t):
+            dx, dy = splev(t, tck, 1)
+            return np.sqrt(dx*dx + dy*dy)
+        length = quad(speed, 0, 1)[0]
+        # Instantiate dominoes.
+        nb_dom = int(length / (3 * .05))
+        t = np.linspace(0., 1., nb_dom)
+        pos = np.column_stack(splev(t, tck, 0) + [np.full(nb_dom, .2)])
+        head = np.arctan2(*splev(t, tck, 1)[::-1]) * 180 / np.pi
+
+        domino_run_np = self.models.attach_new_node("domino_run")
+        domino_run = DominoRun(
+                domino_run_np, self.world,
+                pos=pos, head=head, extents=(.05, .2, .4), masses=1)
+        domino_run.create()
 
 
 def main():
