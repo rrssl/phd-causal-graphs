@@ -9,6 +9,9 @@ import sys
 import numpy as np
 from scipy.integrate import quad
 from scipy.interpolate import splprep, splev
+from scipy.optimize import minimize
+from shapely.affinity import rotate, translate
+from shapely.geometry import box
 
 #from direct.filter.CommonFilters import CommonFilters
 from direct.gui.DirectGui import DirectButton
@@ -16,15 +19,12 @@ from panda3d.core import Vec3, Vec4
 from panda3d.core import load_prc_file_data
 load_prc_file_data("", "win-size 1600 900")
 load_prc_file_data("", "window-title RGM Designer")
-
+from panda3d.core import Point3
+from panda3d.core import LineSegs
 
 from primitives import DominoRun, Floor #, BallRun
 from uimixins import Tileable, Focusable, Drawable
 from viewers import PhysicsViewer
-
-
-from panda3d.core import Point3
-from panda3d.core import LineSegs
 
 
 class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
@@ -36,7 +36,8 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
         Drawable.__init__(self)
 
         # Initial camera position
-        self.min_cam_distance = .5
+        self.min_cam_distance = .2
+        self.zoom_speed = 1.
         self.cam_distance = 30.
         self.pivot.set_hpr(Vec3(135, 30, 0))
 
@@ -124,7 +125,7 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
         new_vertices = np.column_stack(splev(t, tck) + [np.zeros(len(t))])
         ls = LineSegs("smoothed")
         ls.set_thickness(4)
-        ls.set_color((0, 1, 0, 1))
+        ls.set_color((1, 1, 0, 1))
         ls.move_to(*new_vertices[0])
         for v in new_vertices[1:]:
             ls.draw_to(*v)
@@ -136,18 +137,69 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
             dx, dy = splev(t, tck, 1)
             return np.sqrt(dx*dx + dy*dy)
         length = quad(speed, 0, 1)[0]
-        # Instantiate dominoes.
-        nb_dom = int(length / (3 * .05))
-        t = np.linspace(0., 1., nb_dom)
-        pos = np.column_stack(splev(t, tck, 0) + [np.full(nb_dom, .2)])
-        head = np.arctan2(*splev(t, tck, 1)[::-1]) * 180 / np.pi
+        # Determine position and orientation of each domino.
+        extents = (.05, .2, .4)
+        nb_dom = int(length / (2.5 * extents[0]))
 
+        def rectangle(t):
+            base = box(-extents[0]/2, -extents[1]/2,
+                        extents[0]/2,  extents[1]/2)
+            x, y = splev(t, tck)
+            ang = np.arctan2(*splev(t, tck, 1)[::-1])
+            return [translate(rotate(base, ai, use_radians=True), xi, yi)
+                    for xi, yi, ai in zip(x, y, ang)]
+        t_init = np.linspace(0., 1., nb_dom)
+        r_init = rectangle(t_init)
+
+        # Show initial domino positions
+        ls = LineSegs("initial domino position")
+        ls.set_thickness(2)
+        ls.set_color((1, 0, 0, 1))
+        for r in r_init:
+            vert = list(r.exterior.coords)
+            ls.move_to(vert[0][0], vert[0][1], 0.)
+            for v in vert[1:]:
+                ls.draw_to(v[0], v[1], 0.)
+            self.render.attach_new_node(ls.create())
+
+        def overlap_energy(r1, r2):
+            return np.exp(r1.intersection(r2).area - min(r1.area, r2.area))
+        def lennard_jones(t1, t2, deq=3*extents[0]):
+            d = quad(speed, t1, t2)[0] + 1e-12
+            return .5 * ((deq / d)**12 - 2 * (deq / d)**6)
+        def objective(t):
+            rects = r_init[:1] + rectangle(t) + r_init[-1:]
+#            t = [0.] + list(t) + [1.]
+#            avg_dist = sum(
+#                    ri.centroid.distance(rj.centroid)
+#                    for ri, rj in zip(rects[:-1], rects[1:])
+#                    ) / len(rects)
+            return sum(
+                    overlap_energy(ri, rj)
+#                    + abs(avg_dist - ri.centroid.distance(rj.centroid))
+#                    / avg_dist
+#                    + lennard_jones(t[i], t[i+1])
+                    for ri, rj in zip(rects[:-1], rects[1:])
+                    )
+        res = minimize(objective, t_init[1:-1],
+                       method='L-BFGS-B', bounds=[(0.,1.)]*(len(t_init)-2),
+                       options=dict(disp=True))
+        t = np.hstack([0, res.x, 1])
+
+#        t = t_init
+        pos = np.column_stack(splev(t, tck) + [np.full(nb_dom, .2)])
+        head = np.arctan2(*splev(t, tck, 1)[::-1]) * 180 / np.pi
+        # Instantiate dominoes.
         domino_run_np = self.models.attach_new_node("domino_run")
         domino_run = DominoRun(
                 domino_run_np, self.world,
-                pos=pos, head=head, extents=(.05, .2, .4), masses=1)
+                pos=pos, head=head, extents=extents, masses=1)
         domino_run.create()
 
+        first_domino = domino_run_np.find("domino_0_solid")
+        first_domino.set_r(15)
+
+        self._create_cache()
 
 def main():
     app = MyApp()
