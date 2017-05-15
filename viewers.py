@@ -253,8 +253,18 @@ class PhysicsViewer(Modeler):
                 0, self._create_cache, "init_physics_cache", [], sort=0)
 
     def _create_cache(self):
+        """Cache the state of each dynamic object in the scene.
+
+        State is defined as a triplet:
+            - transform,
+            - linear velocity,
+            - angular velocity.
+
+        """
         for path in self.get_dynamic():
-            self._physics_cache[path] = path.get_transform()
+            self._physics_cache[path] = (path.get_transform(),
+                                         path.node().get_linear_velocity(),
+                                         path.node().get_angular_velocity())
 
     def get_dynamic(self):
         """Return a list of paths to the dynamic objects in the world."""
@@ -265,12 +275,13 @@ class PhysicsViewer(Modeler):
     def reset_physics(self):
         """Reset the position/velocities/forces of each dynamic object."""
         for path in self._physics_cache.keys():
-            path.set_transform(self._physics_cache[path])
+            state = self._physics_cache[path]
+            path.set_transform(state[0])
             body = path.node()
             body.clear_forces()
-            body.set_linear_velocity(0.)
-            body.set_angular_velocity(0.)
-            body.setActive(True)
+            body.set_linear_velocity(state[1])
+            body.set_angular_velocity(state[2])
+            body.set_active(True)
 #        self.world_time = 0.
 
     def toggle_bullet_debug(self):
