@@ -121,9 +121,9 @@ class BallRun:
         ball_bn.add_shape(ball_shape)
         # Add it to the world
         self.world.attach(ball_bn)
-        ball_path = self.parent_path.attach_new_node(ball_bn)
-        ball_path.attach_new_node(ball_gn)
-        ball_path.set_pos(self.ball_pos)
+        ball_np = self.parent_path.attach_new_node(ball_bn)
+        ball_np.attach_new_node(ball_gn)
+        ball_np.set_pos(self.ball_pos)
 
         # Track
 #        trans = trimesh.transformations.compose_matrix(angles=block_hpr,
@@ -145,14 +145,14 @@ class BallRun:
         block_bn.add_shape(block_shape)
         # Add it to the world
         self.world.attach(block_bn)
-        block_path = self.parent_path.attach_new_node(block_bn)
-        block_path.attach_new_node(block_gn)
-        block_path.set_pos(self.block_pos)
-        block_path.set_hpr(self.block_hpr)
+        block_np = self.parent_path.attach_new_node(block_bn)
+        block_np.attach_new_node(block_gn)
+        block_np.set_pos(self.block_pos)
+        block_np.set_hpr(self.block_hpr)
 
 
-class DominoRun:
-    """Create a domino run.
+class DominoMaker:
+    """Factory class to create dominoes and add them to the scene.
 
     Parameters
     ----------
@@ -160,54 +160,95 @@ class DominoRun:
         Path of the node in the scene tree where where objects are added.
     world : BulletWorld
         Physical world where the bullet nodes are added.
-    pos : (n,3) float array
-        Coordinates of the center of each domino.
-    head : (n,) float array
-        Heading of each domino.
-    extents : (n,3) array of floats or (3,) sequence of floats
-        Spatial extents, per domino or global.
-    masses : (n,) sequence of floats, or float
-        Masses, per domino or extrapolated from first domino.
+    add_geom : bool
+        Whether to give each domino a Geom or not.
+
     """
 
-    def __init__(self, path, world, pos, head, extents, masses):
-
+    def __init__(self, path, world, add_geom=True):
         self.parent_path = path
         self.world = world
+        self.add_geom = add_geom
 
-        self.pos = pos
-        self.head = head
+#        self.pos = np.array([])
+#        self.head = np.array([])
+#        self.extents = np.array([])
+#        self.masses = np.array([])
+#
+#    def setup(self, pos, head, extents, masses):
+#        """Setup the domino run.
+#
+#        Parameters
+#        ----------
+#        pos : (n,3) float array
+#            Coordinates of the center of each domino.
+#        head : (n,) float array
+#            Heading of each domino.
+#        extents : (n,3) array of floats or (3,) sequence of floats
+#            Spatial extents, per domino or global.
+#        masses : (n,) sequence of floats, or float
+#            Masses, per domino or extrapolated from first domino.
+#
+#        """
+#        self.pos = pos
+#        self.head = head
+#
+#        extents = np.asarray(extents)
+#        if extents.shape == (3,):
+#            extents = np.tile(extents, (len(pos), 1))
+#        self.extents = extents
+#
+#        # TODO. Extrapolate from extents.
+#        masses = np.asarray(masses)
+#        if masses.shape == ():
+#            masses = np.tile(masses, (len(pos), 1))
+#        self.masses = masses
+#
+#    def create(self):
+#        """Initialize all the objects in the block."""
+#        # Note: if all blocks were identical we could create a single geom and
+#        # then call instance_to on the node.
+#        add_domino = self.add_domino
+#        for i, (p, h, e, m) in enumerate(
+#                zip(self.pos, self.head, self.extents, self.masses)):
+#            add_domino(p, h, e, m, "domino_{}".format(i))
 
-        extents = np.asarray(extents)
-        if extents.shape == (3,):
-            extents = np.tile(extents, (len(pos), 1))
-        self.extents = extents
+    def add_domino(self, pos, head, extents, mass, prefix):
+        """Add a new domino to the scene.
 
-        # TODO. Extrpolate from extents.
-        masses = np.asarray(masses)
-        if masses.shape == ():
-            masses = np.tile(masses, (len(pos), 1))
-        self.masses = masses
+        Parameters
+        ----------
+        pos : Vec3
+            Coordinates of the center of the domino.
+        head : float
+            Heading of the domino.
+        extents : Vec3
+            Spatial extents of the domino.
+        mass : float
+            Mass of the domino.
+        prefix : string
+            Prefix name of the domino.
 
-    def create(self):
-        """Initialize all the objects in the block."""
-        # Note: if all blocks were identical we could create a single model and
-        # then call instance_to on the node.
+        Returns
+        -------
+        block_np : NodePath
+            Path to the BulletRigidBodyNode.
 
-        for i, (p, h, e, m) in enumerate(
-                zip(self.pos, self.head, self.extents, self.masses)):
-            # Geometry
-            block = solid.cube(tuple(e), center=True)
+        """
+        # Physics
+        block_bn = bullet.BulletRigidBodyNode(prefix+"_solid")
+        block_bn.add_shape(bullet.BulletBoxShape(extents*.5))
+        block_bn.set_mass(mass)
+        # Add it to the world
+        self.world.attach(block_bn)
+        block_np = self.parent_path.attach_new_node(block_bn)
+        block_np.set_pos(pos)
+        block_np.set_h(head)
+        # Geometry
+        if self.add_geom:
+            block = solid.cube(tuple(extents), center=True)
             block_geom = solid2panda(block)
-            block_gn = GeomNode("domino_{}_geom".format(i))
+            block_gn = GeomNode(prefix+"_geom")
             block_gn.add_geom(block_geom)
-            # Physics
-            block_bn = bullet.BulletRigidBodyNode("domino_{}_solid".format(i))
-            block_bn.add_shape(bullet.BulletBoxShape(tuple(e*.5)))
-            block_bn.set_mass(m)
-            # Add it to the world
-            self.world.attach(block_bn)
-            block_path = self.parent_path.attach_new_node(block_bn)
-            block_path.attach_new_node(block_gn)
-            block_path.set_pos(*p)
-            block_path.set_h(h)
+            block_np.attach_new_node(block_gn)
+        return block_np
