@@ -252,19 +252,28 @@ class PhysicsViewer(Modeler):
         self.task_mgr.do_method_later(
                 0, self._create_cache, "init_physics_cache", [], sort=0)
 
-    def _create_cache(self):
-        """Cache the state of each dynamic object in the scene.
+    def _add_to_cache(self, path):
+        """Cache the state of an object.
 
         State is defined as a triplet:
             - transform,
             - linear velocity,
             - angular velocity.
 
+        Parameters
+        ----------
+        path : NodePath
+            Path to a BulletBodyNode.
+
         """
+        self._physics_cache[path] = (path.get_transform(),
+                                     path.node().get_linear_velocity(),
+                                     path.node().get_angular_velocity())
+
+    def _create_cache(self):
+        """Cache the state of each dynamic object in the scene."""
         for path in self.get_dynamic():
-            self._physics_cache[path] = (path.get_transform(),
-                                         path.node().get_linear_velocity(),
-                                         path.node().get_angular_velocity())
+            self._add_to_cache(path)
 
     def get_dynamic(self):
         """Return a list of paths to the dynamic objects in the world."""
