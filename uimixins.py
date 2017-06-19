@@ -4,6 +4,7 @@ Various UI functionalities.
 
 @author: Robin Roussel
 """
+import datetime
 import math
 import numpy as np
 
@@ -180,14 +181,11 @@ class Drawable:
             geom = LineSegs(self.strokes).create()
             try:
                 # I don't know if this is more efficient than calling
-                # self.sketch_np.remove_node()
-                # and then attach a new node every time.
-                geom.replace_node(self.sketch_np.node())
+                # geom.replace_node(self.sketch_np.node())
+                self.sketch_np.remove_node()
             except AttributeError:
-                self.sketch_np = self.render2d.attach_new_node(geom)
-            except AssertionError:
-                if self.sketch_np.is_empty():
-                    self.sketch_np = self.render2d.attach_new_node(geom)
+                pass
+            self.sketch_np = self.render2d.attach_new_node(geom)
 
         return task.cont
 
@@ -197,3 +195,10 @@ class Drawable:
         except AttributeError:
             pass
         self.strokes.reset()
+
+    def save_drawing(self, path="sketches/"):
+        ls = LineSegs(self.strokes)
+        ls.create()
+        a = np.array(ls.get_vertices())
+        filename = path + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        np.savetxt(filename, a)
