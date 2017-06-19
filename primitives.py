@@ -54,10 +54,12 @@ class Floor:
             floor_gn.add_geom(floor_geom)
         # Physics
         floor_bn = bullet.BulletRigidBodyNode("floor_solid")
-        floor_bn.add_shape(bullet.BulletPlaneShape((0, 0, 1), 0))
+#        floor_bn.add_shape(bullet.BulletPlaneShape((0, 0, 1), 0))
+        floor_bn.add_shape(bullet.BulletBoxShape((10, 10, .1)))
         # Add to the world
         self.world.attach(floor_bn)
         floor_path = self.parent_path.attach_new_node(floor_bn)
+        floor_path.set_pos((0,0,-.1))
         if self.make_geom:
             floor_path.attach_new_node(floor_gn)
 
@@ -160,16 +162,22 @@ class DominoMaker:
         Path of the node in the scene tree where where objects are added.
     world : BulletWorld
         Physical world where the bullet nodes are added.
-    add_geom : bool
+    make_geom : bool
         Whether to give each domino a Geom or not.
+    reuse_geom : bool
+        If True, generated Geoms will be cached and reused if extents are
+        the same.
 
     """
 
-    def __init__(self, path, world, add_geom=True):
+    def __init__(self, path, world, make_geom=True, reuse_geom=True):
         self.parent_path = path
         self.world = world
-        self.add_geom = add_geom
-
+        self.make_geom = make_geom
+        if make_geom:
+            self.reuse_geom = reuse_geom
+            if reuse_geom:
+                self._geom_cache = {}
 #        self.pos = np.array([])
 #        self.head = np.array([])
 #        self.extents = np.array([])
@@ -213,6 +221,14 @@ class DominoMaker:
 #                zip(self.pos, self.head, self.extents, self.masses)):
 #            add_domino(p, h, e, m, "domino_{}".format(i))
 
+    @staticmethod
+    def make_domino(extents, prefix):
+        block = solid.cube(tuple(extents), center=True)
+        block_geom = solid2panda(block)
+        block_gn = GeomNode(prefix+"_geom")
+        block_gn.add_geom(block_geom)
+        return block_gn
+
     def add_domino(self, pos, head, extents, mass, prefix):
         """Add a new domino to the scene.
 
@@ -231,24 +247,28 @@ class DominoMaker:
 
         Returns
         -------
-        block_np : NodePath
+        dom_np : NodePath
             Path to the BulletRigidBodyNode.
 
         """
         # Physics
-        block_bn = bullet.BulletRigidBodyNode(prefix+"_solid")
-        block_bn.add_shape(bullet.BulletBoxShape(extents*.5))
-        block_bn.set_mass(mass)
+        dom_bn = bullet.BulletRigidBodyNode(prefix+"_solid")
+        dom_bn.add_shape(bullet.BulletBoxShape(extents*.5))
+        dom_bn.set_mass(mass)
         # Add it to the world
-        self.world.attach(block_bn)
-        block_np = self.parent_path.attach_new_node(block_bn)
-        block_np.set_pos(pos)
-        block_np.set_h(head)
+        self.world.attach(dom_bn)
+        dom_np = self.parent_path.attach_new_node(dom_bn)
+        dom_np.set_pos(pos)
+        dom_np.set_h(head)
         # Geometry
-        if self.add_geom:
-            block = solid.cube(tuple(extents), center=True)
-            block_geom = solid2panda(block)
-            block_gn = GeomNode(prefix+"_geom")
-            block_gn.add_geom(block_geom)
-            block_np.attach_new_node(block_gn)
-        return block_np
+        if self.make_geom:
+            if self.reuse_geom:
+                try:
+                    self._geom_cache[extents].instance_to(dom_np)
+                except KeyError:
+                    dom_gn = self.make_domino(extents, prefix)
+                    self._geom_cache[extents] = dom_np.attach_new_node(dom_gn)
+            else:
+                dom_gn = self.make_domino(extents, prefix)
+                dom_np.attach_new_node(dom_gn)
+        return dom_np
