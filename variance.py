@@ -49,17 +49,17 @@ def run_simu(params, timestep):
     first_dom = dom_path.get_child(0)
     first_dom.node().set_angular_velocity(angvel_init)
 
-    # Run the simulation.
-    t = 0.
-    while t < time_per_domino * dom_path.get_num_children():
-        t += timestep
-        world.do_physics(timestep)
-
     if DEBUG_SHOW:
         from viewers import Modeler
         m = Modeler()
         dom_path.reparent_to(m.models)
         m.run()
+
+    # Run the simulation.
+    t = 0.
+    while t < time_per_domino * dom_path.get_num_children():
+        t += timestep
+        world.do_physics(timestep)
 
     return dom_path
 
@@ -69,33 +69,96 @@ def toppled(domino):
     # print(abs(domino.get_p()) * math.pi / 180.)
     return abs(domino.get_r()) * math.pi / 180. > toppling_angle
 
-# Experiment 1
-print("XP1: evaluating simulator variance")
-nb_dominos = np.arange(3, 9)
-print("Successive numbers of dominos: {}".format(nb_dominos))
-step = .06 + np.arange(6) * .1
-print("Successive steps: {}".format(step))
 
-probas = np.zeros((len(nb_dominos), len(step)))
-for i, n in enumerate(nb_dominos):
-    for j, s in enumerate(step):
+def run_xp1():
+    print("XP1: evaluating simulator variance")
+    nb_dominos = np.arange(3, 9)
+    print("Successive numbers of dominos: {}".format(nb_dominos))
+    step = .06 + np.arange(6) * .1
+    print("Successive steps: {}".format(step))
+
+    probas = np.zeros((len(nb_dominos), len(step)))
+    for i, n in enumerate(nb_dominos):
+        for j, s in enumerate(step):
+            success = []
+            for k in range(nb_trials):
+                params = {
+                        'pos': np.column_stack([
+                            np.arange(n) * s,
+                            np.zeros(n),
+                            np.full(n, global_params['extents'][2] / 2)
+                            ]),
+                        'head': np.zeros(n)
+                        }
+                dom_path = run_simu(params, timestep)
+                success.append(all(toppled(d) for d in dom_path.get_children()))
+                # if k == 0:
+                    # print([toppled(d) for d in dom_path.get_children()])
+            probas[i, j] = success.count(True) / nb_trials
+    print("Probabilities of success:\n", probas)
+
+
+nb_trials = 20
+def run_xp2():
+    print("XP2: measuring probability of success wrt a single source of "
+          "error.")
+    nb_dominos = 10
+    step = .25
+    print("Step = {}; Number of dominos = {}.".format(step, nb_dominos))
+    alpha = 5 + np.arange(9) * 5
+    print("Successive values of the symmetric uniform distribution "
+          "parameter (in degrees): {}".format(alpha))
+
+    probas = np.zeros(len(alpha))
+    for i, a in enumerate(alpha):
         success = []
-        for k in range(nb_trials):
+        for _ in range(nb_trials):
             params = {
                     'pos': np.column_stack([
-                        np.arange(n) * s,
-                        np.zeros(n),
-                        np.full(n, global_params['extents'][2] / 2)
+                        np.arange(nb_dominos) * step,
+                        np.zeros(nb_dominos),
+                        np.full(nb_dominos, global_params['extents'][2] / 2)
                         ]),
-                    'head': np.zeros(n)
+                    'head': 2 * a * np.random.random(nb_dominos) - a
                     }
             dom_path = run_simu(params, timestep)
             success.append(all(toppled(d) for d in dom_path.get_children()))
-            # if k == 0:
-                # print([toppled(d) for d in dom_path.get_children()])
-        probas[i, j] = success.count(True) / nb_trials
-print("Probabilities of success:\n", probas)
+        probas[i] = success.count(True) / nb_trials
+    print("Probabilities of success:\n", probas)
 
 
-# Experiment 2
-# Experiment 3
+def run_xp3():
+    print("XP3: measuring the correlation between probability decrease "
+          "and control parameters.")
+    nb_dominos = 10
+    print("Number of dominos = {}.".format(nb_dominos))
+    step = .06 + np.arange(6) * .05
+    print("Successive steps: {}".format(step))
+    alpha = 5 + np.arange(9) * 5
+    print("Successive values of the symmetric uniform distribution "
+          "parameter (in degrees): {}".format(alpha))
+
+    probas = np.zeros((len(step), len(alpha)))
+    for i, s in enumerate(step):
+        for k, a in enumerate(alpha):
+            success = []
+            for _ in range(nb_trials):
+                params = {
+                        'pos': np.column_stack([
+                            np.arange(nb_dominos) * s,
+                            np.zeros(nb_dominos),
+                            np.full(nb_dominos,
+                                    global_params['extents'][2] / 2)
+                            ]),
+                        'head': 2 * a * np.random.random(nb_dominos) - a
+                        }
+                dom_path = run_simu(params, timestep)
+                success.append(all(toppled(d)
+                               for d in dom_path.get_children()))
+            probas[i, k] = success.count(True) / nb_trials
+    print("Probabilities of success:\n", probas)
+
+
+# run_xp1()
+# run_xp2()
+run_xp3()
