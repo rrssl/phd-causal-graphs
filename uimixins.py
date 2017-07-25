@@ -19,8 +19,6 @@ class Focusable:
 
     """
     def __init__(self):
-        super().__init__()
-
         self._focus_anim = None
         self._focused = False
 
