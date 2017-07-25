@@ -5,8 +5,7 @@ Playing with Panda3D and Bullet
 
 @author: Robin Roussel
 """
-from direct.gui.DirectGui import DirectButton
-from direct.gui.DirectGui import DirectOptionMenu
+from direct.gui.DirectGui import DirectButton, DirectOptionMenu
 from panda3d.core import load_prc_file_data
 from panda3d.core import Vec3
 from panda3d.core import Vec4
@@ -15,6 +14,7 @@ from primitives import DominoMaker
 from primitives import Floor
 from uimixins import Tileable
 from uimixins import Focusable
+from uiwidgets import DropdownMenu
 from viewers import PhysicsViewer
 
 
@@ -45,27 +45,31 @@ class MyApp(Tileable, Focusable, PhysicsViewer):
 
 #        self.gui = self.render.attach_new_node("gui")
         font = self.loader.load_font("assets/Roboto_regular.ttf")
-        self.add_bt = DirectButton(
-                command=self.click_add_button,
+        self.add_menu = DropdownMenu(
+                command=self.click_add_menu,
+                items=("DOMINO RUN", "TODO"),
                 # Background
                 relief='flat',
                 frameColor=Vec4(65, 105, 225, 255)/255,
-                pad=(.75, .75),
+                pad=(0, 0),
+                #  frameSize=(-.1, .1, -.1, .1),
                 # Text
                 text="+ ADD",
+                text_scale=.85,
                 text_font=font,
                 text_fg=(1, 1, 1, 1),
                 # Position and scale
                 parent=self.a2dBottomRight,
-                pos=Vec3(-.2, 0, .2*9/16),
-                scale=.04)
+                pos=Vec3(-.4, 0, .2*9/16),
+                scale=.05
+                )
 
     def click_add_button(self):
         self.set_show_tile(True)
         self.acceptOnce("mouse1", self.focus_on_tile)
 
     def click_add_menu(self, option):
-        pass
+        print(option)
 
     def focus_on_tile(self):
         self.focus_view(self.tile)
