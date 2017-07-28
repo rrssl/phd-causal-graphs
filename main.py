@@ -7,9 +7,11 @@ Playing with Panda3D and Bullet
 """
 from direct.gui.DirectGui import DirectButton, DirectOptionMenu
 from panda3d.core import load_prc_file_data
+from panda3d.core import NodePath
 from panda3d.core import Vec3
 from panda3d.core import Vec4
 
+from geom2d import make_rectangle
 from primitives import DominoMaker
 from primitives import Floor
 from uimixins import Tileable
@@ -45,23 +47,24 @@ class MyApp(Tileable, Focusable, PhysicsViewer):
 
 #        self.gui = self.render.attach_new_node("gui")
         font = self.loader.load_font("assets/Roboto_regular.ttf")
+        bt_shape = NodePath(make_rectangle(4, 2, 0.2, 4))
+        bt_shape.set_color(Vec4(65, 105, 225, 255)/255)
         self.add_menu = DropdownMenu(
                 command=self.click_add_menu,
                 items=("DOMINO RUN", "TODO"),
-                # Background
-                relief='flat',
-                frameColor=Vec4(65, 105, 225, 255)/255,
-                pad=(0, 0),
-                #  frameSize=(-.1, .1, -.1, .1),
+                # Button shape
+                relief=None,
+                geom=bt_shape,
+                #  geom_pos=Vec3(0, 0, .35),
                 # Text
                 text="+ ADD",
-                text_scale=.85,
+                text_scale=1,
                 text_font=font,
-                text_fg=(1, 1, 1, 1),
+                text_fg=Vec4(1, 1, 1, 1),
                 # Position and scale
                 parent=self.a2dBottomRight,
                 pos=Vec3(-.4, 0, .2*9/16),
-                scale=.05
+                scale=.04
                 )
 
     def click_add_button(self):

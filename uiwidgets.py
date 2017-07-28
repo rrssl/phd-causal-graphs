@@ -1,9 +1,10 @@
 """
 UI widgets.
 
+NB: Naming conventions follow those used in other DirectObjects (camelCasing).
 """
 from panda3d.core import TextNode
-from panda3d.core import VBase3
+from panda3d.core import Vec3
 import direct.gui.DirectGuiGlobals as DGG
 from direct.gui.DirectGui import DirectButton
 from direct.gui.DirectGui import DirectFrame
@@ -13,29 +14,32 @@ from direct.gui.DirectGui import DirectOptionMenu
 class DropdownMenu(DirectOptionMenu):
     def __init__(self, parent=None, **kw):
         # We essentially reuse the __init__ from DirectOptionMenu but remove
-        # the parts that are no use for a drop-down menu.
+        # the parts that are of no use for a drop-down menu.
         # NB: all things removed here only impacted setItems.
 
-        # Inherits from DirectButton
+        # Define options. Why use this complicated system instead of a simple
+        # list of keyword args? Some ideas:
+        #  - when there is a LOT of keywords (as in e.g. matplotlib), this
+        #  avoids bloating __init__ definitions while keeping the ability
+        #  of defining default kw values and overriding them when inheriting.
+        #  - this allows to attach each argument to a handler method in a
+        #  coherent way.
         optiondefs = (
             # List of items to display on the popup menu
-            ('items',       [],             self.setItems),
+            ('items', [], self.setItems),
             # Background color to use to highlight popup menu items
             ('highlightColor', (.5, .5, .5, 1), None),
             # Extra scale to use on highlight popup menu items
             ('highlightScale', (1, 1), None),
             # Alignment to use for text on popup menu button
-            # Changing this breaks button layout
-            ('text_align',  TextNode.ALeft, None),
+            ('text_align', TextNode.ACenter, None),
             # Remove press effect because it looks a bit funny
-            ('pressEffect',     0,          DGG.INITOPT),
+            ('pressEffect', 0, DGG.INITOPT),
            )
         # Merge keyword options with default options
         self.defineoptions(kw, optiondefs)
-        # Initialize superclasses
+        # Initialize superclasses (the one we want here is DirectButton).
         DirectButton.__init__(self, parent)
-        # Record any user specified frame size
-        self.initFrameSize = self['frameSize']
         # This is created when you set the menu's items
         self.popupMenu = None
         self.selectedIndex = None
@@ -59,8 +63,11 @@ class DropdownMenu(DirectOptionMenu):
         # argument is ESSENTIAL, yet poorly documented.
         # https://www.panda3d.org/forums/viewtopic.php?p=12111#p12111
         self.initialiseoptions(DropdownMenu)
-        # Need to call this since we explicitly set frame size
-        self.resetFrameSize()
+        # Correct text position to obtain vertical centering with the button.
+        for name in self.components():
+            if "text" in name:
+                text = self.component(name)
+                text.setZ(self, text.node().getHeight() / (2*self['scale']))
 
     def setItems(self):
         """Create new popup menu to reflect specified set of items
@@ -74,7 +81,7 @@ class DropdownMenu(DirectOptionMenu):
         self.popupMenu = self.createcomponent('popupMenu', (), None,
                                               DirectFrame,
                                               (self,),
-                                              relief=self['relief'],
+                                              relief=self['relief'] or 'flat',
                                               )
         # Make sure it is on top of all the other gui widgets
         self.popupMenu.setBin('gui-popup', 0)
@@ -84,17 +91,24 @@ class DropdownMenu(DirectOptionMenu):
         # Find the maximum extents of all items
         itemIndex = 0
         self.minX = self.maxX = self.minZ = self.maxZ = None
+        # Reason why we use _constructorKeywords[*] and not self[*] for all the
+        # 'text_*' options: see DirectGuiBase.py's docstring.
+        # In a nutshell: __getitem__ only queries _optionInfo, to which
+        # '*_*'-options are not added -- they are left in _constructorKeywords
+        # instead, and consumed as they are used, UNLESS 'component' is a group
+        # name, which 'text' is, because DirectFrame says so.
         for item in self['items']:
             c = self.createcomponent(
                 'item{}'.format(itemIndex), (), 'item',
                 DirectButton, (self.popupMenu,),
                 text=item, text_align=TextNode.ALeft,
-                text_font=self['text_font'],
-                text_scale=self['text_scale'],
-                text_fg=(1, 1, 1, 1),  # This option is not saved, but why?
+                text_font=self._constructorKeywords['text_font'][0],
+                text_scale=self._constructorKeywords['text_scale'][0],
+                #  text_fg=self._constructorKeywords['text_fg'][0],
                 command=lambda i=itemIndex: self.set(i),
-                relief=self['relief'],
-                frameColor=self['frameColor'])
+                relief=self['relief'] or 'flat',
+                frameColor=self['frameColor'],
+                )
             bounds = c.getBounds()
             if self.minX is None:
                 self.minX = bounds[0]
@@ -118,7 +132,7 @@ class DropdownMenu(DirectOptionMenu):
         self.maxHeight = self.maxZ - self.minZ
         # Adjust frame size for each item and bind actions to mouse events
         for i in range(itemIndex):
-            item = self.component('item%d' % i)
+            item = self.component('item{}'.format(i))
             # So entire extent of item's slot on popup is reactive to mouse
             item['frameSize'] = (self.minX, self.maxX, self.minZ, self.maxZ)
             # Move it to its correct position on the popup
@@ -133,25 +147,13 @@ class DropdownMenu(DirectOptionMenu):
                       lambda x, item=item, fc=fc: self._unhighlightItem(
                           item, fc))
         # Set popup menu frame size to encompass all items
-        f = self.component('popupMenu')
-        f['frameSize'] = (0, self.maxWidth, -self.maxHeight * itemIndex, 0)
-
-        # Set initial item to 0 but don't fire callback
-        self.set(0, fCommand=0)
-
-        # Adjust popup menu button to fit all items (or use user specified
-        # frame size
-        if self.initFrameSize:
-            # Use specified frame size
-            self['frameSize'] = tuple(self.initFrameSize)
-        else:
-            # Or base it upon largest item
-            self['frameSize'] = (self.minX, self.maxX, self.minZ, self.maxZ)
+        self.popupMenu['frameSize'] = (
+                0, self.maxWidth, -self.maxHeight * itemIndex, 0)
         # Set initial state
         self.hidePopupMenu()
 
     def showPopupMenu(self, event=None):
-        """Make popup visible.
+        """Make popup visible on top of the button.
 
         Adjust popup position if default position puts it outside of
         visible screen region.
@@ -159,17 +161,19 @@ class DropdownMenu(DirectOptionMenu):
         # Show the menu
         self.popupMenu.show()
         # Make sure its at the right scale
-        self.popupMenu.setScale(self, VBase3(1))
+        self.popupMenu.setScale(self, Vec3(1))
         # Compute bounds
         b = self.getBounds()
         fb = self.popupMenu.getBounds()
-        # Center menu with button
-        xPos = ((b[1] - b[0]) - (fb[1] - fb[0])) / 2.
+        # NB: the original coordinates of the menu are such that its top left
+        # corner is at the origin.
+        # Center menu with button horizontally
+        xPos = (b[0] + b[1])/2 - (fb[1] - fb[0])/2.
         self.popupMenu.setX(self, xPos)
         # Set height slightly above the button
-        self.popupMenu.setZ(self, (self.maxZ - fb[2])*1.1)
-        #  self.popupMenu.setZ(
-        #      self, self.minZ + (self.selectedIndex + 1)*self.maxHeight)
+        margin = (b[3] - b[2]) * 0.1
+        zPos = (b[2] + b[3])/2 + (b[3] - b[2])/2 + margin + (fb[3] - fb[2])
+        self.popupMenu.setZ(self, zPos)
         # Make sure the whole popup menu is visible
         pos = self.popupMenu.getPos(self.parent)
         scale = self.popupMenu.getScale(self.parent)
@@ -196,6 +200,8 @@ class DropdownMenu(DirectOptionMenu):
     def set(self, index, fCommand=True):
         """Set the new selected item.
 
+        Only difference with the original is that the text is not updated.
+
         Parameters
         ----------
         index : int or string
@@ -211,3 +217,15 @@ class DropdownMenu(DirectOptionMenu):
             if fCommand and self['command']:
                 # Pass any extra args to command
                 self['command'](*[item] + self['extraArgs'])
+
+
+class ButtonMenu(DirectFrame):
+    """Simple menu with buttons."""
+    def __init__(self, parent=None, **kw):
+        optiondefs = ()
+        # Merge keyword options with default options
+        self.defineoptions(kw, optiondefs)
+        # Initialize superclasses
+        DirectButton.__init__(self, parent)
+        # Call option initialization functions
+        self.initialiseoptions(ButtonMenu)
