@@ -105,6 +105,7 @@ class DropdownMenu(DirectOptionMenu):
                 text_font=self._constructorKeywords['text_font'][0],
                 text_scale=self._constructorKeywords['text_scale'][0],
                 #  text_fg=self._constructorKeywords['text_fg'][0],
+                pad=(.3, .1),
                 command=lambda i=itemIndex: self.set(i),
                 relief=self['relief'] or 'flat',
                 frameColor=self['frameColor'],
@@ -171,7 +172,7 @@ class DropdownMenu(DirectOptionMenu):
         xPos = (b[0] + b[1])/2 - (fb[1] - fb[0])/2.
         self.popupMenu.setX(self, xPos)
         # Set height slightly above the button
-        margin = (b[3] - b[2]) * 0.1
+        margin = (b[3] - b[2]) * 0.2
         zPos = (b[2] + b[3])/2 + (b[3] - b[2])/2 + margin + (fb[3] - fb[2])
         self.popupMenu.setZ(self, zPos)
         # Make sure the whole popup menu is visible
@@ -219,13 +220,117 @@ class DropdownMenu(DirectOptionMenu):
                 self['command'](*[item] + self['extraArgs'])
 
 
-class ButtonMenu(DirectFrame):
+class ButtonMenu(DirectOptionMenu):
     """Simple menu with buttons."""
     def __init__(self, parent=None, **kw):
-        optiondefs = ()
+        optiondefs = (
+            # List of items to display on the menu
+            ('items', [], self.setItems),
+            # Background color to use to highlight popup menu items
+            ('highlightColor', (.5, .5, .5, 1), None),
+            # Extra scale to use on highlight popup menu items
+            ('highlightScale', (1, 1), None),
+            # Command to be called on button click
+            ('command',        None,       None),
+            ('extraArgs',      [],         None),
+            # Whether menu should be horizontal or vertical
+            ('layout', 'horizontal', DGG.INITOPT),
+            # Padding around the buttons
+            ('pad', (.1, .1), DGG.INITOPT),
+            )
         # Merge keyword options with default options
         self.defineoptions(kw, optiondefs)
-        # Initialize superclasses
-        DirectButton.__init__(self, parent)
+        # Initialize the relevant superclass
+        DirectFrame.__init__(self, parent)
         # Call option initialization functions
         self.initialiseoptions(ButtonMenu)
+
+    def setItems(self):
+        if not self['items']:
+            return
+        # Create a new component for each item
+        # Find the maximum extents of all items
+        itemIndex = 0
+        self.minX = self.maxX = self.minZ = self.maxZ = None
+        # Reason why we use _constructorKeywords[*] and not self[*] for all the
+        # 'text_*' options: see DirectGuiBase.py's docstring.
+        # In a nutshell: __getitem__ only queries _optionInfo, to which
+        # '*_*'-options are not added -- they are left in _constructorKeywords
+        # instead, and consumed as they are used, UNLESS 'component' is a group
+        # name, which 'text' is, because DirectFrame says so.
+        for item in self['items']:
+            c = self.createcomponent(
+                'item{}'.format(itemIndex), (), 'item',
+                DirectButton, (self,),
+                text=item, text_align=TextNode.ACenter,
+                text_font=self._constructorKeywords['text_font'][0],
+                text_scale=self._constructorKeywords['text_scale'][0],
+                #  text_fg=self._constructorKeywords['text_fg'][0],
+                pad=(.3, .2),
+                command=lambda i=itemIndex: self.set(i),
+                relief=self['relief'] or 'flat',
+                borderWidth=(.01, .01),
+                frameColor=self['frameColor'],
+                )
+            bounds = c.getBounds()
+            if self.minX is None:
+                self.minX = bounds[0]
+            elif bounds[0] < self.minX:
+                self.minX = bounds[0]
+            if self.maxX is None:
+                self.maxX = bounds[1]
+            elif bounds[1] > self.maxX:
+                self.maxX = bounds[1]
+            if self.minZ is None:
+                self.minZ = bounds[2]
+            elif bounds[2] < self.minZ:
+                self.minZ = bounds[2]
+            if self.maxZ is None:
+                self.maxZ = bounds[3]
+            elif bounds[3] > self.maxZ:
+                self.maxZ = bounds[3]
+            itemIndex += 1
+        # Calc max width and height
+        self.maxWidth = self.maxX - self.minX
+        self.maxHeight = self.maxZ - self.minZ
+        # Adjust frame size for each item and bind actions to mouse events
+        for i in range(itemIndex):
+            item = self.component('item{}'.format(i))
+            # So entire extent of item's slot on popup is reactive to mouse
+            item['frameSize'] = (self.minX, self.maxX, self.minZ, self.maxZ)
+            # Move it to its correct position in the menu
+            if self['layout'] == 'vertical':
+                item.setPos(-self.minX, 0, -self.maxZ - i * self.maxHeight)
+            else:
+                item.setPos(-self.minX + i * self.maxWidth, 0, -self.maxZ)
+            # Highlight background when mouse is in item
+            item.bind(DGG.WITHIN,
+                      lambda x, i=i, item=item: self._highlightItem(item, i))
+            # Restore specified color upon exiting
+            fc = item['frameColor']
+            item.bind(DGG.WITHOUT,
+                      lambda x, item=item, fc=fc: self._unhighlightItem(
+                          item, fc))
+        # Set popup menu frame size to encompass all items
+        px, py = self['pad']
+        self['frameSize'] = (
+                -px, self.maxWidth * itemIndex + px, -self.maxHeight - py, py)
+
+    def set(self, index, fCommand=True):
+        """Set the new selected item.
+
+        Parameters
+        ----------
+        index : int or string
+            Index or label of the selected option.
+        fCommand : bool, optional
+            Whether to fire the selection callback or not. Default is True.
+        """
+        # Item was selected, record item and call command if any
+        newIndex = self.index(index)
+        if newIndex is not None:
+            self.selectedIndex = newIndex
+            item = self['items'][self.selectedIndex]
+            if fCommand and self['command']:
+                # Pass any extra args to command
+                self['command'](*[item] + self['extraArgs'])
