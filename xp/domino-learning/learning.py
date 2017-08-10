@@ -5,16 +5,11 @@ Regress the domino-validation function.
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn import svm
+from sklearn.externals import joblib
 import sys
 
 
-def main():
-    samples_path = sys.argv[1]
-    values_path = sys.argv[2]
-    samples = np.load(samples_path)
-    samples /= samples.max(axis=0)
-    values = np.load(values_path)
-    svc = svm.SVC(kernel='rbf', gamma=1, C=1).fit(samples, values)
+def visualize(samples, values, svc):
     # Create mesh for sampling
     n = 200
     xmin = samples[:, 0].min()
@@ -27,7 +22,6 @@ def main():
                          np.linspace(ymin - ymargin, ymax + ymargin, n))
     zz = svc.predict(np.column_stack((xx.ravel(), yy.ravel())))
     zz = zz.reshape(xx.shape)
-    print("Score: ", svc.score(samples, values))
     # Plot
     fig = plt.figure(1)
     ax = fig.add_subplot(111)
@@ -55,4 +49,21 @@ def main():
     plt.show()
 
 
-main()
+def main():
+    if len(sys.argv) <= 2:
+        print("Please provide paths to both samples and values files.")
+        return
+    samples_path = sys.argv[1]
+    values_path = sys.argv[2]
+    samples = np.load(samples_path)
+    samples /= samples.max(axis=0)
+    values = np.load(values_path)
+    svc = svm.SVC(kernel='rbf', gamma=1, C=1).fit(samples, values)
+    print("Score: ", svc.score(samples, values))
+    if samples.shape[1] == 2:
+        visualize(samples, values, svc)
+    joblib.dump(svc, samples_path[:-4] + "-model.pkl")
+
+
+if __name__ == "__main__":
+    main()

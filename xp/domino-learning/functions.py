@@ -6,7 +6,7 @@ from panda3d.bullet import BulletWorld, BulletBoxShape, BulletRigidBodyNode
 from panda3d.core import NodePath, Point3, Vec3
 
 import os, sys
-sys.path.insert(0, os.path.abspath(".."))
+sys.path.insert(0, os.path.abspath("../.."))
 from primitives import Floor, DominoMaker
 
 
@@ -58,7 +58,8 @@ def run_domino_toppling_xp(params, timestep, maxtime, visual=False):
     Parameters
     ----------
     params : sequence
-        Parameter vector (thickness, width, height, distance, angle, mass).
+        Parameter vector (thickness, width, height, x, y, angle, mass).
+        (x, y, angle) are D2's coordinates relative to D1.
     timestep : float
         Simulation timestep.
     maxtime : float
@@ -77,9 +78,9 @@ def run_domino_toppling_xp(params, timestep, maxtime, visual=False):
     # Dominoes
     dom_path = NodePath("dominoes")
     dom_fact = DominoMaker(dom_path, world, make_geom=visual)
-    t, w, h, d, a, m = params
+    t, w, h, x, y, a, m = params
     d1 = dom_fact.add_domino(Vec3(0, 0, h*.5), 0, Vec3(t, w, h), m, "d1")
-    d2 = dom_fact.add_domino(Vec3(d, 0, h*.5), a, Vec3(t, w, h), m, "d2")
+    d2 = dom_fact.add_domino(Vec3(x, y, h*.5), a, Vec3(t, w, h), m, "d2")
     # Initial state
     toppling_angle = atan(t / h) * 180 / pi + 1
     tilt_box_forward(d1, toppling_angle)
@@ -118,7 +119,7 @@ def test_contact():
 
 
 def test_domino_toppling_xp():
-    assert(run_domino_toppling_xp((.03, .1, .3, .1, 15, .1), 1/60, 1))
+    assert run_domino_toppling_xp((.03, .1, .3, .1, 0, 15, .1), 1/60, 1)
 
 
 if __name__ == "__main__":
