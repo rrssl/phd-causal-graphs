@@ -447,7 +447,7 @@ class DominoPathDrawer(ui.Tileable, ui.Focusable, ui.Drawable, PhysicsViewer):
             p = Point3()
             self.mouse_to_ground((v[0], v[2]), p)
             return p
-        tck = spl.get_smooth_path(self.strokes, s=.1, prep=project)
+        tck = spl.get_smooth_path(self.pencil, s=.1, prep=project)
 
         # Determine the domino distribution.
         angvel_init = Vec3(0., 5., 0.)

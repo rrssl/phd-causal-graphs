@@ -11,7 +11,9 @@ import numpy as np
 from direct.interval.IntervalGlobal import Func, LerpFunc, Parallel, Sequence
 from panda3d.core import CardMaker
 from panda3d.core import LineSegs
-from panda3d.core import Plane, Point3, Vec3
+from panda3d.core import Plane
+from panda3d.core import Point3
+from panda3d.core import Vec3
 
 
 class Focusable:
@@ -153,18 +155,19 @@ class Drawable:
     """Mixin giving to ShowBase the ability to sketch on the screen.
 
     """
-    def __init__(self):
-        # Not the most efficient structure but avoids a lot of low-level code.
-        self.strokes = LineSegs("polyline")
-        self.strokes.set_thickness(2)
-        self.strokes.set_color((0, 0, 1, 1))
+    def __init__(self, color=(0, 0, 1, 1), thickness=2):
+        self.strokes = []
+        self.pencil = LineSegs("pencil")
+        self.pencil.set_color(color)
+        self.pencil.set_thickness(thickness)
         self.sketch_np = None
 
     def set_draw(self, draw):
         if draw:
             if self.mouseWatcherNode.has_mouse():
                 pos = self.mouseWatcherNode.get_mouse()
-                self.strokes.move_to(pos[0], 0, pos[1])
+                # /!\ get_mouse returns a shallow copy
+                self.strokes.append([list(pos)])
             self.task_mgr.add(self.update_drawing, "update_drawing")
         else:
             self.task_mgr.remove("update_drawing")
@@ -172,18 +175,23 @@ class Drawable:
     def update_drawing(self, task):
         if self.mouseWatcherNode.has_mouse():
             pos = self.mouseWatcherNode.get_mouse()
-            self.strokes.draw_to(pos[0], 0, pos[1])
+            # /!\ get_mouse returns a shallow copy
+            self.strokes[-1].append(list(pos))
 
             # Update the drawing
-            # Use a copy because create() calls reset().
-            geom = LineSegs(self.strokes).create()
+            pencil = self.pencil
+            for stroke in self.strokes:
+                pencil.move_to(stroke[0][0], 0, stroke[0][1])
+
+                for pos in stroke[1:]:
+                    pencil.draw_to(pos[0], 0, pos[1])
             try:
                 # I don't know if this is more efficient than calling
                 # geom.replace_node(self.sketch_np.node())
                 self.sketch_np.remove_node()
             except AttributeError:
                 pass
-            self.sketch_np = self.render2d.attach_new_node(geom)
+            self.sketch_np = self.render2d.attach_new_node(pencil.create())
 
         return task.cont
 
@@ -192,11 +200,10 @@ class Drawable:
             self.sketch_np.remove_node()
         except AttributeError:
             pass
-        self.strokes.reset()
+        #  self.pencil.reset()
+        self.strokes = []
 
     def save_drawing(self, path="sketches/"):
-        ls = LineSegs(self.strokes)
-        ls.create()
-        a = np.array(ls.get_vertices())
+        a = np.array(self.strokes)
         filename = path + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        np.savetxt(filename, a)
+        np.save(filename, a)
