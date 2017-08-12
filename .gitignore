@@ -1,3 +1,6 @@
 _*/
 assets/
 *.npy
+*.pkl
+*.swp
+.vim_session
