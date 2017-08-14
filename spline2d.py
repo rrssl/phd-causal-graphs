@@ -5,7 +5,8 @@ Utility functions for 2D splines.
 import numpy as np
 from panda3d.core import LineSegs
 from scipy.integrate import quad
-from scipy.interpolate import splprep, splev
+from scipy.interpolate import splev
+from scipy.interpolate import splprep
 
 
 def arclength(tck):
@@ -17,13 +18,13 @@ def arclength(tck):
     return quad(speed, 0, 1)[0]
 
 
-def get_smooth_path(ls, s=.1, prep=lambda x: x):
-    """Convert the hand-drawn stroke to a spline on the ground plane.
+def get_smooth_path(path, s=.1, prep=None):
+    """Smooth the input polyline.
 
     Parameters
     ----------
-    ls : LineSegs
-        Panda3D's polyline object.
+    path : (n,2) array
+        List of 2D points.
     s : float, positive, optional
         Smoothing factor. Higher s => more smoothing.
     prep : callable, optional
@@ -36,19 +37,17 @@ def get_smooth_path(ls, s=.1, prep=lambda x: x):
         Spline parameters; see scipy.interpolate.splprep for more details.
     """
     # Prepare the points for smoothing.
-    ls = LineSegs(ls)
-    ls.create()
-    points = []
-    vertices = ls.get_vertices()
-    last_added = None
-    for v in vertices:
+    clean_path = [path[0]]
+    last_added = path[0]
+    for point in path[1:]:
         # Ensure that no two consecutive points are duplicates.
         # Alternatively we could do before the loop:
-        # vertices = [v[0] for v in itertools.groupby(vertices)]
-        if v != last_added:
-            last_added = v
-            v = prep(v)
-            points.append((v[0], v[1]))
+        # vertices = [p[0] for p in itertools.groupby(path)]
+        if not np.allclose(point, last_added):
+            last_added = point
+            if prep is not None:
+                point = prep(point)
+            clean_path.append(point)
     # Smooth the trajectory.
     # scipy's splprep is more convenient here than panda3d's Rope class,
     # since it gives better control over curve smoothing.
@@ -56,7 +55,7 @@ def get_smooth_path(ls, s=.1, prep=lambda x: x):
 #    t, c, k = splprep(np.array(points).T, s=s)[0]
 #    c = np.column_stack(c)
 #    return BSpline(t, c, k)
-    return splprep(np.array(points).T, s=s)[0]
+    return splprep(np.array(clean_path).T, s=s)[0]
 
 
 def get_spline_phi(u, tck):
