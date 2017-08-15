@@ -315,7 +315,11 @@ class PhysicsViewer(Modeler):
     def update_physics(self, task):
         if self.play_physics:
             dt = self.task_mgr.globalClock.get_dt()
-            self.world.do_physics(dt)
+            # Results for small objects are much more stable with a smaller
+            # physics timestep. E.g. for a visualization at 60FPS, you want
+            # maxSubSteps = N and fixedTimeStep = 1 / (60 * N), with a greater
+            # N giving better results (to a certain extent).
+            self.world.do_physics(dt, 2, 1/120)
 #            self.world_time += dt
         return task.cont
 
