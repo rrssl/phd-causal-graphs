@@ -7,15 +7,31 @@ from panda3d.core import LineSegs
 from scipy.integrate import quad
 from scipy.interpolate import splev
 from scipy.interpolate import splprep
+from scipy.optimize import fsolve
 
 
-def arclength(tck):
-    """Return the total length of the (t, c, k) spline."""
+def arclength(tck, t=1):
+    """Return the length of the (T, C, K) spline over [0, t], t <= 1.
+    Defaults to the total arc length.
+
+    """
     # In Cartesian coords, s = integral( sqrt(x'**2 + y'**2) )
-    def speed(u):
-        dx, dy = splev(u, tck, 1)
-        return np.sqrt(dx*dx + dy*dy)
-    return quad(speed, 0, 1)[0]
+    return quad(lambda t_: arclength_der(tck, t_), 0, t)[0]
+
+
+def arclength_der(tck, t):
+    """Return the arclength derivative (= speed) of the (T, C, K) spline."""
+    dx, dy = splev(t, tck, 1)
+    return np.sqrt(dx*dx + dy*dy)
+
+
+def arclength_inv(tck, s):
+    """Return the arclength inverse t(s) for the (T, C, K) spline."""
+    init_guess = s / arclength(tck)  # Initialize with the unit speed case.
+    return fsolve(
+            lambda t: arclength(tck, t) - s,
+            init_guess,
+            fprime=lambda t: np.diag(arclength_der(t)))
 
 
 def get_smooth_path(path, s=.1, prep=None):
@@ -58,9 +74,8 @@ def get_smooth_path(path, s=.1, prep=None):
     return splprep(np.array(clean_path).T, s=s)[0]
 
 
-def get_spline_phi(u, tck):
+def splang(u, tck):
     """Get the tangential angle, defined as tan(phi) = dy / dx.
-
     For convenience wrt Panda3D's conventions, phi is returned in degrees.
 
     """
@@ -68,9 +83,9 @@ def get_spline_phi(u, tck):
     return np.degrees(np.arctan2(dy, dx))
 
 
-def get_spline_pos(u, tck, zoffset):
+def splev3d(u, tck, zoffset):
     """Convenience function to convert a sequence of parameter values to
-    a sequence of 3D positions along the (t, c, k) spline.
+    a sequence of 3D positions along the (T, C, K) spline.
 
     """
     return np.column_stack(splev(u, tck) + [np.full(u.size, zoffset)])
@@ -81,7 +96,7 @@ def show_spline2d(parent, tck, u, label="spline", color=(1, 1, 0, 1)):
     list of parameter values.
 
     """
-    new_vertices = get_spline_pos(u, tck, 0)
+    new_vertices = splev3d(u, tck, 0)
     ls = LineSegs(label)
     ls.set_thickness(4)
     ls.set_color(color)

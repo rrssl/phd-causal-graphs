@@ -216,8 +216,8 @@ class DominoPathDrawer(ui.Tileable, ui.Focusable, ui.Drawable, PhysicsViewer):
         length = spl.arclength(tck)
         nb_dom = int(length / (3 * thickness))
         u = np.linspace(0, 1, nb_dom)
-        pos = spl.get_spline_pos(u, tck, .5*height)
-        head = spl.get_spline_phi(u, tck)
+        pos = spl.splev3d(u, tck, .5*height)
+        head = spl.splang(u, tck)
         # Create the domino run
         return pos, head
 
@@ -248,8 +248,8 @@ class DominoPathDrawer(ui.Tileable, ui.Focusable, ui.Drawable, PhysicsViewer):
         length = spl.arclength(tck)
         nb_dom = int(length / (3 * thickness))
         u = np.linspace(0, 1, nb_dom)
-        pos = spl.get_spline_pos(u, tck, .5*height)
-        head = spl.get_spline_phi(u, tck)
+        pos = spl.splev3d(u, tck, .5*height)
+        head = spl.splang(u, tck)
         # Create the domino run
         for i, (p, h) in enumerate(zip(pos, head)):
             domino_factory.add_domino(
@@ -310,8 +310,8 @@ class DominoPathDrawer(ui.Tileable, ui.Focusable, ui.Drawable, PhysicsViewer):
                 # Reset simulation.
                 reset_physics()
                 # Put the new domino at its new position.
-                x, y, z = spl.get_spline_pos(ui, tck, .5*height)[0]
-                h = spl.get_spline_phi(ui, tck)
+                x, y, z = spl.splev3d(ui, tck, .5*height)[0]
+                h = spl.splang(ui, tck)
                 new_np.set_pos_hpr(x, y, z, h, 0, 0)
                 # Make sure the new and last dominoes are not intersecting.
                 new_base = translate(rotate(base, h), x, y)
@@ -350,8 +350,8 @@ class DominoPathDrawer(ui.Tileable, ui.Focusable, ui.Drawable, PhysicsViewer):
             i += 1
             print("Placing domino no. {} at u = {}".format(len(u), ui))
             # Update the state of the new domino in the cache.
-            x, y, z = spl.get_spline_pos(ui, tck, .5*height)[0]
-            h = spl.get_spline_phi(ui, tck)
+            x, y, z = spl.splev3d(ui, tck, .5*height)[0]
+            h = spl.splang(ui, tck)
             new_np.set_pos_hpr(x, y, z, h, 0, 0)
             new.set_linear_velocity(0)
             new.set_angular_velocity(0)
@@ -364,8 +364,8 @@ class DominoPathDrawer(ui.Tileable, ui.Focusable, ui.Drawable, PhysicsViewer):
 
         print("Exiting.")
         u = np.asarray(u)
-        pos = spl.get_spline_pos(u, tck, .5*height)
-        head = spl.get_spline_phi(u, tck)
+        pos = spl.splev3d(u, tck, .5*height)
+        head = spl.splang(u, tck)
         return pos, head
 
 #        nb_dom = len(u_init)
@@ -451,7 +451,7 @@ class DominoPathDrawer(ui.Tileable, ui.Focusable, ui.Drawable, PhysicsViewer):
 
         # Determine the domino distribution.
         angvel_init = Vec3(0., 5., 0.)
-        angvel_init = Mat3.rotate_mat(spl.get_spline_phi(0, tck)).xform(
+        angvel_init = Mat3.rotate_mat(spl.splang(0, tck)).xform(
                 angvel_init)
         try:
             pos, head = self.place_dominoes(tck, extents, angvel_init)

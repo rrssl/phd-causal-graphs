@@ -36,9 +36,9 @@ def visualize_objective(spline, svc):
     def objective(ui, uprev=0.):
         # Get local coordinates
         x0, y0 = spl.splev(uprev, spline)
-        h0 = spl.get_spline_phi(uprev, spline)
+        h0 = spl.splang(uprev, spline)
         xi, yi = spl.splev(ui, spline)
-        hi = spl.get_spline_phi(ui, spline)
+        hi = spl.splang(ui, spline)
         xi = xi - x0
         yi = yi - y0
         hi = hi - h0
@@ -58,14 +58,14 @@ def visualize_objective(spline, svc):
     def tilted_overlap(ui, uprev=0.):
         u1, u2 = uprev, float(ui)
         # Define first rectangle (projection of tilted base)
-        h1 = spl.get_spline_phi(u1, spline)
+        h1 = spl.splang(u1, spline)
         h1_rad = h1 * math.pi / 180
         c1_t = (np.hstack(spl.splev(u1, spline))
                 + .5 * (t + t_t)
                 * np.array([math.cos(h1_rad), math.sin(h1_rad)]))
         b1_t = translate(rotate(base_t, h1), c1_t[0], c1_t[1])
         # Define second rectangle
-        h2 = spl.get_spline_phi(u2, spline)
+        h2 = spl.splang(u2, spline)
         c2 = np.hstack(spl.splev(u2, spline))
         b2 = translate(rotate(base, h2), c2[0], c2[1])
         return b1_t.intersection(b2).area / (t_t * w)
@@ -86,7 +86,7 @@ def visualize_objective(spline, svc):
     lc2 = colorline(ax, x[uprev_id+1:], y[uprev_id+1:], f+c, cmap='viridis_r',
                     linewidth=3)
 
-    b1 = translate(rotate(base, spl.get_spline_phi(u[uprev_id], spline)),
+    b1 = translate(rotate(base, spl.splang(u[uprev_id], spline)),
                    x[uprev_id], y[uprev_id])
     ax.plot(*np.array(b1.exterior.coords).T)
     ax.scatter(x, y, marker='+')
@@ -114,14 +114,14 @@ def show_domino_run(spline, u):
     # Set initial angular velocity
     # (but maybe we should just topple instead of giving velocity)
     angvel_init = Vec3(0., 15., 0.)
-    angvel_init = Mat3.rotate_mat(spl.get_spline_phi(0, spline)).xform(
+    angvel_init = Mat3.rotate_mat(spl.splang(0, spline)).xform(
             angvel_init)
     # Instantiate dominoes.
     domino_run_np = app.models.attach_new_node("domino_run")
     domino_factory = DominoMaker(domino_run_np, app.world)
     u = np.array(u)
-    positions = spl.get_spline_pos(u, spline, .5*h)
-    headings = spl.get_spline_phi(u, spline)
+    positions = spl.splev3d(u, spline, .5*h)
+    headings = spl.splang(u, spline)
     for i, (pos, head) in enumerate(zip(positions, headings)):
         domino_factory.add_domino(
                 Vec3(*pos), head, Vec3(t, w, h), mass=1,
@@ -154,10 +154,12 @@ def main():
         return spl.splev(ui, spline)
     @lru_cache()
     def splang(ui):
-        return spl.get_spline_phi(ui, spline)
+        return spl.splang(ui, spline)
     # Initialize parameter list, first param value, and initial spacing
     u = [0.]
     length = spl.arclength(spline)
+    # TODO. Up to there, the method is completely generic. Put the rest in
+    # a routine specific to this method!
     init_step = t / length
     last_step = 0
     max_ndom = int(length / t)
@@ -181,6 +183,7 @@ def main():
     t_t = t / math.sqrt(1 + (t / h)**2)  # t*cos(arctan(theta))
     base_t = box(-t_t * .5, -w * .5, t_t * .5,  w * .5)  # Proj. of tilted base
     def tilted_overlap(ui, _debug=False):
+        # TODO. Put me out of main() so I can be reused elsewhere!
         u1, u2 = u[-1], float(ui)
         # Define first rectangle (projection of tilted base)
         h1 = splang(u1)
