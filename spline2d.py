@@ -15,8 +15,9 @@ def arclength(tck, t=1):
     Defaults to the total arc length.
 
     """
-    # In Cartesian coords, s = integral( sqrt(x'**2 + y'**2) )
-    return quad(lambda t_: arclength_der(tck, t_), 0, t)[0]
+    t = np.atleast_1d(t)
+    return np.array(
+            [quad(lambda u: arclength_der(tck, u), 0, ti)[0] for ti in t])
 
 
 def arclength_der(tck, t):
@@ -31,7 +32,7 @@ def arclength_inv(tck, s):
     return fsolve(
             lambda t: arclength(tck, t) - s,
             init_guess,
-            fprime=lambda t: np.diag(arclength_der(t)))
+            fprime=lambda t: np.diag(arclength_der(tck, t)))
 
 
 def get_smooth_path(path, s=.1, prep=None):
