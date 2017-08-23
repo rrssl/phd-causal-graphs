@@ -213,7 +213,7 @@ def inc_physbased_randsearch(spline, max_ndom=-1, max_ntrials=-1):
     while 1. - u[-1] > last_step and len(u) < max_ndom:
         ulast = u[-1]
         umin = ulast + 2 * t / length  # at least twice the thickness
-        umax = ulast + h * (4 / 9) / length  # hit next above 2/3
+        umax = ulast + h * (4 / 9) / length  # hit next domino above 8/9
         umax = min(umax, 1)
 
         ntrials = 0

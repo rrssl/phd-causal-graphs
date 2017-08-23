@@ -73,7 +73,7 @@ def generate_candidate_splines(sketches, size_rng, smoothing_rng, nsplines):
 
 
 def main():
-    if len(sys.argv) <= 1:
+    if len(sys.argv) < 3:
         print(__doc__)
         return
     nsplines = int(sys.argv[1])
