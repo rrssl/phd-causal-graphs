@@ -1,31 +1,26 @@
 """
-Process all candidate paths with one of the methods.
+Process all candidate splines with one of the methods.
 
 Parameters
 ----------
 mid : int
-  Method id. See below.
-pickle_path : string
-  Path to the .pkl file of curves
-
-Methods:
-  1. Equal spacing
-  2. Minimal spacing
-  3. Incremental classifier-based spacing
+  Method id. See methods.py for the list of methods.
+spath : string
+  Path to the .pkl list of splines
 
 """
 import os
 import sys
-import time
 import pickle
+import time
 
 import numpy as np
 from scipy.interpolate import splev
 
-from methods import equal_spacing, minimal_spacing, inc_classif_based
+from methods import get_methods
 
 
-def timef(f, times):
+def time_calls(f, times):
     def wrap(*args, **kwargs):
         t1 = time.time()
         output = f(*args, **kwargs)
@@ -37,23 +32,24 @@ def timef(f, times):
 
 def main():
     if len(sys.argv) < 3:
-        print("Please provide a method number and the location of the paths.")
+        print(__doc__)
         return
     mid = int(sys.argv[1])
-    pickle_path = sys.argv[2]
+    spath = sys.argv[2]
 
-    with open(pickle_path, 'rb') as fin:
-        domino_paths = pickle.load(fin)
+    with open(spath, 'rb') as fin:
+        splines = pickle.load(fin)
 
-    method = (equal_spacing, minimal_spacing, inc_classif_based)[mid]
-    #  times = []
-    #  timed_method = timef(method, times)
-    results = [method(path) for path in domino_paths]
+    method = get_methods()[mid-1]
+    times = []
+    timed_method = time_calls(method, times)
+    results = [timed_method(spline) for spline in splines]
 
-    with open("dominoes-method_{}.pkl".format(mid), 'wb') as fout:
-        pickle.dump(results, fout)
-    #  with open("times-method_{}.pkl".format(mid), 'wb') as ftimes:
-        #  pickle.dump(times, ftimes)
+    dirname = os.path.dirname(spath)
+    outname = "dominoes-method_{}.npz".format(mid)
+    np.savez(os.path.join(dirname, outname), *results)
+    outname = "times-method_{}.npy".format(mid)
+    np.save(os.path.join(dirname, outname), times)
 
 
 if __name__ == "__main__":

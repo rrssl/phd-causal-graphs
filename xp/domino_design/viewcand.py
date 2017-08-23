@@ -23,6 +23,7 @@ def main():
 
     fig, ax = plt.subplots()
     ax.plot(x, y)
+    ax.scatter(x, y, marker='+', color='r')
     ax.set_aspect('equal', 'datalim')
     plt.ioff()
     plt.show()

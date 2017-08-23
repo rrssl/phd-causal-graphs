@@ -34,6 +34,7 @@ def get_methods():
 
 
 def _init_routines(u, spline):
+    """Initialize a bunch of routines likely to be used by several methods."""
 
     # Define convenience functions.
 
@@ -45,7 +46,7 @@ def _init_routines(u, spline):
     def splang(ui):
         return spl.splang(ui, spline)
 
-    # Define possible constraints (not all of them used in every method).
+    # Define possible constraints (not all of them are used in every method).
 
     def xmin(ui):
         return abs(splev(float(ui))[0] - splev(u[-1])[0]) - t
@@ -106,11 +107,11 @@ def _init_routines(u, spline):
 def equal_spacing(spline, ndom=-1):
     u = [0.]
     # Default value
+    length = spl.arclength(spline)
     if ndom == -1:
-        length = spl.arclength(spline)
         ndom = int(length / (t * 2))
-    l = spl.arclength(spline)
-    s = np.linspace(0, l, ndom)[1:]
+
+    s = np.linspace(0, length, ndom)[1:]
     u.extend(spl.arclength_inv(spline, s))
 
     return u
@@ -137,7 +138,7 @@ def minimal_spacing(spline, init_step=-1, max_ndom=-1):
     while 1. - u[-1] > last_step and len(u) < max_ndom:
         init_guess = last_step if last_step else init_step
         unew = opt.fmin_cobyla(objective, u[-1]+init_guess, cons,
-                               rhobeg=init_step)
+                               rhobeg=init_step, disp=0)
         if abs(unew - u[-1]) < init_step / 10:
             print("New sample too close to the previous; terminating.")
             break
@@ -188,7 +189,7 @@ def inc_classif_based(spline, init_step=-1, max_ndom=-1):
     while 1. - u[-1] > last_step and len(u) < max_ndom:
         init_guess = last_step if last_step else init_step
         unew = opt.fmin_cobyla(objective, u[-1]+init_guess, cons,
-                               rhobeg=init_step)
+                               rhobeg=init_step, disp=0)
         if abs(unew - u[-1]) < init_step / 10:
             print("New sample too close to the previous; terminating.")
             break

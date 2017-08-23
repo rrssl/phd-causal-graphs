@@ -12,6 +12,7 @@ dompath : string
 import math
 import os
 import pickle
+import re
 import sys
 
 import numpy as np
@@ -51,7 +52,7 @@ def test_no_overlap(u, spline):
 def test_all_topple(u, spline):
     if len(u) < 2:
         return True
-    u = np.array(u)
+    u = np.asarray(u)
     # World
     world = BulletWorld()
     world.set_gravity((0, 0, -9.81))
@@ -98,21 +99,23 @@ def test_domino_run(u, spline):
 
 def main():
     if len(sys.argv) < 3:
-        print("Please the location of the two necessary files.")
+        print(__doc__)
         return
     splpath = sys.argv[1]
     dompath = sys.argv[2]
 
     with open(splpath, 'rb') as fs:
         splines = pickle.load(fs)
-    with open(dompath, 'rb') as fd:
-        domruns = pickle.load(fd)
+    domruns = np.load(dompath)
 
-    results = [test_domino_run(u, s) for u, s in zip(domruns, splines)]
-    print(results)
+    results = [test_domino_run(domruns['arr_{}'.format(i)], s)
+               for i, s in enumerate(splines)]
 
-    with open("validity-method_{}.pkl".format(dompath[-5]), 'wb') as fout:
-        pickle.dump(results, fout)
+    dirname = os.path.dirname(dompath)
+    match = re.search(r"-method_\d+", dompath)
+    suffix = match.group() if match else ""
+    outname = "validity" + suffix +".npy"
+    np.save(os.path.join(dirname, outname), results)
 
 
 if __name__ == "__main__":

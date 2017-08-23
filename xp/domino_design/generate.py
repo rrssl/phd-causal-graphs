@@ -1,5 +1,12 @@
 """
-Generate a list of candidate paths from a list of input sketches.
+Generate a list of candidate splines from a list of input sketches.
+
+Parameters
+----------
+nsplines : int
+  Number of splines to generate.
+skpaths : string or list of strings
+  Paths to the input sketch(es).
 
 """
 import math
@@ -23,7 +30,7 @@ sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
 
 
-def test_valid_path(spline):
+def test_valid_spline(spline):
     """Test if the domino path is geometrically valid.
 
     Supposing constant domino extents (t, w, h), a path is valid
@@ -46,39 +53,42 @@ def test_valid_path(spline):
     return True
 
 
-def generate_candidate_paths(sketches, size_rng, smoothing_rng, npaths):
-    paths = []
-    # Randomly sample valid paths.
-    while len(paths) < npaths:
+def generate_candidate_splines(sketches, size_rng, smoothing_rng, nsplines):
+    splines = []
+    # Randomly sample valid splines.
+    while len(splines) < nsplines:
         sketch = random.choice(sketches)
         size_ratio = random.randint(*size_rng)
         smoothing_factor = random.uniform(*smoothing_rng)
 
-        path = np.load(sketch)[0]
+        path = sketch[0]  # this will change when we accept several strokes
         # Translate, resize and smooth the path
         path -= path.min(axis=0)
         path *= size_ratio * math.sqrt(
                 t * w / (path[:, 0].max() * path[:, 1].max()))
         spline = spl.get_smooth_path(path, s=smoothing_factor)
-        if test_valid_path(spline):
-            paths.append(spline)
-    return paths
+        if test_valid_spline(spline):
+            splines.append(spline)
+    return splines
 
 
 def main():
     if len(sys.argv) <= 1:
-        print("Please provide a number of candidates and at least one path.")
+        print(__doc__)
         return
-    npaths = int(sys.argv[1])
-    sketches = sys.argv[2:]
-    paths = generate_candidate_paths(
+    nsplines = int(sys.argv[1])
+    skpaths = sys.argv[2:]
+    sketches = [np.load(skpath) for skpath in skpaths]
+
+    splines = generate_candidate_splines(
             sketches,
             (MIN_SIZE_RATIO, MAX_SIZE_RATIO),
             (MIN_SMOOTHING_FACTOR, MAX_SMOOTHING_FACTOR),
-            npaths
+            nsplines
             )
+
     with open("candidates.pkl", 'wb') as f:
-        pickle.dump(paths, f)
+        pickle.dump(splines, f)
 
 
 if __name__ == "__main__":

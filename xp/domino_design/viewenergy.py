@@ -1,50 +1,35 @@
 """
-Run a method on an input sketch and view its output.
+Visualize the energy of our incremental classifier based method for a given
+spline and previous domino position.
 
 Parameters
 ----------
-mid : int
-  Method id. See below.
-path : string
-  Path to the sketch file.
-
-Methods:
-1. Equal spacing
-2. Minimal spacing
-3. Incremental classifier based
-4. Incremental physically based random search
+spath : string
+  Path to the list of splines.
+sid : int
+  Index of the spline.
+uprev : float in [0, 1), optional
+  Parametric position of the previous domino.
 
 """
 import math
 import os
 import sys
 
+import matplotlib.pyplot as plt
 import numpy as np
 from shapely.affinity import rotate
 from shapely.affinity import translate
 from shapely.geometry import box
 from sklearn.externals import joblib
 
+from colorline import colorline
 from config import t, w, h, SVC_PATH
-from methods import get_methods
-from viewdoms import show_dominoes
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
 
 
-# Used to resize the path; ratio of the area of the path's bounding box over
-# the area of the domino's smallest face.
-#  PATH_SIZE_RATIO = 25
-#  SMOOTHING_FACTOR = .1
-# "EG" settings
-PATH_SIZE_RATIO = 80
-SMOOTHING_FACTOR = .02
-# More challenging, use with 20170812-182213.npy
-#  PATH_SIZE_RATIO = 15
-#  SMOOTHING_FACTOR = .01
-
-
-def visualize_svc_energy(spline, uprev):
+def visualize_svc_energy(uprev, spline):
     svc = joblib.load(SVC_PATH)
 
     def objective(ui, uprev=0.):
@@ -85,8 +70,6 @@ def visualize_svc_energy(spline, uprev):
         b2 = translate(rotate(base, h2), c2[0], c2[1])
         return b1_t.intersection(b2).area / (t_t * w)
 
-    import matplotlib.pyplot as plt
-    from colorline import colorline
     fig, ax = plt.subplots()
     ax.set_aspect('equal', 'datalim')
     npts = 100
@@ -96,39 +79,33 @@ def visualize_svc_energy(spline, uprev):
     f = objective(u[uprev_id+1:], u[uprev_id])
     c = [tilted_overlap(ui, u[uprev_id]) for ui in u[uprev_id+1:]]
 
-    lc1 = colorline(ax, x[:uprev_id+2], y[:uprev_id+2], 0, cmap='autumn',
-                    linewidth=3)
-    lc2 = colorline(ax, x[uprev_id+1:], y[uprev_id+1:], f+c, cmap='viridis_r',
-                    linewidth=3)
+    colorline(ax, x[:uprev_id+2], y[:uprev_id+2], 0, cmap='autumn',
+              linewidth=3)
+    lc = colorline(ax, x[uprev_id+1:], y[uprev_id+1:], f+c, cmap='viridis_r',
+                   linewidth=3)
 
     b1 = translate(rotate(base, spl.splang(u[uprev_id], spline)),
                    x[uprev_id], y[uprev_id])
     ax.plot(*np.array(b1.exterior.coords).T)
     #  ax.scatter(x, y, marker='+')
     ax.autoscale_view()
-    plt.colorbar(lc2)
+    plt.colorbar(lc)
     plt.ioff()
     plt.show()
 
 
 def main():
     if len(sys.argv) < 3:
-        print("Please provide a method number and a file name for the sketch.")
+        print(__doc__)
         return
-    mid = int(sys.argv[1])
-    fname = sys.argv[2]
-    # Select method
-    method = get_methods()[mid-1]
-    # Load path
-    path = np.load(fname)[0]
-    # Translate, resize and smooth the path
-    path -= path.min(axis=0)
-    path *= PATH_SIZE_RATIO * math.sqrt(
-            t * w / (path[:, 0].max() * path[:, 1].max()))
-    spline = spl.get_smooth_path(path, s=SMOOTHING_FACTOR)
+    spath = sys.argv[1]
+    sid = int(sys.argv[2])
+    uprev = 0. if len(sys.argv) == 3 else float(sys.argv[3])
 
-    u = method(spline)
-    show_dominoes(u, spline)
+    with open(spath, 'rb') as f:
+        splines = pickle.load(f)
+    spline = splines[sid]
+    visualize_svc_energy(uprev, spline)
 
 
 if __name__ == "__main__":

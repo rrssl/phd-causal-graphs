@@ -75,9 +75,8 @@ def main():
     with open(splpath, 'rb') as fs:
         splines = pickle.load(fs)
     spline = splines[did]
-    with open(dompath, 'rb') as fd:
-        domruns = pickle.load(fd)
-    u = domruns[did]
+    domruns = np.load(dompath)
+    u = domruns['arr_{}'.format(did)]
     print("Number of dominoes: ", len(u))
     show_dominoes(u, spline)
 
