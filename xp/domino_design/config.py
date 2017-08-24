@@ -5,7 +5,7 @@ from domino_learning.config import t, w, h
 
 
 # Path to the classifier.
-SVC_PATH = "../domino_learning/samples-3D-model.pkl"
+SVC_PATH = "../../../data/xp/domino_learning/samples-3D-model.pkl"
 
 # Spline interpolation parameters.
 
