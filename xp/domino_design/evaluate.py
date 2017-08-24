@@ -32,7 +32,7 @@ import spline2d as spl
 
 
 def test_path_coverage(u, spline):
-    return (spl.arclength(spline) - spl.arclength(spline, u[-1])) < h
+    return bool((spl.arclength(spline) - spl.arclength(spline, u[-1])) < h)
 
 
 def test_no_overlap(u, spline):
@@ -85,16 +85,15 @@ def test_all_topple(u, spline):
         time += 1/60
         world.do_physics(1/60, 2)
 
-    return last_domino.get_r() >= toppling_angle
+    return all(dom.get_r() >= toppling_angle for dom in run_np.get_children())
 
 
 def test_domino_run(u, spline):
     """Test if the path is filled, there is no overlap, and all dominoes
     topple."""
-    return bool(test_path_coverage(u, spline) and
-                test_no_overlap(u, spline) and
-                test_all_topple(u, spline)
-                )
+    return [test_path_coverage(u, spline),
+            test_no_overlap(u, spline),
+            test_all_topple(u, spline)]
 
 
 def main():
