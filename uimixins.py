@@ -203,7 +203,7 @@ class Drawable:
         #  self.pencil.reset()
         self.strokes = []
 
-    def save_drawing(self, path="sketches/"):
+    def save_drawing(self, path=""):
         a = np.array(self.strokes)
         filename = path + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         np.save(filename, a)
