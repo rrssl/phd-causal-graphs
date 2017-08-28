@@ -46,9 +46,10 @@ def main():
     results = [timed_method(spline) for spline in splines]
 
     dirname = os.path.dirname(spath)
-    outname = "dominoes-method_{}.npz".format(mid)
+    prefix = os.path.basename(spath)[:-4]
+    outname = prefix + "-dominoes-method_{}.npz".format(mid)
     np.savez(os.path.join(dirname, outname), *results)
-    outname = "times-method_{}.npy".format(mid)
+    outname = prefix + "-times-method_{}.npy".format(mid)
     np.save(os.path.join(dirname, outname), times)
 
 

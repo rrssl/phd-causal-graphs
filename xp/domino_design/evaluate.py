@@ -12,7 +12,6 @@ dompath : string
 import math
 import os
 import pickle
-import re
 import sys
 
 import numpy as np
@@ -111,9 +110,8 @@ def main():
                for i, s in enumerate(splines)]
 
     dirname = os.path.dirname(dompath)
-    match = re.search(r"-method_\d+", dompath)
-    suffix = match.group() if match else ""
-    outname = "validity" + suffix +".npy"
+    prefix = os.path.basename(dompath)[:-4]
+    outname = prefix + "-validity.npy"
     np.save(os.path.join(dirname, outname), results)
 
 
