@@ -26,7 +26,7 @@ from shapely.affinity import rotate
 from shapely.affinity import translate
 from shapely.geometry import box
 
-from config import t, w, h
+from config import t, w, h, density
 sys.path.insert(0, os.path.abspath("../.."))
 from primitives import DominoMaker
 from primitives import Floor
@@ -79,9 +79,10 @@ def test_all_topple(u, spline):
     domino_factory = DominoMaker(run_np, world, make_geom=False)
     positions = spl.splev3d(u, spline, .5*h)
     headings = spl.splang(u, spline)
+    mass = density * t * w * h
     for i, (pos, head) in enumerate(zip(positions, headings)):
         domino_factory.add_domino(
-                Vec3(*pos), head, Vec3(t, w, h), mass=1,
+                Vec3(*pos), head, Vec3(t, w, h), mass=mass,
                 prefix="domino_{}".format(i))
     # Set initial angular velocity
     # (but maybe we should just topple instead of giving velocity)

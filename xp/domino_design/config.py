@@ -1,7 +1,7 @@
 import sys
 import os
 sys.path.insert(0, os.path.abspath(".."))
-from domino_learning.config import t, w, h
+from domino_learning.config import t, w, h, density
 
 
 # Path to the classifier.
