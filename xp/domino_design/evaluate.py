@@ -7,6 +7,8 @@ splpath : string
   Path to the list of splines
 dompath : string
   Path to the domino runs.
+ns : int, optional
+  Only process the ns first splines of the list.
 
 """
 import math
@@ -15,6 +17,7 @@ import pickle
 import sys
 
 import numpy as np
+from panda3d.core import load_prc_file_data
 from panda3d.bullet import BulletWorld
 from panda3d.core import NodePath
 from panda3d.core import Vec3
@@ -28,6 +31,18 @@ sys.path.insert(0, os.path.abspath("../.."))
 from primitives import DominoMaker
 from primitives import Floor
 import spline2d as spl
+
+
+# The next line avoids a "memory leak" that notably happens when
+# BulletWorld.do_physics is called a huge number of times out of the
+# regular Panda3D task process. In a nutshell, objects transforms are
+# cached and compared by pointer to avoid expensive recomputation; the
+# cache is configured to flush itself at the end of each frame, which never
+# happens when we don't use frames. The solutions are: don't use the cache
+# ("transform-cache 0"), or don't defer flushing to the end of the frame
+# ("garbage-collect-states 0"). See
+# http://www.panda3d.org/forums/viewtopic.php?t=15645 for a discussion.
+load_prc_file_data("", "garbage-collect-states 0")
 
 
 def test_path_coverage(u, spline):
@@ -101,16 +116,17 @@ def main():
         return
     splpath = sys.argv[1]
     dompath = sys.argv[2]
+    ns = int(sys.argv[3]) if len(sys.argv) == 4 else None
 
     with open(splpath, 'rb') as fs:
-        splines = pickle.load(fs)
+        splines = pickle.load(fs)[slice(ns)]
     domruns = np.load(dompath)
 
     results = [test_domino_run(domruns['arr_{}'.format(i)], s)
                for i, s in enumerate(splines)]
 
     dirname = os.path.dirname(dompath)
-    prefix = os.path.basename(dompath)[:-4]
+    prefix = os.path.splitext(os.path.basename(dompath))[0]
     outname = prefix + "-validity.npy"
     np.save(os.path.join(dirname, outname), results)
 
