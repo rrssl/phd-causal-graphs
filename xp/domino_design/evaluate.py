@@ -16,6 +16,7 @@ import os
 import pickle
 import sys
 
+from joblib import Parallel, delayed
 import numpy as np
 from panda3d.core import load_prc_file_data
 from panda3d.bullet import BulletWorld
@@ -96,7 +97,9 @@ def test_all_topple(u, spline):
     time = 0.
     maxtime = len(u)
     toppling_angle = math.atan(t / h) * 180 / math.pi + 1
-    while last_domino.get_r() < toppling_angle and time < maxtime:
+    while (last_domino.get_r() < toppling_angle
+            and any(dom.node().is_active() for dom in run_np.get_children())
+            and time < maxtime):
         time += 1/60
         world.do_physics(1/60, 2)
 
@@ -123,8 +126,11 @@ def main():
         splines = pickle.load(fs)[slice(ns)]
     domruns = np.load(dompath)
 
-    results = [test_domino_run(domruns['arr_{}'.format(i)], s)
-               for i, s in enumerate(splines)]
+    results = Parallel(n_jobs=4)(
+            delayed(test_domino_run)(domruns['arr_{}'.format(i)], s)
+            for i, s in enumerate(splines))
+    #  results = [test_domino_run(domruns['arr_{}'.format(i)], s)
+               #  for i, s in enumerate(splines)]
 
     dirname = os.path.dirname(dompath)
     prefix = os.path.splitext(os.path.basename(dompath))[0]
