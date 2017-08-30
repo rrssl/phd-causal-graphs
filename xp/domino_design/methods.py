@@ -3,8 +3,9 @@ Various methods used to distribute dominoes along a path.
 
 1. Equal spacing
 2. Minimal spacing
-3. Incremental classifier based
-4. Incremental physically based random search
+3. Incremental physically based random search
+4. Incremental classifier based
+5. Batch classifier based
 """
 from functools import lru_cache
 import math
@@ -29,8 +30,15 @@ import spline2d as spl
 
 def get_methods():
     """Returns a list of all the available methods."""
-    return (equal_spacing, minimal_spacing, inc_classif_based,
-            inc_physbased_randsearch)
+    return (equal_spacing, minimal_spacing, inc_physbased_randsearch,
+            inc_classif_based, batch_classif_based)
+
+def printf(f):
+    def wrap(*args, **kwargs):
+        out = f(*args, **kwargs)
+        print(f.__name__, out)
+        return out
+    return wrap
 
 
 def _init_routines(u, spline):
@@ -69,9 +77,9 @@ def _init_routines(u, spline):
         return 1 - ui
 
     # Define variables for non-overlap constraint
-    base = box(-t * .5, -w * .5, t * .5,  w * .5)
+    base = box(-t/2, -w/2, t/2,  w/2)
     t_t = t / math.sqrt(1 + (t / h)**2)  # t*cos(arctan(theta))
-    base_t = box(-t_t * .5, -w * .5, t_t * .5,  w * .5)  # Proj. of tilted base
+    base_t = box(-t_t/2, -w/2, t_t/2,  w/2)  # Proj. of tilted base
 
     def tilted_overlap(ui, _debug=False):
         u1, u2 = u[-1], float(ui)
@@ -122,7 +130,7 @@ def minimal_spacing(spline, init_step=-1, max_ndom=-1):
     # Default values
     length = spl.arclength(spline)
     if init_step == -1:
-        init_step = t / length
+        init_step = spl.arclength_inv(spline, t)
     if max_ndom == -1:
         max_ndom = int(length / t)
     # Constraints
@@ -148,12 +156,44 @@ def minimal_spacing(spline, init_step=-1, max_ndom=-1):
     return u
 
 
+def inc_physbased_randsearch(spline, max_ndom=-1, max_ntrials=-1):
+    u = [0.]
+    # Default values
+    length = spl.arclength(spline)
+    if max_ndom == -1:
+        max_ndom = int(length / t)
+    if max_ntrials == -1:
+        max_ntrials = 50  # number of trials per step
+
+    # Start main routine
+    last_step = 0
+    while 1. - u[-1] > last_step and len(u) < max_ndom:
+        ulast = u[-1]
+        umin = ulast + 2 * t / length  # at least twice the thickness
+        umax = ulast + h * (4 / 9) / length  # hit next domino above 8/9
+        umax = min(umax, 1)
+
+        ntrials = 0
+        while ntrials < max_ntrials:
+            unew = random.uniform(umin, umax)
+            if (test_no_overlap((ulast, unew), spline) and
+                    test_all_topple(u + [unew], spline)):
+                u.append(unew)
+                break
+            ntrials += 1
+        else:
+            break  # Last step has failed
+        last_step = u[-1] - ulast
+
+    return u
+
+
 def inc_classif_based(spline, init_step=-1, max_ndom=-1):
     u = [0.]
     # Default values
     length = spl.arclength(spline)
     if init_step == -1:
-        init_step = t / length
+        init_step = np.asscalar(spl.arclength_inv(spline, t))
     if max_ndom == -1:
         max_ndom = int(length / t)
     # Constraints
@@ -199,34 +239,126 @@ def inc_classif_based(spline, init_step=-1, max_ndom=-1):
     return u
 
 
-def inc_physbased_randsearch(spline, max_ndom=-1, max_ntrials=-1):
+def batch_classif_based(spline, batchsize=2, init_step=-1, max_ndom=-1):
     u = [0.]
     # Default values
     length = spl.arclength(spline)
+    if init_step == -1:
+        init_step = np.asscalar(spl.arclength_inv(spline, t))
     if max_ndom == -1:
         max_ndom = int(length / t)
-    if max_ntrials == -1:
-        max_ntrials = 50  # number of trials per step
+    # Constraints
+
+    def splev(ui):
+        return spl.splev(ui, spline)
+
+    def splang(ui):
+        return spl.splang(ui, spline)
+
+    def habs(ui):
+        hi = splang(np.concatenate(([u[-len(ui)]], ui)))
+        diff = (hi[1:] - hi[:-1] + 180) % 360 - 180
+        return 45 - abs(diff)
+
+    def umin(ui):
+        return ui - np.concatenate(([u[-len(ui)]], ui[:-1]))
+
+    def umax(ui):
+        return 1 - np.asarray(ui)
+
+    # Define variables for non-overlap constraint
+    base = box(-t/2, -w/2, t/2,  w/2)
+    t_tilt = t / math.sqrt(1 + (t / h)**2)  # t*cos(arctan(theta))
+    base_tilt = box(-t_tilt/2, -w/2, t_tilt/2,  w/2)  # Project. of tilted base
+
+    def tilted_overlap(ui):
+        ui = np.concatenate(([u[-len(ui)]], ui))
+        hi = spl.splang(ui, spline, degrees=False)
+        ci = np.column_stack(splev(ui))
+        ci_tilt = ci + .5 * (t + t_tilt) * np.column_stack(
+                (np.cos(hi), np.sin(hi)))
+        # Define previous rectangles (projection of tilted base)
+        bi_tilt = [
+                translate(rotate(base_tilt, hij, use_radians=True), *cij_tilt)
+                for hij, cij_tilt in zip(hi[:-1], ci_tilt[:-1])]
+        # Define next rectangles
+        bi = [translate(rotate(base, hik, use_radians=True), *cik)
+              for hik, cik in zip(hi[1:], ci[1:])]
+
+        if 0:
+            import matplotlib.pyplot as plt
+            fig, ax = plt.subplots()
+            ax.set_aspect('equal')
+            ax.plot(*np.array(bi_tilt[0].exterior.coords).T, label='D1')
+            ax.plot(*np.array(bi[0].exterior.coords).T, label='D2')
+            ax.plot(*spl.splev(np.linspace(0, 1), spline))
+            plt.legend()
+            plt.ioff()
+            plt.show()
+
+        # Return intersection
+        return np.array([- bij_tilt.intersection(bij).area / (t_tilt * w)
+                         for bij_tilt, bij in zip(bi_tilt, bi)])
+
+    #  cons = (xmin, xmax, yabs, habs, umax, tilted_overlap)
+    #  cons = (xmin, xmax, umin, umax, tilted_overlap)
+    cons = (tilted_overlap, umin, umax, habs)
+    # Objective
+    svc = joblib.load(SVC_PATH)
+
+    def objective(ui):
+        ui = np.concatenate(([u[-len(ui)]], ui))
+        # Get local coordinates
+        xi, yi = splev(ui)
+        hi = splang(ui)
+        xi = xi[1:] - xi[:-1]
+        yi = yi[1:] - yi[:-1]
+        hi = hi[1:] - hi[:-1]
+        # Symmetrize
+        hi = np.copysign(hi, yi)
+        yi = abs(yi)
+        # Normalize
+        xi /= 1.5*h
+        yi /= w
+        hi /= 90
+        # Evaluate
+        # TODO: Try with sum if min doesn't work
+        return -min(svc.decision_function(np.column_stack((xi, yi, hi))))
 
     # Start main routine
     last_step = 0
     while 1. - u[-1] > last_step and len(u) < max_ndom:
-        ulast = u[-1]
-        umin = ulast + 2 * t / length  # at least twice the thickness
-        umax = ulast + h * (4 / 9) / length  # hit next domino above 8/9
-        umax = min(umax, 1)
-
-        ntrials = 0
-        while ntrials < max_ntrials:
-            unew = random.uniform(umin, umax)
-            if (test_no_overlap((ulast, unew), spline) and
-                    test_all_topple(u + [unew], spline)):
-                u.append(unew)
-                break
-            ntrials += 1
+        # Define initial guess
+        init_guess = [u[-1] + last_step if last_step else init_step]
+        if len(u) >= batchsize:
+            # Insert the 'batchsize'-1 previous dominoes at the beginning.
+            init_guess[0:0] = u[len(u)-batchsize+1:]
+        # Run optimization
+        unew = opt.fmin_cobyla(objective, init_guess, cons, rhobeg=init_step,
+                               disp=0)
+        # Save result
+        if len(u) >= batchsize:
+            # Replace the 'batchsize'-1 last values and add the new value.
+            u[len(u)-batchsize+1:len(u)] = unew
         else:
-            break  # Last step has failed
-        last_step = u[-1] - ulast
+            u.append(np.asscalar(unew))
+        # Early termination condition
+        terminate = False
+        if len(u) > batchsize:
+            # Dominoes are placed by batch.
+            if any(np.isclose(
+                    u[-batchsize:], u[-batchsize-1:-1],
+                    rtol=0, atol=init_step/10)):
+                terminate = True
+        else:
+            # Dominoes are placed one by one
+            if abs(u[-1] - u[-2]) < init_step / 10:
+                terminate = True
+        if terminate:
+            print("Samples are too close; terminating.")
+            break
+
+        last_step = u[-1] - u[-2]
 
     return u
 

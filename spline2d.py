@@ -76,13 +76,17 @@ def get_smooth_path(path, s=.1, prep=None):
     return splprep(np.array(clean_path).T, s=s)[0]
 
 
-def splang(u, tck):
+def splang(u, tck, degrees=True):
     """Get the tangential angle, defined as tan(phi) = dy / dx.
-    For convenience wrt Panda3D's conventions, phi is returned in degrees.
+    For convenience wrt Panda3D's conventions, phi is returned in degrees by
+    default.
 
     """
     dx, dy = splev(u, tck, 1)
-    return np.degrees(np.arctan2(dy, dx))
+    if degrees:
+        return np.degrees(np.arctan2(dy, dx))
+    else:
+        return np.arctan2(dy, dx)
 
 
 def splev3d(u, tck, zoffset):

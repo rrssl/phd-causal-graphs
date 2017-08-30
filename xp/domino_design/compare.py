@@ -11,6 +11,7 @@ METHODS = (
         "Minimal spacing",
         "Classifier based incremental",
         "Simul. based inc. random search",
+        "Classifier based batch",
         )
 HEADERS = (
         "Method",
@@ -26,18 +27,21 @@ DOM_FILES = (
         "test-100/test-dominoes-method_2.npz",
         "test-100/test-dominoes-method_3.npz",
         "test-100/dominoes-method_4.npz",
+        "test-100/test-dominoes-method_5.npz",
         )
 VAL_FILES = (
         "test-100/validity-method_1.npy",
         "test-100/test-dominoes-method_2-validity.npy",
         "test-100/test-dominoes-method_3-validity.npy",
         "test-100/validity-method_4.npy",
+        "test-100/test-dominoes-method_5-validity.npy",
         )
 TIME_FILES = (
         "test-100/times-method_1.npy",
         "test-100/test-times-method_2.npy",
         "test-100/test-times-method_3.npy",
         "test-100/times-method_4.npy",
+        "test-100/test-times-method_5.npy",
         )
 
 
