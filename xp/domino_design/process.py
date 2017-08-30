@@ -7,6 +7,8 @@ mid : int
   Method id. See methods.py for the list of methods.
 spath : string
   Path to the .pkl list of splines
+ns : int, optional
+  Only process the ns first splines of the list.
 
 """
 import os
@@ -14,20 +16,25 @@ import sys
 import pickle
 import time
 
+from joblib import Parallel, delayed
 import numpy as np
 from scipy.interpolate import splev
 
 from methods import get_methods
 
 
-def time_calls(f, times):
-    def wrap(*args, **kwargs):
+# We use a callable object here instead of a decorator so that it can be
+# pickled and thus, calls can be parallelized. (This is a limitation of
+# Pickle).
+class TimedMethod:
+    def __init__(self, f):
+        self.f = f
+
+    def __call__(self, *args):
         t1 = time.time()
-        output = f(*args, **kwargs)
+        output = self.f(*args)
         t2 = time.time()
-        times.append(t2 - t1)
-        return output
-    return wrap
+        return output, t2 - t1
 
 
 def main():
@@ -36,17 +43,20 @@ def main():
         return
     mid = int(sys.argv[1])
     spath = sys.argv[2]
+    ns = int(sys.argv[3]) if len(sys.argv) == 4 else None
 
     with open(spath, 'rb') as fin:
-        splines = pickle.load(fin)
+        splines = pickle.load(fin)[slice(ns)]
 
     method = get_methods()[mid-1]
-    times = []
-    timed_method = time_calls(method, times)
-    results = [timed_method(spline) for spline in splines]
+    timed_method = TimedMethod(method)
+    out = Parallel(n_jobs=4)(
+            delayed(timed_method)(spline) for spline in splines)
+    #  out = [timed_method(spline) for spline in splines]
+    results, times = zip(*out)  # Unzip!
 
     dirname = os.path.dirname(spath)
-    prefix = os.path.basename(spath)[:-4]
+    prefix = os.path.splitext(os.path.basename(spath))[0]
     outname = prefix + "-dominoes-method_{}.npz".format(mid)
     np.savez(os.path.join(dirname, outname), *results)
     outname = prefix + "-times-method_{}.npy".format(mid)
