@@ -19,7 +19,7 @@ import numpy as np
 from panda3d.core import Vec3
 from panda3d.core import Mat3
 
-from config import t, w, h
+from config import t, w, h, density
 sys.path.insert(0, os.path.abspath("../.."))
 from primitives import DominoMaker
 from primitives import Floor
@@ -48,9 +48,10 @@ def show_dominoes(u, spline):
     u = np.array(u)
     positions = spl.splev3d(u, spline, .5*h)
     headings = spl.splang(u, spline)
+    mass = density * t * w * h
     for i, (pos, head) in enumerate(zip(positions, headings)):
         domino_factory.add_domino(
-                Vec3(*pos), head, Vec3(t, w, h), mass=1,
+                Vec3(*pos), head, Vec3(t, w, h), mass=mass,
                 prefix="domino_{}".format(i))
 
     first_domino = domino_run_np.get_child(0)
