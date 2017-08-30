@@ -253,6 +253,8 @@ class DominoMaker:
         """
         # Physics
         dom_bn = bullet.BulletRigidBodyNode(prefix+"_solid")
+        # TODO. See if using the 'xform' parameter of add_shape wouldn't
+        # actually be simpler than using set_pos and set_h later.
         dom_bn.add_shape(bullet.BulletBoxShape(extents*.5))
         dom_bn.set_mass(mass)
         # Add it to the world

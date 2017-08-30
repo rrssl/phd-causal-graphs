@@ -49,7 +49,9 @@ def has_contact(a: NodePath, b: NodePath):
     test = world.contact_test_pair(an, bn)
     return test.get_num_contacts() > 0
 
-
+# TODO. Apply improvements discovered in domino_design: activate cache
+# flushing, run until dominoes are deactivated. Or better, create a common
+# class.
 def run_domino_toppling_xp(params, timestep, maxtime, visual=False):
     """
     Run the domino-pair toppling simulation. If not visual, returns True if
