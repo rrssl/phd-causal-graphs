@@ -175,14 +175,16 @@ def inc_physbased_randsearch(spline, max_ndom=-1, max_ntrials=-1):
     if max_ndom == -1:
         max_ndom = int(length / t)
     if max_ntrials == -1:
-        max_ntrials = 50  # number of trials per step
+        max_ntrials = 100  # number of trials per step
 
     # Start main routine
     last_step = 0
     while 1. - u[-1] > last_step and len(u) < max_ndom:
         ulast = u[-1]
-        umin = ulast + 2 * t / length  # at least twice the thickness
-        umax = ulast + h * (4 / 9) / length  # hit next domino above 8/9
+        slast = spl.arclength(spline, ulast)
+        umin = spl.arclength_inv(spline, slast + t)
+        umax = spl.arclength_inv(
+                spline, slast + h * (4 / 9))  # hit next domino above 8/9
         umax = min(umax, 1)
 
         ntrials = 0
