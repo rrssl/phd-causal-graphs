@@ -9,9 +9,12 @@ from tabulate import tabulate
 METHODS = (
         "Equal spacing",
         "Minimal spacing",
-        "Classifier based incremental",
         "Simul. based inc. random search",
-        "Classifier based batch",
+        "Classifier based incremental",
+        "Classifier based batch (n=2)",
+        "Classifier based batch (n=3)",
+        "Classifier based batch (n=4)",
+        "Classifier based batch (n=5)",
         )
 HEADERS = (
         "Method",
@@ -23,25 +26,31 @@ HEADERS = (
         "Time/domino (ms)",
         )
 DOM_FILES = (
-        "test-100/dominoes-method_1.npz",
-        "test-100/test-dominoes-method_2.npz",
-        "test-100/test-dominoes-method_3.npz",
-        "test-100/dominoes-method_4.npz",
-        "test-100/test-dominoes-method_5.npz",
+        #  "test-100/dominoes-method_1.npz",
+        #  "test-100/test-dominoes-method_2.npz",
+        #  "test-100/test-dominoes-method_3.npz",
+        #  "test-100/dominoes-method_4.npz",
+        #  "test-100/test-dominoes-method_5.npz",
+        "data/20173108-test-100/candidates-dominoes-method_{}.npz".format(i)
+        for i in range(1, len(METHODS)+1)
         )
 VAL_FILES = (
-        "test-100/validity-method_1.npy",
-        "test-100/test-dominoes-method_2-validity.npy",
-        "test-100/test-dominoes-method_3-validity.npy",
-        "test-100/validity-method_4.npy",
-        "test-100/test-dominoes-method_5-validity.npy",
+        #  "test-100/validity-method_1.npy",
+        #  "test-100/test-dominoes-method_2-validity.npy",
+        #  "test-100/test-dominoes-method_3-validity.npy",
+        #  "test-100/validity-method_4.npy",
+        #  "test-100/test-dominoes-method_5-validity.npy",
+        "data/20173108-test-100/candidates-dominoes-method_{}-validity.npy".format(i)
+        for i in range(1, len(METHODS)+1)
         )
 TIME_FILES = (
-        "test-100/times-method_1.npy",
-        "test-100/test-times-method_2.npy",
-        "test-100/test-times-method_3.npy",
-        "test-100/times-method_4.npy",
-        "test-100/test-times-method_5.npy",
+        #  "test-100/times-method_1.npy",
+        #  "test-100/test-times-method_2.npy",
+        #  "test-100/test-times-method_3.npy",
+        #  "test-100/times-method_4.npy",
+        #  "test-100/test-times-method_5.npy",
+        "data/20173108-test-100/candidates-times-method_{}.npy".format(i)
+        for i in range(1, len(METHODS)+1)
         )
 
 
