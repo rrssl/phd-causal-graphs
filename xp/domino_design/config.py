@@ -4,6 +4,9 @@ sys.path.insert(0, os.path.abspath(".."))
 from domino_learning.config import t, w, h, density
 
 
+# Number of cores to use for parallelization.
+NCORES = 4
+
 # Path to the classifier.
 SVC_PATH = "../../../data/xp/domino_learning/samples-3D-model.pkl"
 

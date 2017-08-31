@@ -16,7 +16,6 @@ import os
 import pickle
 import sys
 
-from joblib import Parallel, delayed
 import numpy as np
 from panda3d.core import load_prc_file_data
 from panda3d.bullet import BulletWorld
@@ -26,8 +25,10 @@ from panda3d.core import Mat3
 from shapely.affinity import rotate
 from shapely.affinity import translate
 from shapely.geometry import box
+from sklearn.externals.joblib import delayed
+from sklearn.externals.joblib import Parallel
 
-from config import t, w, h, density
+from config import t, w, h, density, NCORES
 sys.path.insert(0, os.path.abspath("../.."))
 from primitives import DominoMaker
 from primitives import Floor
@@ -126,7 +127,7 @@ def main():
         splines = pickle.load(fs)[slice(ns)]
     domruns = np.load(dompath)
 
-    results = Parallel(n_jobs=4)(
+    results = Parallel(n_jobs=NCORES)(
             delayed(test_domino_run)(domruns['arr_{}'.format(i)], s)
             for i, s in enumerate(splines))
     #  results = [test_domino_run(domruns['arr_{}'.format(i)], s)

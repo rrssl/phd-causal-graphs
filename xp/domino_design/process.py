@@ -16,10 +16,12 @@ import sys
 import pickle
 import time
 
-from joblib import Parallel, delayed
 import numpy as np
 from scipy.interpolate import splev
+from sklearn.externals.joblib import delayed
+from sklearn.externals.joblib import Parallel
 
+from config import NCORES
 from methods import get_methods
 
 
@@ -50,7 +52,7 @@ def main():
 
     method = get_methods()[mid-1]
     timed_method = TimedMethod(method)
-    out = Parallel(n_jobs=4)(
+    out = Parallel(n_jobs=NCORES)(
             delayed(timed_method)(spline) for spline in splines)
     #  out = [timed_method(spline) for spline in splines]
     results, times = zip(*out)  # Unzip!
