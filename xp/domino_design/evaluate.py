@@ -125,7 +125,7 @@ def get_toppling_fraction(u, spline):
     i = 0
     while i < n and run_np.get_child(i).get_r() >= toppling_angle:
         i += 1
-    return spl.arclength(spline, u[i]) / spl.arclength(spline) if i < n else 1
+    return spl.arclength(spline, u[i-1]) / spl.arclength(spline)
 
 
 def test_all_topple(u, spline):
