@@ -15,6 +15,7 @@ import math
 import os
 import pickle
 import sys
+from tempfile import mkdtemp
 
 import numpy as np
 from panda3d.core import load_prc_file_data
@@ -26,6 +27,7 @@ from shapely.affinity import rotate
 from shapely.affinity import translate
 from shapely.geometry import box
 from sklearn.externals.joblib import delayed
+from sklearn.externals.joblib import Memory
 from sklearn.externals.joblib import Parallel
 
 from config import t, w, h, density, NCORES
@@ -65,7 +67,16 @@ def test_no_overlap(u, spline):
     return True
 
 
-def test_all_topple(u, spline):
+def get_toppling_angle():
+    return math.atan(t / h) * 180 / math.pi + 1
+
+
+# Memoize calls to run_simu
+cachedir = mkdtemp()
+memory = Memory(cachedir=cachedir, verbose=0)
+
+@memory.cache
+def run_simu(u, spline):
     if len(u) < 2:
         return True
     u = np.asarray(u)
@@ -97,13 +108,29 @@ def test_all_topple(u, spline):
 
     time = 0.
     maxtime = len(u)
-    toppling_angle = math.atan(t / h) * 180 / math.pi + 1
+    toppling_angle = get_toppling_angle()
     while (last_domino.get_r() < toppling_angle
             and any(dom.node().is_active() for dom in run_np.get_children())
             and time < maxtime):
         time += 1/60
         world.do_physics(1/60, 2)
 
+    return run_np
+
+
+def get_toppling_fraction(u, spline):
+    run_np = run_simu(u, spline)
+    toppling_angle = get_toppling_angle()
+    n = run_np.get_num_children()
+    i = 0
+    while i < n and run_np.get_child(i).get_r() >= toppling_angle:
+        i += 1
+    return spl.arclength(spline, u[i]) / spl.arclength(spline) if i < n else 1
+
+
+def test_all_topple(u, spline):
+    run_np = run_simu(u, spline)
+    toppling_angle = get_toppling_angle()
     return all(dom.get_r() >= toppling_angle for dom in run_np.get_children())
 
 
@@ -112,7 +139,9 @@ def test_domino_run(u, spline):
     topple."""
     return [test_path_coverage(u, spline),
             test_no_overlap(u, spline),
-            test_all_topple(u, spline)]
+            test_all_topple(u, spline),
+            get_toppling_fraction(u, spline),
+            ]
 
 
 def main():
