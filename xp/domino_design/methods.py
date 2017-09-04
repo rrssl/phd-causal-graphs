@@ -7,7 +7,6 @@ Various methods used to distribute dominoes along a path.
 4. Incremental classifier based
 5. Batch classifier based
 """
-from functools import lru_cache
 from functools import partial
 import math
 import os
@@ -59,11 +58,9 @@ def _init_routines(u, spline):
 
     # Define convenience functions.
 
-    @lru_cache()
     def splev(ui):
         return spl.splev(ui, spline)
 
-    @lru_cache()
     def splang(ui):
         return spl.splang(ui, spline)
 
