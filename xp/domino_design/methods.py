@@ -45,6 +45,7 @@ def get_methods():
             batch_classif_based_5,
             )
 
+
 def printf(f):
     def wrap(*args, **kwargs):
         out = f(*args, **kwargs)
@@ -120,6 +121,78 @@ def _init_routines(u, spline):
 
         # Return intersection
         return - b1_t.intersection(b2).area / (t_t * w)
+
+    return splev, splang, xmin, xmax, yabs, habs, umin, umax, tilted_overlap
+
+
+def _init_routines_vec(u, spline):
+
+    # Convenience functions
+
+    def splev(ui):
+        return spl.splev(ui, spline)
+
+    def splang(ui):
+        return spl.splang(ui, spline)
+
+    # Constraints
+
+    def xmin(ui):
+        xi = splev(np.concatenate(([u[-len(ui)]], ui)))[0]
+        return abs(xi[1:] - xi[:-1]) - t
+
+    def xmax(ui):
+        xi = splev(np.concatenate(([u[-len(ui)]], ui)))[0]
+        return h - abs(xi[1:] - xi[:-1])
+
+    def yabs(ui):
+        yi = splev(np.concatenate(([u[-len(ui)]], ui)))[1]
+        return w - abs(yi[1:] - yi[:-1])
+
+    def habs(ui):
+        hi = splang(np.concatenate(([u[-len(ui)]], ui)))
+        diff = (hi[1:] - hi[:-1] + 180) % 360 - 180
+        return 45 - abs(diff)
+
+    def umin(ui):
+        return ui - np.concatenate(([u[-len(ui)]], ui[:-1]))
+
+    def umax(ui):
+        return 1 - np.asarray(ui)
+
+    # Define variables for non-overlap constraint
+    base = box(-t/2, -w/2, t/2,  w/2)
+    t_tilt = t / math.sqrt(1 + (t / h)**2)  # t*cos(arctan(theta))
+    base_tilt = box(-t_tilt/2, -w/2, t_tilt/2,  w/2)  # Project. of tilted base
+
+    def tilted_overlap(ui):
+        ui = np.concatenate(([u[-len(ui)]], ui))
+        hi = spl.splang(ui, spline, degrees=False)
+        ci = np.column_stack(splev(ui))
+        ci_tilt = ci + .5 * (t + t_tilt) * np.column_stack(
+                (np.cos(hi), np.sin(hi)))
+        # Define previous rectangles (projection of tilted base)
+        bi_tilt = [
+                translate(rotate(base_tilt, hij, use_radians=True), *cij_tilt)
+                for hij, cij_tilt in zip(hi[:-1], ci_tilt[:-1])]
+        # Define next rectangles
+        bi = [translate(rotate(base, hik, use_radians=True), *cik)
+              for hik, cik in zip(hi[1:], ci[1:])]
+
+        # --For debug--
+        #  import matplotlib.pyplot as plt
+        #  fig, ax = plt.subplots()
+        #  ax.set_aspect('equal')
+        #  ax.plot(*np.array(bi_tilt[0].exterior.coords).T, label='D1')
+        #  ax.plot(*np.array(bi[0].exterior.coords).T, label='D2')
+        #  ax.plot(*spl.splev(np.linspace(0, 1), spline))
+        #  plt.legend()
+        #  plt.ioff()
+        #  plt.show()
+
+        # Return intersection
+        return np.array([- bij_tilt.intersection(bij).area / (t_tilt * w)
+                         for bij_tilt, bij in zip(bi_tilt, bi)])
 
     return splev, splang, xmin, xmax, yabs, habs, umin, umax, tilted_overlap
 
@@ -262,58 +335,8 @@ def batch_classif_based(spline, batchsize=2, init_step=-1, max_ndom=-1):
     if max_ndom == -1:
         max_ndom = int(length / t)
     # Constraints
-
-    def splev(ui):
-        return spl.splev(ui, spline)
-
-    def splang(ui):
-        return spl.splang(ui, spline)
-
-    def habs(ui):
-        hi = splang(np.concatenate(([u[-len(ui)]], ui)))
-        diff = (hi[1:] - hi[:-1] + 180) % 360 - 180
-        return 45 - abs(diff)
-
-    def umin(ui):
-        return ui - np.concatenate(([u[-len(ui)]], ui[:-1]))
-
-    def umax(ui):
-        return 1 - np.asarray(ui)
-
-    # Define variables for non-overlap constraint
-    base = box(-t/2, -w/2, t/2,  w/2)
-    t_tilt = t / math.sqrt(1 + (t / h)**2)  # t*cos(arctan(theta))
-    base_tilt = box(-t_tilt/2, -w/2, t_tilt/2,  w/2)  # Project. of tilted base
-
-    def tilted_overlap(ui):
-        ui = np.concatenate(([u[-len(ui)]], ui))
-        hi = spl.splang(ui, spline, degrees=False)
-        ci = np.column_stack(splev(ui))
-        ci_tilt = ci + .5 * (t + t_tilt) * np.column_stack(
-                (np.cos(hi), np.sin(hi)))
-        # Define previous rectangles (projection of tilted base)
-        bi_tilt = [
-                translate(rotate(base_tilt, hij, use_radians=True), *cij_tilt)
-                for hij, cij_tilt in zip(hi[:-1], ci_tilt[:-1])]
-        # Define next rectangles
-        bi = [translate(rotate(base, hik, use_radians=True), *cik)
-              for hik, cik in zip(hi[1:], ci[1:])]
-
-        if 0:
-            import matplotlib.pyplot as plt
-            fig, ax = plt.subplots()
-            ax.set_aspect('equal')
-            ax.plot(*np.array(bi_tilt[0].exterior.coords).T, label='D1')
-            ax.plot(*np.array(bi[0].exterior.coords).T, label='D2')
-            ax.plot(*spl.splev(np.linspace(0, 1), spline))
-            plt.legend()
-            plt.ioff()
-            plt.show()
-
-        # Return intersection
-        return np.array([- bij_tilt.intersection(bij).area / (t_tilt * w)
-                         for bij_tilt, bij in zip(bi_tilt, bi)])
-
+    splev, splang, *_, habs, umin, umax, tilted_overlap = _init_routines_vec(
+            u, spline)
     #  cons = (xmin, xmax, yabs, habs, umax, tilted_overlap)
     #  cons = (xmin, xmax, umin, umax, tilted_overlap)
     cons = (tilted_overlap, umin, umax, habs)
@@ -336,7 +359,6 @@ def batch_classif_based(spline, batchsize=2, init_step=-1, max_ndom=-1):
         yi /= w
         hi /= 90
         # Evaluate
-        # TODO: Try with sum if min doesn't work
         return -min(svc.decision_function(np.column_stack((xi, yi, hi))))
 
     # Start main routine
