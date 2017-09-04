@@ -30,18 +30,14 @@ import spline2d as spl
 
 def get_methods():
     """Returns a list of all the available methods."""
-    batch_classif_based_2 = batch_classif_based
+    batch_classif_based_2 = partial(batch_classif_based, batchsize=2)
     batch_classif_based_3 = partial(batch_classif_based, batchsize=3)
-    batch_classif_based_4 = partial(batch_classif_based, batchsize=4)
-    batch_classif_based_5 = partial(batch_classif_based, batchsize=5)
     return (equal_spacing,
             minimal_spacing,
             inc_physbased_randsearch,
             inc_classif_based,
             batch_classif_based_2,
             batch_classif_based_3,
-            batch_classif_based_4,
-            batch_classif_based_5,
             )
 
 
