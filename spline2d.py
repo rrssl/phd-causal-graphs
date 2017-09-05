@@ -36,6 +36,13 @@ def arclength_inv(tck, s):
             fprime=lambda t: np.diag(arclength_der(tck, t)))
 
 
+def curvature(tck, t):
+    """Return the (unsigned) curvature at t for the (T, C, K) spline."""
+    dx, dy = splev(t, tck, 1)
+    ddx, ddy = splev(t, tck, 2)
+    return np.abs(dx*ddy - dy*ddx) / np.power(dx*dx + dy*dy, 1.5)
+
+
 def get_smooth_path(path, s=.1, prep=None):
     """Smooth the input polyline.
 
