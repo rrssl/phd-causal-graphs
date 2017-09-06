@@ -11,7 +11,7 @@ import numpy as np
 from random import uniform
 import sys
 
-from config import t, w, h
+from config import t, w, h, X_MIN, X_MAX, Y_MIN, Y_MAX, A_MIN, A_MAX
 from functions import make_box, tilt_box_forward, has_contact
 
 
@@ -29,8 +29,8 @@ def sample2d(n, bounds):
         d = uniform(*bounds[0])  # Distance between centers
         a = uniform(*bounds[1])  # Heading angle between D1 and D2
 
-        d1 = make_box((t, w, h), (0, 0, h*.5), (0, 0, 0))
-        d2 = make_box((t, w, h), (d, 0, h*.5), (a, 0, 0))
+        d1 = make_box((t, w, h), (0, 0, h/2), (0, 0, 0))
+        d2 = make_box((t, w, h), (d, 0, h/2), (a, 0, 0))
         tilt_box_forward(d1, atan(t / h) * 180 / pi + 1.)
         if has_contact(d1, d2):
             pass
@@ -53,8 +53,8 @@ def sample3d(n, bounds):
         y = uniform(*bounds[1])
         a = uniform(*bounds[2])
 
-        d1 = make_box((t, w, h), (0, 0, h*.5), (0, 0, 0))
-        d2 = make_box((t, w, h), (x, y, h*.5), (a, 0, 0))
+        d1 = make_box((t, w, h), (0, 0, h/2), (0, 0, 0))
+        d2 = make_box((t, w, h), (x, y, h/2), (a, 0, 0))
         tilt_box_forward(d1, atan(t / h) * 180 / pi + 1.)
         if has_contact(d1, d2):
             pass
@@ -77,11 +77,11 @@ def main():
 
     if ndim == 2:
         # Angle is > 0 because of symmetry.
-        bounds = ((t, 1.5*h), (0, 90))
+        bounds = ((X_MIN, X_MAX), (0, A_MAX))
         sample = sample2d
     else:
         # Y is > 0 because of symmetry.
-        bounds = ((t, 1.5*h), (0, w), (-90, 90))
+        bounds = ((X_MIN, X_MAX), (0, Y_MAX), (A_MIN, A_MAX))
         sample = sample3d
     s = sample(nsam, bounds)
     np.save(name, s)

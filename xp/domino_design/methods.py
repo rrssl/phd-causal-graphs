@@ -22,6 +22,7 @@ from sklearn.externals import joblib
 
 from config import t, w, h
 from config import SVC_PATH
+from config import X_MAX, Y_MAX, A_MAX
 from evaluate import test_all_topple
 from evaluate import test_no_overlap
 sys.path.insert(0, os.path.abspath("../.."))
@@ -90,16 +91,16 @@ def _init_routines(u, spline):
     def tilted_overlap(ui, _debug=False):
         u1, u2 = u[-1], float(ui)
         # Define first rectangle (projection of tilted base)
-        h1 = splang(u1)
-        h1_rad = h1 * math.pi / 180
+        a1 = splang(u1)
+        h1_rad = a1 * math.pi / 180
         c1_t = (np.hstack(splev(u1))
                 + .5 * (t + t_t)
                 * np.array([math.cos(h1_rad), math.sin(h1_rad)]))
-        b1_t = translate(rotate(base_t, h1), c1_t[0], c1_t[1])
+        b1_t = translate(rotate(base_t, a1), c1_t[0], c1_t[1])
         # Define second rectangle
-        h2 = splang(u2)
+        a2 = splang(u2)
         c2 = np.hstack(splev(u2))
-        b2 = translate(rotate(base, h2), c2[0], c2[1])
+        b2 = translate(rotate(base, a2), c2[0], c2[1])
 
         if _debug:
             import matplotlib.pyplot as plt
@@ -143,8 +144,8 @@ def _init_routines_vec(u, spline):
         return w - abs(yi[1:] - yi[:-1])
 
     def habs(ui):
-        hi = splang(np.concatenate(([u[-len(ui)]], ui)))
-        diff = (hi[1:] - hi[:-1] + 180) % 360 - 180
+        ai = splang(np.concatenate(([u[-len(ui)]], ui)))
+        diff = (ai[1:] - ai[:-1] + 180) % 360 - 180
         return 45 - abs(diff)
 
     def umin(ui):
@@ -160,17 +161,17 @@ def _init_routines_vec(u, spline):
 
     def tilted_overlap(ui):
         ui = np.concatenate(([u[-len(ui)]], ui))
-        hi = spl.splang(ui, spline, degrees=False)
+        ai = spl.splang(ui, spline, degrees=False)
         ci = np.column_stack(splev(ui))
         ci_tilt = ci + .5 * (t + t_tilt) * np.column_stack(
-                (np.cos(hi), np.sin(hi)))
+                (np.cos(ai), np.sin(ai)))
         # Define previous rectangles (projection of tilted base)
         bi_tilt = [
-                translate(rotate(base_tilt, hij, use_radians=True), *cij_tilt)
-                for hij, cij_tilt in zip(hi[:-1], ci_tilt[:-1])]
+                translate(rotate(base_tilt, aij, use_radians=True), *cij_tilt)
+                for aij, cij_tilt in zip(ai[:-1], ci_tilt[:-1])]
         # Define next rectangles
-        bi = [translate(rotate(base, hik, use_radians=True), *cik)
-              for hik, cik in zip(hi[1:], ci[1:])]
+        bi = [translate(rotate(base, aik, use_radians=True), *cik)
+              for aik, cik in zip(ai[1:], ci[1:])]
 
         # --For debug--
         #  import matplotlib.pyplot as plt
@@ -288,21 +289,21 @@ def inc_classif_based(spline, init_step=-1, max_ndom=-1):
     def objective(ui):
         # Get local coordinates
         x0, y0 = splev(u[-1])
-        h0 = splang(u[-1])
+        a0 = splang(u[-1])
         xi, yi = splev(float(ui))
-        hi = splang(float(ui))
+        ai = splang(float(ui))
         xi = float(xi - x0)
         yi = float(yi - y0)
-        hi = float(hi - h0)
+        ai = float(ai - a0)
         # Symmetrize
-        hi = math.copysign(hi, yi)
+        ai = math.copysign(ai, yi)
         yi = abs(yi)
         # Normalize
-        xi /= 1.5*h
-        yi /= w
-        hi /= 90
+        xi /= X_MAX
+        yi /= Y_MAX
+        ai /= A_MAX
         # Evaluate
-        return -svc.decision_function([[xi, yi, hi]])[0]
+        return -svc.decision_function([[xi, yi, ai]])[0]
 
     # Start main routine
     last_step = 0
@@ -340,19 +341,19 @@ def batch_classif_based(spline, batchsize=2, init_step=-1, max_ndom=-1):
         ui = np.concatenate(([u[-len(ui)]], ui))
         # Get local coordinates
         xi, yi = splev(ui)
-        hi = splang(ui)
+        ai = splang(ui)
         xi = xi[1:] - xi[:-1]
         yi = yi[1:] - yi[:-1]
-        hi = hi[1:] - hi[:-1]
+        ai = ai[1:] - ai[:-1]
         # Symmetrize
-        hi = np.copysign(hi, yi)
+        ai = np.copysign(ai, yi)
         yi = abs(yi)
         # Normalize
-        xi /= 1.5*h
-        yi /= w
-        hi /= 90
+        xi /= X_MAX
+        yi /= Y_MAX
+        ai /= A_MAX
         # Evaluate
-        return -min(svc.decision_function(np.column_stack((xi, yi, hi))))
+        return -min(svc.decision_function(np.column_stack((xi, yi, ai))))
 
     # Start main routine
     last_step = 0
