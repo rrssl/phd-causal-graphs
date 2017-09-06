@@ -53,16 +53,42 @@ def test_path_coverage(u, spline):
     return bool((spl.arclength(spline) - spl.arclength(spline, u[-1])) < h)
 
 
-def test_no_overlap(u, spline):
+def get_overlapping_dominoes(u, spline):
+    overlapping = []
     if len(u) < 2:
-        return True
-    base = box(-t * .5, -w * .5, t * .5,  w * .5)
+        return overlapping
+    base = box(-t/2, -w/2, t/2,  w/2)
     x, y = spl.splev(u, spline)
     h = spl.splang(u, spline)
-    for i in range(len(u) - 1):
-        b1 = translate(rotate(base, h[i]), x[i], y[i])
-        b2 = translate(rotate(base, h[i+1]), x[i+1], y[i+1])
-        if b1.intersection(b2).area > 0:
+    dominoes = [translate(rotate(base, hi), xi, yi)
+                for xi, yi, hi in zip(x, y, h)]
+    # Not efficient but who cares
+    for d1 in dominoes:
+        for d2 in dominoes:
+            if d2 is not d1 and d1.intersects(d2):
+                overlapping.append(d1)
+                break
+
+    return overlapping
+
+
+def test_no_overlap(u, spline)
+    return bool(get_overlapping_dominoes(u, spline))
+
+
+def test_no_overlap_fast(u, spline):
+    """Only test for overlaps between successive dominoes."""
+    if len(u) < 2:
+        return True
+    base = box(-t/2, -w/2, t/2,  w/2)
+    x, y = spl.splev(u, spline)
+    h = spl.splang(u, spline)
+    b1 = None
+    b2 = translate(rotate(base, h[0]), x[0], y[0])
+    for i in range(1, len(u)):
+        b1 = b2
+        b2 = translate(rotate(base, h[i]), x[i], y[i])
+        if b1.intersects(b2):
             return False
     return True
 
@@ -74,6 +100,7 @@ def get_toppling_angle():
 # Memoize calls to run_simu
 cachedir = mkdtemp()
 memory = Memory(cachedir=cachedir, verbose=0)
+
 
 @memory.cache
 def run_simu(u, spline):
@@ -160,7 +187,7 @@ def main():
             delayed(test_domino_run)(domruns['arr_{}'.format(i)], s)
             for i, s in enumerate(splines))
     #  results = [test_domino_run(domruns['arr_{}'.format(i)], s)
-               #  for i, s in enumerate(splines)]
+    #         for i, s in enumerate(splines)]
 
     dirname = os.path.dirname(dompath)
     prefix = os.path.splitext(os.path.basename(dompath))[0]
