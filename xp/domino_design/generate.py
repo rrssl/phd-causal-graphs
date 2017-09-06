@@ -176,18 +176,22 @@ def generate_candidate_splines(sketches, size_rng, smoothing_rng, nsplines):
     # Randomly sample valid splines.
     while len(splines) < nsplines:
         sketch = random.choice(sketches)
-        size_ratio = random.randint(*size_rng)
-        smoothing_factor = random.uniform(*smoothing_rng)
+        # We use a second while loop here, otherwise the easier sketches
+        # get oversampled.
+        while True:
+            size_ratio = random.randint(*size_rng)
+            smoothing_factor = random.uniform(*smoothing_rng)
 
-        path = sketch[0]  # this will change when we accept several strokes
-        # Translate, resize and smooth the path
-        path -= path.min(axis=0)
-        path *= size_ratio * math.sqrt(
-                t * w / (path[:, 0].max() * path[:, 1].max()))
-        spline = spl.get_smooth_path(path, s=smoothing_factor)
-        tester = DominoPathTester(spline)
-        if tester.check():
-            splines.append(spline)
+            path = sketch[0]  # this will change when we accept several strokes
+            # Translate, resize and smooth the path
+            path -= path.min(axis=0)
+            path *= size_ratio * math.sqrt(
+                    t * w / (path[:, 0].max() * path[:, 1].max()))
+            spline = spl.get_smooth_path(path, s=smoothing_factor)
+            tester = DominoPathTester(spline)
+            if tester.check():
+                splines.append(spline)
+                break
     return splines
 
 
