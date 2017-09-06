@@ -35,6 +35,8 @@ sys.path.insert(0, os.path.abspath("../.."))
 from primitives import DominoMaker
 from primitives import Floor
 import spline2d as spl
+sys.path.insert(0, os.path.abspath(".."))
+from domino_learning.functions import tilt_box_forward
 
 
 # The next line avoids a "memory leak" that notably happens when
@@ -124,18 +126,19 @@ def run_simu(u, spline):
         domino_factory.add_domino(
                 Vec3(*pos), head, Vec3(t, w, h), mass=mass,
                 prefix="domino_{}".format(i))
-    # Set initial angular velocity
-    # (but maybe we should just topple instead of giving velocity)
-    angvel_init = Vec3(0., 15., 0.)
-    angvel_init = Mat3.rotate_mat(spl.splang(0, spline)).xform(
-            angvel_init)
+    # Set initial conditions for first domino
     first_domino = run_np.get_child(0)
-    first_domino.node().set_angular_velocity(angvel_init)
-    last_domino = run_np.get_child(run_np.get_num_children() - 1)
+    #  angvel_init = Vec3(0., 15., 0.)
+    #  angvel_init = Mat3.rotate_mat(spl.splang(0, spline)).xform(
+            #  angvel_init)
+    #  first_domino.node().set_angular_velocity(angvel_init)
+    toppling_angle = get_toppling_angle()
+    tilt_box_forward(first_domino, toppling_angle)
+    first_domino.node().set_transform_dirty()
 
     time = 0.
     maxtime = len(u)
-    toppling_angle = get_toppling_angle()
+    last_domino = run_np.get_child(run_np.get_num_children() - 1)
     while (last_domino.get_r() < toppling_angle
             and any(dom.node().is_active() for dom in run_np.get_children())
             and time < maxtime):
