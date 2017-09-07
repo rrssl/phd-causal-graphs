@@ -13,8 +13,8 @@ METHODS = (
         "Classifier based incremental",
         "Classifier based batch (n=2)",
         "Classifier based batch (n=3)",
-        "Classifier based batch (n=4)",
-        "Classifier based batch (n=5)",
+        #  "Classifier based batch (n=4)",
+        #  "Classifier based batch (n=5)",
         )
 HEADERS = (
         "Method",
@@ -22,7 +22,8 @@ HEADERS = (
         "No overlap",
         "All dominoes topple",
         "Overall success",
-        "False start",
+        #  "False start",
+        "Success fraction",
         "Time/domino (ms)",
         )
 DOM_FILES = (
@@ -31,7 +32,7 @@ DOM_FILES = (
         #  "test-100/test-dominoes-method_3.npz",
         #  "test-100/dominoes-method_4.npz",
         #  "test-100/test-dominoes-method_5.npz",
-        "data/20173108-test-100/candidates-dominoes-method_{}.npz".format(i)
+        "data/20170901-2/candidates-dominoes-method_{}.npz".format(i)
         for i in range(1, len(METHODS)+1)
         )
 VAL_FILES = (
@@ -40,7 +41,7 @@ VAL_FILES = (
         #  "test-100/test-dominoes-method_3-validity.npy",
         #  "test-100/validity-method_4.npy",
         #  "test-100/test-dominoes-method_5-validity.npy",
-        "data/20173108-test-100/candidates-dominoes-method_{}-validity.npy".format(i)
+        "data/20170901-2/candidates-dominoes-method_{}-validity.npy".format(i)
         for i in range(1, len(METHODS)+1)
         )
 TIME_FILES = (
@@ -49,7 +50,7 @@ TIME_FILES = (
         #  "test-100/test-times-method_3.npy",
         #  "test-100/times-method_4.npy",
         #  "test-100/test-times-method_5.npy",
-        "data/20173108-test-100/candidates-times-method_{}.npy".format(i)
+        "data/20170901-2/candidates-times-method_{}.npy".format(i)
         for i in range(1, len(METHODS)+1)
         )
 
@@ -72,7 +73,8 @@ def main():
             sum(valarray[:, 1]) / len(valarray),
             sum(valarray[:, 2]) / len(valarray),
             sum(overallarray) / len(overallarray),
-            sum(ndomarray == 1) / len(ndomarray),
+            #  sum(ndomarray == 1) / len(ndomarray),
+            sum(valarray[:, 3]) / len(valarray),
             (timearray / ndomarray).mean() * 1000,
             ])
 
