@@ -31,6 +31,7 @@ def main():
     mid = int(sys.argv[2])
     # Select method
     method = get_methods()[mid-1]
+    print("Using method {}: {}".format(mid, method.__name__))
     # Load path
     path = np.load(fname)[0]
     # Translate, resize and smooth the path

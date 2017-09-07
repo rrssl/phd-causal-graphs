@@ -56,6 +56,7 @@ def main():
     samples_path = sys.argv[1]
     values_path = sys.argv[2]
     samples = np.load(samples_path)
+    # TODO. This is lazy. Use the actual sampling bounds.
     samples /= samples.max(axis=0)
     values = np.load(values_path)
     svc = svm.SVC(kernel='rbf', gamma=1, C=1).fit(samples, values)
