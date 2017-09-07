@@ -56,26 +56,27 @@ def test_path_coverage(u, spline):
 
 
 def get_overlapping_dominoes(u, spline):
+    """Get the indices of the dominoes that overlap."""
     overlapping = []
     if len(u) < 2:
         return overlapping
     base = box(-t/2, -w/2, t/2,  w/2)
     x, y = spl.splev(u, spline)
-    h = spl.splang(u, spline)
-    dominoes = [translate(rotate(base, hi), xi, yi)
-                for xi, yi, hi in zip(x, y, h)]
+    a = spl.splang(u, spline)
+    dominoes = [translate(rotate(base, ai), xi, yi)
+                for xi, yi, ai in zip(x, y, a)]
     # Not efficient but who cares
-    for d1 in dominoes:
+    for i, d1 in enumerate(dominoes):
         for d2 in dominoes:
             if d2 is not d1 and d1.intersects(d2):
-                overlapping.append(d1)
+                overlapping.append(i)
                 break
 
     return overlapping
 
 
-def test_no_overlap(u, spline)
-    return bool(get_overlapping_dominoes(u, spline))
+def test_no_overlap(u, spline):
+    return not bool(get_overlapping_dominoes(u, spline))
 
 
 def test_no_overlap_fast(u, spline):
@@ -84,12 +85,12 @@ def test_no_overlap_fast(u, spline):
         return True
     base = box(-t/2, -w/2, t/2,  w/2)
     x, y = spl.splev(u, spline)
-    h = spl.splang(u, spline)
+    a = spl.splang(u, spline)
     b1 = None
-    b2 = translate(rotate(base, h[0]), x[0], y[0])
+    b2 = translate(rotate(base, a[0]), x[0], y[0])
     for i in range(1, len(u)):
         b1 = b2
-        b2 = translate(rotate(base, h[i]), x[i], y[i])
+        b2 = translate(rotate(base, a[i]), x[i], y[i])
         if b1.intersects(b2):
             return False
     return True
