@@ -3,12 +3,12 @@ View a domino run.
 
 Parameters
 ----------
-did : int
-  Index of the domino run
 splpath : string
   Path to the list of splines
 dompath : string
   Path to the list of domino runs
+did : int
+  Index of the domino run
 
 """
 import os
@@ -61,17 +61,21 @@ def show_dominoes(u, spline):
                       color=(1, 0, 1, 1))
 
     app.set_frame_rate_meter(True)
-    #  app.finalizeExit = app.destroy  # Replace call to sys.exit with destroy
     app.run()
+    # Or if you have to open several in the _same_ python run:
+    #  try:
+    #      app.run()
+    #  except SystemExit:
+    #      app.destroy()
 
 
 def main():
     if len(sys.argv) < 4:
-        print("Please provide an index and the necessary paths.")
+        print(__doc__)
         return
-    did = int(sys.argv[1])
-    splpath = sys.argv[2]
-    dompath = sys.argv[3]
+    splpath = sys.argv[1]
+    dompath = sys.argv[2]
+    did = int(sys.argv[3])
 
     with open(splpath, 'rb') as fs:
         splines = pickle.load(fs)

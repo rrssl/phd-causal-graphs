@@ -1,5 +1,12 @@
 """
-View a candidate path from a pickled list.
+View a candidate spline from a pickled list.
+
+Parameters
+----------
+pickle_path : string
+  Path to the pickled list.
+sid : int
+  Index of the candidate spline.
 
 """
 import sys
@@ -11,12 +18,15 @@ from scipy.interpolate import splev
 
 
 def main():
-    path_id = int(sys.argv[1])
-    pickle_path = sys.argv[2]
+    if len(sys.argv) < 3:
+        print(__doc__)
+        return
+    pickle_path = sys.argv[1]
+    sid = int(sys.argv[2])
 
     with open(pickle_path, 'rb') as f:
         paths = pickle.load(f)
-    path = paths[path_id]
+    path = paths[sid]
 
     u = np.linspace(0, 1, 100)
     x, y = splev(u, path)
