@@ -23,7 +23,7 @@ from sklearn.externals import joblib
 from config import t, w, h
 from config import SVC_PATH
 from config import X_MAX, Y_MAX, A_MAX
-from evaluate import test_all_topple
+from evaluate import run_simu, setup_dominoes, test_all_toppled
 from evaluate import test_no_overlap
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
@@ -257,10 +257,11 @@ def inc_physbased_randsearch(spline, max_ndom=-1, max_ntrials=-1):
         ntrials = 0
         while ntrials < max_ntrials:
             unew = random.uniform(umin, umax)
-            if (test_no_overlap((ulast, unew), spline) and
-                    test_all_topple(u + [unew], spline)):
-                u.append(unew)
-                break
+            if test_no_overlap((ulast, unew), spline):
+                doms_np = run_simu(*setup_dominoes(u + [unew], spline))
+                if test_all_toppled(doms_np):
+                    u.append(unew)
+                    break
             ntrials += 1
         else:
             break  # Last step has failed

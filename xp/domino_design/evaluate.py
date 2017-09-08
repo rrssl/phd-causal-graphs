@@ -100,29 +100,43 @@ def get_toppling_angle():
 
 
 
-def run_simu(u, spline):
-    if len(u) < 2:
-        return True
-    u = np.asarray(u)
+def setup_dominoes(u, spline):
+    """Setup the world and objects to run the simulation.
+
+    Parameters
+    ----------
+    u : sequence
+        Samples along the spline.
+    spline : 'spline' as defined in spline2d
+        Path of the domino run.
+
+    Returns
+    -------
+    doms_np : NodePath
+        Contains all the dominoes.
+    world : BulletWorld
+        World for the simulation.
+    """
     # World
     world = BulletWorld()
     world.set_gravity((0, 0, -9.81))
     # Floor
-    floor_path = NodePath("floor")
-    floor = Floor(floor_path, world)
+    floor_np = NodePath("floor")
+    floor = Floor(floor_np, world)
     floor.create()
     # Dominoes
-    run_np = NodePath("domino_run")
-    domino_factory = DominoMaker(run_np, world, make_geom=False)
-    positions = spl.splev3d(u, spline, .5*h)
+    doms_np = NodePath("domino_run")
+    domino_factory = DominoMaker(doms_np, world, make_geom=False)
+    u = np.asarray(u)
+    positions = spl.splev3d(u, spline, h/2)
     headings = spl.splang(u, spline)
     mass = density * t * w * h
+    extents = Vec3(t, w, h)
     for i, (pos, head) in enumerate(zip(positions, headings)):
         domino_factory.add_domino(
-                Vec3(*pos), head, Vec3(t, w, h), mass=mass,
-                prefix="domino_{}".format(i))
+                Vec3(*pos), head, extents, mass, prefix="domino_{}".format(i))
     # Set initial conditions for first domino
-    first_domino = run_np.get_child(0)
+    first_domino = doms_np.get_child(0)
     #  angvel_init = Vec3(0., 15., 0.)
     #  angvel_init = Mat3.rotate_mat(spl.splang(0, spline)).xform(
             #  angvel_init)
@@ -131,42 +145,62 @@ def run_simu(u, spline):
     tilt_box_forward(first_domino, toppling_angle)
     first_domino.node().set_transform_dirty()
 
+    return doms_np, world
+
+
+def run_simu(doms_np, world):
+    """Run the simulation.
+
+    Parameters
+    ----------
+    doms_np : NodePath
+        Contains all the dominoes.
+    world : BulletWorld
+        World for the simulation.
+
+    """
     time = 0.
-    maxtime = len(u)
-    last_domino = run_np.get_child(run_np.get_num_children() - 1)
+    n = doms_np.get_num_children()
+    maxtime = n
+    toppling_angle = get_toppling_angle()
+    last_domino = doms_np.get_child(n - 1)
     while (last_domino.get_r() < toppling_angle
-            and any(dom.node().is_active() for dom in run_np.get_children())
+            and any(dom.node().is_active() for dom in doms_np.get_children())
             and time < maxtime):
-        time += 1/60
-        world.do_physics(1/60, 2)
+        time += 1/120
+        world.do_physics(1/120, 2, 1/120)
+    return doms_np
 
-    return run_np
 
-
-def get_toppling_fraction(u, spline):
-    run_np = run_simu(u, spline)
+def get_toppling_fraction(u, spline, doms_np):
     toppling_angle = get_toppling_angle()
-    n = run_np.get_num_children()
-    i = 0
-    while i < n and run_np.get_child(i).get_r() >= toppling_angle:
-        i += 1
-    return spl.arclength(spline, u[i-1]) / spl.arclength(spline)
+    n = doms_np.get_num_children()
+    try:
+        # Find the first domino that didn't topple.
+        idx = next(i for i in range(n)
+                   if doms_np.get_child(i).get_r() < toppling_angle)
+    except StopIteration:
+        # All dominoes toppled
+        idx = n
+    return spl.arclength(spline, u[idx-1]) / spl.arclength(spline)
 
 
-def test_all_topple(u, spline):
-    run_np = run_simu(u, spline)
+def test_all_toppled(doms_np):
     toppling_angle = get_toppling_angle()
-    return all(dom.get_r() >= toppling_angle for dom in run_np.get_children())
+    return all(dom.get_r() >= toppling_angle for dom in doms_np.get_children())
 
 
-def test_domino_run(u, spline):
-    """Test if the path is filled, there is no overlap, and all dominoes
-    topple."""
-    return [test_path_coverage(u, spline),
-            test_no_overlap(u, spline),
-            test_all_topple(u, spline),
-            get_toppling_fraction(u, spline),
-            ]
+def evaluate_domino_run(u, spline):
+    """Evaluate the domino distribution for all criteria."""
+    covered = test_path_coverage(u, spline)
+    non_overlapping = test_no_overlap(u, spline)
+    doms_np, world = setup_dominoes(u, spline)
+    doms_np = run_simu(doms_np, world)
+    all_topple = test_all_toppled(doms_np)
+    top_frac = get_toppling_fraction(u, spline, doms_np)
+
+    results = [covered, non_overlapping, all_topple, top_frac]
+    return results
 
 
 def main():
@@ -182,9 +216,9 @@ def main():
     domruns = np.load(dompath)
 
     results = Parallel(n_jobs=NCORES)(
-            delayed(test_domino_run)(domruns['arr_{}'.format(i)], s)
+            delayed(evaluate_domino_run)(domruns['arr_{}'.format(i)], s)
             for i, s in enumerate(splines))
-    #  results = [test_domino_run(domruns['arr_{}'.format(i)], s)
+    #  results = [evaluate_domino_run(domruns['arr_{}'.format(i)], s)
     #         for i, s in enumerate(splines)]
 
     dirname = os.path.dirname(dompath)
