@@ -15,7 +15,6 @@ import math
 import os
 import pickle
 import sys
-from tempfile import mkdtemp
 
 import numpy as np
 from panda3d.core import load_prc_file_data
@@ -27,7 +26,6 @@ from shapely.affinity import rotate
 from shapely.affinity import translate
 from shapely.geometry import box
 from sklearn.externals.joblib import delayed
-from sklearn.externals.joblib import Memory
 from sklearn.externals.joblib import Parallel
 
 from config import t, w, h, density, NCORES
@@ -100,12 +98,8 @@ def get_toppling_angle():
     return math.atan(t / h) * 180 / math.pi + 1
 
 
-# Memoize calls to run_simu
-cachedir = mkdtemp()
-memory = Memory(cachedir=cachedir, verbose=0)
 
 
-@memory.cache
 def run_simu(u, spline):
     if len(u) < 2:
         return True
