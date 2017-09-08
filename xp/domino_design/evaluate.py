@@ -14,6 +14,7 @@ ns : int, optional
 import math
 import os
 import pickle
+import random
 import sys
 
 import numpy as np
@@ -193,11 +194,18 @@ def test_all_toppled(doms_np):
 def evaluate_domino_run(u, spline):
     """Evaluate the domino distribution for all criteria."""
     covered = test_path_coverage(u, spline)
-    non_overlapping = test_no_overlap(u, spline)
-    doms_np, world = setup_dominoes(u, spline)
+    overlap = get_overlapping_dominoes(u, spline)
+    non_overlapping = not bool(overlap)
+    # If not valid, make a valid version
+    u_valid = list(u)
+    while overlap:
+        u_valid.pop(random.choice(overlap))
+        overlap = get_overlapping_dominoes(u_valid, spline)
+    # Run simulation
+    doms_np, world = setup_dominoes(u_valid, spline)
     doms_np = run_simu(doms_np, world)
     all_topple = test_all_toppled(doms_np)
-    top_frac = get_toppling_fraction(u, spline, doms_np)
+    top_frac = get_toppling_fraction(u_valid, spline, doms_np)
 
     results = [covered, non_overlapping, all_topple, top_frac]
     return results
