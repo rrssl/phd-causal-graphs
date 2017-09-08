@@ -3,7 +3,8 @@ Test if two boxes collide.
 """
 from math import atan, pi
 from panda3d.bullet import BulletWorld, BulletBoxShape, BulletRigidBodyNode
-from panda3d.core import NodePath, Point3, Vec3
+from panda3d.core import NodePath
+from panda3d.core import Point3, Vec3
 
 import os, sys
 sys.path.insert(0, os.path.abspath("../.."))
@@ -20,18 +21,22 @@ def make_box(dims, pos, rot):
     return path
 
 
-def rotate_around(path: NodePath, center: Point3, hpr: Vec3):
-    if path.has_parent():
-        parent = path.get_parent()
-    else:
-        parent = NodePath("parent")
-    pivot = parent.attach_new_node("pivot")
-    pivot.set_pos(path, center)
-    path.wrt_reparent_to(pivot)
-    pivot.set_hpr(hpr)
-    #  path.set_pos_hpr(parent, path.get_pos(parent), path.get_hpr(parent))
-    path.wrt_reparent_to(parent)
-    pivot.remove_node()
+def rotate_around(path: NodePath, pivot: Point3, hpr: Vec3):
+    """Rotate in place the NodePath around a 3D point.
+
+    Parameters
+    ----------
+    path : NodePath
+        The NodePath to rotate.
+    pivot : Point3
+        Center of rotation, in the relative to the NodePath.
+    hpr : Vec3
+        HPR components of the rotation, relative to the NodePath.
+    """
+    pivot_np = NodePath("pivot")
+    pivot_np.set_pos(path, pivot)
+    pivot_np.set_hpr(path.get_hpr())  # Put pivot in the same relative frame
+    path.set_hpr(pivot_np, hpr)
 
 
 def tilt_box_forward(box: NodePath, angle):
@@ -48,6 +53,7 @@ def has_contact(a: NodePath, b: NodePath):
     world.attach(bn)
     test = world.contact_test_pair(an, bn)
     return test.get_num_contacts() > 0
+
 
 # TODO. Apply improvements discovered in domino_design: activate cache
 # flushing, run until dominoes are deactivated. Or better, create a common
@@ -93,9 +99,11 @@ def run_domino_toppling_xp(params, timestep, maxtime, visual=False):
         app = PhysicsViewer()
         dom_path.reparent_to(app.models)
         app.world = world
-        #  app.finalizeExit = lambda: None
-        app.run()
-        #  app.destroy()
+        try:
+            app.run()
+        except SystemExit:
+            app.destroy()
+        return True
     else:
         t = 0.
         while d2.get_r() < toppling_angle and t < maxtime:
