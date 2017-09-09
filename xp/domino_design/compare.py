@@ -24,19 +24,26 @@ HEADERS = (
         "Success fraction",
         "Time/domino (ms)",
         )
-FILES_PREFIX = "data/20170909-1/"
-DOM_FILES = (
+HEADERS2 = (
+        "Method",
+        "Success frac.",
+        "Success frac. (5% uncert.)",
+        "Success frac. (10% uncert.)",
+        "Success frac. (15% uncert.)",
+        )
+FILES_PREFIX = "data/20170909-2/"
+DOM_FILES = [
         FILES_PREFIX + "candidates-dominoes-method_{}.npz".format(i)
         for i in range(1, len(METHODS)+1)
-        )
-VAL_FILES = (
+        ]
+VAL_FILES = [
         FILES_PREFIX + "candidates-dominoes-method_{}-validity.npy".format(i)
         for i in range(1, len(METHODS)+1)
-        )
-TIME_FILES = (
+        ]
+TIME_FILES = [
         FILES_PREFIX + "candidates-times-method_{}.npy".format(i)
         for i in range(1, len(METHODS)+1)
-        )
+        ]
 
 
 def main():
@@ -53,16 +60,31 @@ def main():
         timearray = np.load(timefile)
         table.append([
             method,
-            sum(valarray[:, 0]) / len(valarray),
-            sum(valarray[:, 1]) / len(valarray),
-            sum(valarray[:, 2]) / len(valarray),
-            sum(overallarray) / len(overallarray),
+            valarray[:, 0].mean(),
+            valarray[:, 1].mean(),
+            valarray[:, 2].mean(),
+            overallarray.mean(),
             #  sum(ndomarray == 1) / len(ndomarray),
-            sum(valarray[:, 3]) / len(valarray),
             (timearray / ndomarray).mean() * 1000,
             ])
 
     print(tabulate(table, headers=HEADERS))
+
+    print('\n')
+
+    table2 = []
+    for method, valfile in zip(METHODS, VAL_FILES):
+        domarrays = np.load(domfile)
+        valarray = np.load(valfile)
+        table2.append([
+            method,
+            valarray[:, 3].mean(),
+            valarray[:, 4].mean(),
+            valarray[:, 5].mean(),
+            valarray[:, 6].mean(),
+            ])
+
+    print(tabulate(table2, headers=HEADERS2))
 
 
 if __name__ == "__main__":
