@@ -354,7 +354,9 @@ def batch_classif_based(spline, batchsize=2, init_step=-1, max_ndom=-1):
         yi /= Y_MAX
         ai /= A_MAX
         # Evaluate
-        return -min(svc.decision_function(np.column_stack((xi, yi, ai))))
+        return -sum(
+                svc.decision_function(np.column_stack((xi, yi, ai)))
+                ) / len(xi)
 
     # Start main routine
     last_step = 0
