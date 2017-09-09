@@ -22,12 +22,12 @@ from shapely.affinity import translate
 from shapely.geometry import box
 from shapely.geometry import LineString
 from shapely.geometry import Point
+from sklearn.externals.joblib import Parallel, delayed
 
-from config import MIN_SIZE_RATIO
-from config import MIN_SMOOTHING_FACTOR
-from config import MAX_SIZE_RATIO
-from config import MAX_SMOOTHING_FACTOR
+from config import MIN_SIZE_RATIO, MAX_SIZE_RATIO
+from config import MIN_SMOOTHING_FACTOR, MAX_SMOOTHING_FACTOR
 from config import t, w, h
+from config import NCORES
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
 
@@ -171,28 +171,21 @@ class DominoPathTester:
         return False
 
 
-def generate_candidate_splines(sketches, size_rng, smoothing_rng, nsplines):
-    splines = []
-    # Randomly sample valid splines.
-    while len(splines) < nsplines:
-        sketch = random.choice(sketches)
-        # We use a second while loop here, otherwise the easier sketches
-        # get oversampled.
-        while True:
-            size_ratio = random.randint(*size_rng)
-            smoothing_factor = random.uniform(*smoothing_rng)
+def generate_candidate_spline(sketches, size_rng, smoothing_rng):
+    sketch = random.choice(sketches)
+    while True:
+        size_ratio = random.randint(*size_rng)
+        smoothing_factor = random.uniform(*smoothing_rng)
 
-            path = sketch[0]  # this will change when we accept several strokes
-            # Translate, resize and smooth the path
-            path -= path.min(axis=0)
-            path *= size_ratio * math.sqrt(
-                    t * w / (path[:, 0].max() * path[:, 1].max()))
-            spline = spl.get_smooth_path(path, s=smoothing_factor)
-            tester = DominoPathTester(spline)
-            if tester.check():
-                splines.append(spline)
-                break
-    return splines
+        path = sketch[0]  # this will change when we accept several strokes
+        # Translate, resize and smooth the path
+        path -= path.min(axis=0)
+        path *= size_ratio * math.sqrt(
+                t * w / (path[:, 0].max() * path[:, 1].max()))
+        spline = spl.get_smooth_path(path, s=smoothing_factor)
+        tester = DominoPathTester(spline)
+        if tester.check():
+            return spline
 
 
 def main():
@@ -203,12 +196,13 @@ def main():
     skpaths = sys.argv[2:]
     sketches = [np.load(skpath) for skpath in skpaths]
 
-    splines = generate_candidate_splines(
-            sketches,
-            (MIN_SIZE_RATIO, MAX_SIZE_RATIO),
-            (MIN_SMOOTHING_FACTOR, MAX_SMOOTHING_FACTOR),
-            nsplines
-            )
+    splines = Parallel(n_jobs=NCORES)(
+            delayed(generate_candidate_spline)(
+                sketches,
+                (MIN_SIZE_RATIO, MAX_SIZE_RATIO),
+                (MIN_SMOOTHING_FACTOR, MAX_SMOOTHING_FACTOR),
+                )
+            for _ in range(nsplines))
 
     with open("candidates.pkl", 'wb') as f:
         pickle.dump(splines, f)
