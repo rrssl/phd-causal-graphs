@@ -1,5 +1,24 @@
 """
-Evaluate whether the runs are successful or not.
+Compute all the evaluation criteria for the input domino distributions.
+
+For each distribution, the criteria are:
+1. bool: the path is fully covered.
+2. bool: the distribution is physically possible (no overlap between
+    dominoes).
+3. bool: the physically feasible distribution(*) topples entirely during
+    simulation.
+4. float in [0,1]: how many dominoes toppled during the previous simulation,
+    as a fraction of the length thus covered over the total path length.
+5. float in [0,1]: same as (4), but averaged over N=10 trials with a
+    5% randomization(**) of the dominoes coordinates.
+6-7. float in [0,1]: same as (5), with an uncertainty of respectively
+    10 and 15%.
+
+(*): if a distribution is physically impossible (i.e. criterion (2) is False),
+it is made possible by randomly removing offending dominoes until there is no
+overlap.
+(**): for each coordinate, the uncertainty is taken as a percentage of the
+'reasonable' range manually defined for all the experiments.
 
 Parameters
 ----------
@@ -29,7 +48,13 @@ from shapely.geometry import box
 from sklearn.externals.joblib import delayed
 from sklearn.externals.joblib import Parallel
 
-from config import t, w, h, density, NCORES
+from config import t, w, h
+from config import density
+from config import NCORES
+from config import NTRIALS_UNCERTAINTY
+from config import X_MIN, X_MAX
+from config import Y_MIN, Y_MAX
+from config import A_MIN, A_MAX
 sys.path.insert(0, os.path.abspath("../.."))
 from primitives import DominoMaker
 from primitives import Floor
@@ -99,9 +124,57 @@ def get_toppling_angle():
     return math.atan(t / h) * 180 / math.pi + 1
 
 
+def randomize_dominoes(positions, headings, randfactor):
+    """Randomize dominoes' coordinates, but keep the distribution valid.
+
+    Parameters
+    ----------
+    positions : (n,3) numpy array
+        3D positions of the dominoes.
+    headings : (n,) numpy array
+        Headings of the dominoes.
+    randfactor : float
+        Randomization factor (see setup_dominoes).
+
+    Returns
+    -------
+    new_positions : (n,3) numpy array
+        New 3D Positions.
+    new_headings : (n,) numpy array
+        New headings.
+
+    """
+    base = box(-t/2, -w/2, t/2,  w/2)
+    dominoes = [translate(rotate(base, ai), xi, yi)
+                for (xi, yi, _), ai in zip(positions, headings)]
+    new_positions = np.empty_like(positions)
+    new_positions[:, 2] = positions[:, 2]
+    new_headings = np.empty_like(headings)
+    rng_x = (X_MAX-X_MIN) * randfactor
+    rng_y = (Y_MAX-Y_MIN) * randfactor
+    rng_a = (A_MAX-A_MIN) * randfactor
+    for i in range(len(positions)):
+        while True:
+            new_positions[i, 0] = (
+                    positions[i, 0] + random.uniform(-rng_x, rng_x))
+            new_positions[i, 1] = (
+                    positions[i, 1] + random.uniform(-rng_y, rng_y))
+            new_headings[i] = headings[i] + random.uniform(-rng_a, rng_a)
+            dominoes[i] = translate(
+                    rotate(base, new_headings[i]),
+                    *new_positions[i, :2])
+
+            # Find first domino to intersect the current domino
+            try:
+                next(dom for dom in dominoes
+                     if dom is not dominoes[i] and dom.intersects(dominoes[i]))
+            except StopIteration:
+                # No domino intersects the current one
+                break
+    return new_positions, new_headings
 
 
-def setup_dominoes(u, spline):
+def setup_dominoes(u, spline, randfactor=0):
     """Setup the world and objects to run the simulation.
 
     Parameters
@@ -110,6 +183,11 @@ def setup_dominoes(u, spline):
         Samples along the spline.
     spline : 'spline' as defined in spline2d
         Path of the domino run.
+    randfactor : float
+        If > 0, a randomization will be applied to all dominoes' coordinates,
+        with this factor as a fraction of the 'reasonable' range for each
+        coordinate, which will be used as the parameter of the uniform
+        distribution used for the randomization.
 
     Returns
     -------
@@ -131,6 +209,9 @@ def setup_dominoes(u, spline):
     u = np.asarray(u)
     positions = spl.splev3d(u, spline, h/2)
     headings = spl.splang(u, spline)
+    if randfactor:
+        positions, headings = randomize_dominoes(
+                positions, headings, randfactor)
     mass = density * t * w * h
     extents = Vec3(t, w, h)
     for i, (pos, head) in enumerate(zip(positions, headings)):
@@ -201,14 +282,25 @@ def evaluate_domino_run(u, spline):
     while overlap:
         u_valid.pop(random.choice(overlap))
         overlap = get_overlapping_dominoes(u_valid, spline)
-    # Run simulation
+    # Run simulation without uncertainty
     doms_np, world = setup_dominoes(u_valid, spline)
     doms_np = run_simu(doms_np, world)
     all_topple = test_all_toppled(doms_np)
     top_frac = get_toppling_fraction(u_valid, spline, doms_np)
 
-    results = [covered, non_overlapping, all_topple, top_frac]
-    return results
+    deterministic_results = [covered, non_overlapping, all_topple, top_frac]
+
+    # Run simulations with uncertainty
+    top_frac_rnd = []
+    for uncertainty in (.05, .1, .15):
+        top_frac_rnd_trials = np.empty(NTRIALS_UNCERTAINTY)
+        for i in range(NTRIALS_UNCERTAINTY):
+            doms_np = run_simu(*setup_dominoes(u_valid, spline, uncertainty))
+            top_frac_rnd_trials[i] = get_toppling_fraction(
+                    u_valid, spline, doms_np)
+        top_frac_rnd.append(top_frac_rnd_trials.mean())
+
+    return deterministic_results + top_frac_rnd
 
 
 def main():

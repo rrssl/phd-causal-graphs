@@ -31,3 +31,6 @@ MIN_SIZE_RATIO = 5
 MAX_SIZE_RATIO = 100
 MIN_SMOOTHING_FACTOR = .001
 MAX_SMOOTHING_FACTOR = .5
+
+# Number of trials for each run with a given level of uncertainty.
+NTRIALS_UNCERTAINTY = 10
