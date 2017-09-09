@@ -28,6 +28,6 @@ SMOOTHING_FACTOR = .1
 
 # Ranges for random sampling of the previous parameters.
 MIN_SIZE_RATIO = 5
-MAX_SIZE_RATIO = 50
+MAX_SIZE_RATIO = 100
 MIN_SMOOTHING_FACTOR = .001
 MAX_SMOOTHING_FACTOR = .5
