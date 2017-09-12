@@ -303,6 +303,11 @@ def evaluate_domino_run(u, spline):
     return deterministic_results + top_frac_rnd
 
 
+def get_additional_metrics(u, spline):
+    density = len(u) * t / spl.arclength(spline)
+    return [density]
+
+
 def main():
     if len(sys.argv) < 3:
         print(__doc__)
@@ -319,12 +324,19 @@ def main():
             delayed(evaluate_domino_run)(domruns['arr_{}'.format(i)], s)
             for i, s in enumerate(splines))
     #  results = [evaluate_domino_run(domruns['arr_{}'.format(i)], s)
-    #         for i, s in enumerate(splines)]
+    #             for i, s in enumerate(splines)]
+
+    metrics = Parallel(n_jobs=NCORES)(
+            delayed(get_additional_metrics)(domruns['arr_{}'.format(i)], s)
+            for i, s in enumerate(splines))
+
 
     dirname = os.path.dirname(dompath)
     prefix = os.path.splitext(os.path.basename(dompath))[0]
     outname = prefix + "-validity.npy"
     np.save(os.path.join(dirname, outname), results)
+    outname = prefix + "-metrics.npy"
+    np.save(os.path.join(dirname, outname), metrics)
 
 
 if __name__ == "__main__":
