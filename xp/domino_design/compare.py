@@ -8,7 +8,7 @@ from tabulate import tabulate
 import matplotlib.pyplot as plt
 
 
-MAKE_FIGURES = True
+MAKE_FIGURES = 1
 METHODS = (
         "Equal spacing",
         "Minimal spacing",
@@ -138,8 +138,8 @@ def main():
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(.5, -.05),
               borderaxespad=2, ncol=2)
-    ax.set_title("Comparison of binary validity criteria and time")
-    plt.savefig("validity.png", bbox_inches='tight')
+    ax.set_title("Comparison of binary validity criteria + time")
+    plt.savefig(FILES_PREFIX + "validity.png", bbox_inches='tight')
     # Second figure
     fig, ax = plt.subplots()
     x = (0, .05, .1, .15)
@@ -151,8 +151,7 @@ def main():
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(handles, labels)
     ax.set_title("Comparison of success fraction as a function of error")
-    fig.tight_layout()
-    plt.savefig("uncertainty.png")
+    plt.savefig(FILES_PREFIX + "uncertainty.png", bbox_inches='tight')
     # Third figure
     fig, ax = plt.subplots()
     index = np.arange(1)
