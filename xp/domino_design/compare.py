@@ -3,6 +3,7 @@ Build the various statistics used to compare the domino distribution methods.
 
 """
 import numpy as np
+import scipy.stats
 from tabulate import tabulate
 import matplotlib.pyplot as plt
 
@@ -53,12 +54,17 @@ MET_FILES = [
         FILES_PREFIX + "candidates-dominoes-method_{}-metrics.npy".format(i)
         for i in range(1, len(METHODS)+1)
         ]
+ERR_FUNC = scipy.stats.sem
+#  ERR_FUNC = np.std
 
 
 def main():
     table = []
+    table_err = []
     table2 = []
+    table2_err = []
     table3 = []
+    table3_err = []
     for method, domfile, valfile, timefile, metfile in zip(
             METHODS, DOM_FILES, VAL_FILES, TIME_FILES, MET_FILES):
         domarrays = np.load(domfile)
@@ -79,6 +85,14 @@ def main():
             #  (ndomarray == 1) .mean(),
             (timearray / ndomarray).mean() * 1000,
             ])
+        table_err.append([
+            ERR_FUNC(valarray[:, 0]),
+            ERR_FUNC(valarray[:, 1]),
+            ERR_FUNC(valarray[:, 2]),
+            ERR_FUNC(overallarray),
+            #  ERR_FUNC((ndomarray == 1)),
+            ERR_FUNC((timearray / ndomarray) * 1000),
+            ])
         table2.append([
             method,
             valarray[:, 3].mean(),
@@ -86,9 +100,18 @@ def main():
             valarray[:, 5].mean(),
             valarray[:, 6].mean(),
             ])
+        table2_err.append([
+            ERR_FUNC(valarray[:, 3]),
+            ERR_FUNC(valarray[:, 4]),
+            ERR_FUNC(valarray[:, 5]),
+            ERR_FUNC(valarray[:, 6]),
+            ])
         table3.append([
             method,
             metarray[:, 0].mean(),
+            ])
+        table3_err.append([
+            ERR_FUNC(metarray[:, 0]),
             ])
     print(tabulate(table, headers=HEADERS))
     print('\n')
@@ -103,9 +126,12 @@ def main():
     index = np.arange(4)
     bar_width = .1
     maxtime = max(time for *_, time in table)
-    for i, (method, *data) in enumerate(table):
-        ax.bar(index + i * bar_width, data[:3] + [data[4] / maxtime],
-               bar_width, label=method)
+    for i, ((method, *means), err) in enumerate(zip(table, table_err)):
+        x = index + i * bar_width
+        y = means[:3] + [means[4] / maxtime]
+        err = err[:3] + [err[4] / maxtime]
+        ax.bar(x, y, bar_width, label=method)
+        ax.errorbar(x, y, yerr=err, fmt='none', capsize=5, ecolor='k')
     ax.set_xticks(index + bar_width*(len(table)-1)/2)
     ax.set_xticklabels(HEADERS[1:4] + (HEADERS[5] + "\n(rel. to max)",))
     ax.set_ylabel("Percentage of curves following the criterion")
@@ -117,10 +143,9 @@ def main():
     # Second figure
     fig, ax = plt.subplots()
     x = (0, .05, .1, .15)
-    for method, *data in table2:
-        ax.plot(x, data, label=method, marker='o')
+    for (method, *means), err in zip(table2, table2_err):
+        ax.errorbar(x, means, yerr=err, fmt='-o', capsize=5, label=method)
     ax.set_xticks(x)
-    ax.set_ylim(0, 1)
     ax.set_xlabel("Percentage of error in domino placement")
     ax.set_ylabel("Fraction of the path that toppled")
     handles, labels = ax.get_legend_handles_labels()
