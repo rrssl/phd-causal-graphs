@@ -12,7 +12,8 @@ from domino_learning.config import A_MIN, A_MAX
 NCORES = 4
 
 # Path to the classifier.
-SVC_PATH = "../../../data/xp/domino_learning/samples-3D-model.pkl"
+SVC_PATH = "../../../data/xp/domino_learning/20170824/samples-3D-model.pkl"
+SVC2_PATH = "../../../data/xp/domino_learning/20170913-3/samples-3D-sym-classifier.pkl"
 
 # Spline interpolation parameters.
 
