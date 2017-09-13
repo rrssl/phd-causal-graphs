@@ -24,7 +24,7 @@ from config import t, w, h
 from config import SVC_PATH
 from config import X_MAX, Y_MAX, A_MAX
 from evaluate import run_simu, setup_dominoes, test_all_toppled
-from evaluate import test_no_overlap
+from evaluate import test_no_overlap_fast
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
 
@@ -257,7 +257,7 @@ def inc_physbased_randsearch(spline, max_ndom=-1, max_ntrials=-1):
         ntrials = 0
         while ntrials < max_ntrials:
             unew = random.uniform(umin, umax)
-            if test_no_overlap((ulast, unew), spline):
+            if test_no_overlap_fast((ulast, unew), spline):
                 doms_np = run_simu(*setup_dominoes(u + [unew], spline))
                 if test_all_toppled(doms_np):
                     u.append(unew)
@@ -312,7 +312,8 @@ def inc_classif_based(spline, init_step=-1, max_ndom=-1):
         init_guess = last_step if last_step else init_step
         unew = opt.fmin_cobyla(objective, u[-1]+init_guess, cons,
                                rhobeg=init_step, disp=0)
-        if abs(unew - u[-1]) < init_step / 10:
+        # Early termination condition
+        if not test_no_overlap_fast((u[-1], unew), spline):
             print("New sample too close to the previous; terminating.")
             break
         u.append(float(unew))
@@ -369,27 +370,16 @@ def batch_classif_based(spline, batchsize=2, init_step=-1, max_ndom=-1):
         # Run optimization
         unew = opt.fmin_cobyla(objective, init_guess, cons, rhobeg=init_step,
                                disp=0)
+        # Early termination condition
+        if not test_no_overlap_fast([u[-1]] + unew.tolist(), spline):
+            print("Samples are too close; terminating.")
+            break
         # Save result
         if len(u) >= batchsize:
             # Replace the 'batchsize'-1 last values and add the new value.
             u[len(u)-batchsize+1:len(u)] = unew
         else:
             u.append(np.asscalar(unew))
-        # Early termination condition
-        terminate = False
-        if len(u) > batchsize:
-            # Dominoes are placed by batch.
-            if any(np.isclose(
-                    u[-batchsize:], u[-batchsize-1:-1],
-                    rtol=0, atol=init_step/10)):
-                terminate = True
-        else:
-            # Dominoes are placed one by one
-            if abs(u[-1] - u[-2]) < init_step / 10:
-                terminate = True
-        if terminate:
-            print("Samples are too close; terminating.")
-            break
 
         last_step = u[-1] - u[-2]
 
