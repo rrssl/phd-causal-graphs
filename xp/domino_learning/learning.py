@@ -1,12 +1,21 @@
 """
 Regress the domino-validation function.
 
+Parameters
+----------
+spath : string
+  Path to the samples.
+vpath : string
+  Path to the results.
+
 """
+import os
+import sys
+
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn import svm
 from sklearn.externals import joblib
-import sys
 
 
 def visualize(samples, values, svc):
@@ -50,20 +59,23 @@ def visualize(samples, values, svc):
 
 
 def main():
-    if len(sys.argv) <= 2:
-        print("Please provide paths to both samples and values files.")
+    if len(sys.argv) < 3:
+        print(__doc__)
         return
-    samples_path = sys.argv[1]
-    values_path = sys.argv[2]
-    samples = np.load(samples_path)
+    spath = sys.argv[1]
+    vpath = sys.argv[2]
+    samples = np.load(spath)
     # TODO. This is lazy. Use the actual sampling bounds.
     samples /= samples.max(axis=0)
-    values = np.load(values_path)
+    values = np.load(vpath)
     svc = svm.SVC(kernel='rbf', gamma=1, C=1).fit(samples, values)
+
     print("Score: ", svc.score(samples, values))
+    root, _ = os.path.splitext(spath)
+    joblib.dump(svc, root + "-classifier.pkl")
+
     if samples.shape[1] == 2:
         visualize(samples, values, svc)
-    joblib.dump(svc, samples_path[:-4] + "-model.pkl")
 
 
 if __name__ == "__main__":
