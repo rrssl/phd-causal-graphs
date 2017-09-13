@@ -68,7 +68,14 @@ def main():
     vpath = sys.argv[2]
     samples = np.load(spath)
     # Normalize
-    samples /= (X_MAX, Y_MAX, A_MAX)
+    if samples.shape[1] == 2:
+        den = (X_MAX, A_MAX)
+    elif samples.shape[1] == 3:
+        den = (X_MAX, Y_MAX, A_MAX)
+    else:
+        print("Cannot normalize for this number of dimensions.")
+        return
+    samples /= den
     values = np.load(vpath)
     svc = svm.SVC(kernel='rbf', gamma=1, C=1).fit(samples, values)
 
