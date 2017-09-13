@@ -2,13 +2,28 @@
 Test if two boxes collide.
 """
 from math import atan, pi
+import os
+import sys
+
 from panda3d.bullet import BulletWorld, BulletBoxShape, BulletRigidBodyNode
+from panda3d.core import load_prc_file_data
 from panda3d.core import NodePath
 from panda3d.core import Point3, Vec3
 
-import os, sys
 sys.path.insert(0, os.path.abspath("../.."))
 from primitives import Floor, DominoMaker
+
+
+# The next line avoids a "memory leak" that notably happens when
+# BulletWorld.do_physics is called a huge number of times out of the
+# regular Panda3D task process. In a nutshell, objects transforms are
+# cached and compared by pointer to avoid expensive recomputation; the
+# cache is configured to flush itself at the end of each frame, which never
+# happens when we don't use frames. The solutions are: don't use the cache
+# ("transform-cache 0"), or don't defer flushing to the end of the frame
+# ("garbage-collect-states 0"). See
+# http://www.panda3d.org/forums/viewtopic.php?t=15645 for a discussion.
+load_prc_file_data("", "garbage-collect-states 0")
 
 
 def make_box(dims, pos, rot):
@@ -55,9 +70,7 @@ def has_contact(a: NodePath, b: NodePath):
     return test.get_num_contacts() > 0
 
 
-# TODO. Apply improvements discovered in domino_design: activate cache
-# flushing, run until dominoes are deactivated. Or better, create a common
-# class.
+# TODO Refactor with simulation routine in ../domino_design/evaluate.py
 def run_domino_toppling_xp(params, timestep, maxtime, visual=False):
     """
     Run the domino-pair toppling simulation. If not visual, returns True if
@@ -105,10 +118,12 @@ def run_domino_toppling_xp(params, timestep, maxtime, visual=False):
             app.destroy()
         return True
     else:
-        t = 0.
-        while d2.get_r() < toppling_angle and t < maxtime:
-            t += timestep
-            world.do_physics(timestep)
+        time = 0.
+        while (d2.get_r() < toppling_angle
+                and (d1.node().is_active() or d2.node().is_active())
+                and time < maxtime):
+            time += timestep
+            world.do_physics(timestep, 2, timestep)
 
         return d2.get_r() >= toppling_angle
 
@@ -129,7 +144,7 @@ def test_contact():
 
 
 def test_domino_toppling_xp():
-    assert run_domino_toppling_xp((.03, .1, .3, .1, 0, 15, .1), 1/60, 1)
+    assert run_domino_toppling_xp((.03, .1, .3, .1, .05, 15, .1), 1/60, 1, 0)
 
 
 if __name__ == "__main__":
