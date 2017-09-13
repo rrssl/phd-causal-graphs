@@ -21,7 +21,7 @@ from shapely.geometry import box
 from sklearn.externals import joblib
 
 from config import t, w, h
-from config import SVC_PATH
+from config import SVC_PATH, SVC2_PATH
 from config import X_MAX, Y_MAX, A_MAX
 from evaluate import run_simu, setup_dominoes, test_all_toppled
 from evaluate import test_no_overlap_fast
@@ -32,13 +32,13 @@ import spline2d as spl
 def get_methods():
     """Returns a list of all the available methods."""
     batch_classif_based_2 = partial(batch_classif_based, batchsize=2)
-    batch_classif_based_3 = partial(batch_classif_based, batchsize=3)
+    #  batch_classif_based_3 = partial(batch_classif_based, batchsize=3)
     return (equal_spacing,
             minimal_spacing,
             inc_physbased_randsearch,
             inc_classif_based,
+            inc_classif_based_v2,
             batch_classif_based_2,
-            batch_classif_based_3,
             )
 
 
@@ -317,6 +317,53 @@ def inc_classif_based(spline, init_step=-1, max_ndom=-1):
             print("New sample too close to the previous; terminating.")
             break
         u.append(float(unew))
+        last_step = u[-1] - u[-2]
+
+    return u
+
+
+def inc_classif_based_v2(spline, init_step=-1, max_ndom=-1):
+    u = [0.]
+    # Default values
+    length = spl.arclength(spline)
+    if init_step == -1:
+        init_step = np.asscalar(spl.arclength_inv(spline, t))
+    if max_ndom == -1:
+        max_ndom = int(length / t)
+    # Constraints
+    splev, splang, *_, umin, umax, _ = _init_routines(
+            u, spline)
+    cons = (umin, umax)
+    # Objective
+    svc = joblib.load(SVC2_PATH)
+
+    def objective(ui):
+        # Get local coordinates
+        x0, y0 = splev(u[-1])
+        a0 = splang(u[-1])
+        xi, yi = splev(ui)
+        ai = splang(ui)
+        xi = np.asscalar(xi - x0)
+        yi = np.asscalar(yi - y0)
+        ai = np.asscalar(ai - a0)
+        # Normalize
+        xi /= X_MAX
+        yi /= Y_MAX
+        ai /= A_MAX
+        # Evaluate
+        return -np.asscalar(svc.decision_function([[xi, yi, ai]]))
+
+    # Start main routine
+    last_step = 0
+    while 1. - u[-1] > last_step and len(u) < max_ndom:
+        init_guess = (2 * last_step) if last_step else init_step
+        unew = opt.fmin_cobyla(objective, u[-1]+init_guess, cons,
+                               rhobeg=init_step, disp=0)
+        # Early termination condition
+        if not test_no_overlap_fast((u[-1], unew), spline):
+            print("New sample too close to the previous; terminating.")
+            break
+        u.append(np.asscalar(unew))
         last_step = u[-1] - u[-2]
 
     return u
