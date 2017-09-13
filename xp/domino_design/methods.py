@@ -88,7 +88,7 @@ def _init_routines(u, spline):
     t_t = t / math.sqrt(1 + (t / h)**2)  # t*cos(arctan(theta))
     base_t = box(-t_t/2, -w/2, t_t/2,  w/2)  # Proj. of tilted base
 
-    def tilted_overlap(ui, _debug=False):
+    def tilted_overlap(ui):
         u1, u2 = u[-1], float(ui)
         # Define first rectangle (projection of tilted base)
         a1 = splang(u1)
@@ -102,16 +102,16 @@ def _init_routines(u, spline):
         c2 = np.hstack(splev(u2))
         b2 = translate(rotate(base, a2), c2[0], c2[1])
 
-        if _debug:
-            import matplotlib.pyplot as plt
-            fig, ax = plt.subplots()
-            ax.set_aspect('equal')
-            ax.plot(*np.array(b1_t.exterior.coords).T, label='D1')
-            ax.plot(*np.array(b2.exterior.coords).T, label='D2')
-            ax.plot(*spl.splev(np.linspace(0, 1), spline))
-            plt.legend()
-            plt.ioff()
-            plt.show()
+        # --For debug--
+        #  import matplotlib.pyplot as plt
+        #  fig, ax = plt.subplots()
+        #  ax.set_aspect('equal')
+        #  ax.plot(*np.array(b1_t.exterior.coords).T, label='D1')
+        #  ax.plot(*np.array(b2.exterior.coords).T, label='D2')
+        #  ax.plot(*spl.splev(np.linspace(0, 1), spline))
+        #  plt.legend()
+        #  plt.ioff()
+        #  plt.show()
 
         # Return intersection
         return - b1_t.intersection(b2).area / (t_t * w)
@@ -355,9 +355,7 @@ def batch_classif_based(spline, batchsize=2, init_step=-1, max_ndom=-1):
         yi /= Y_MAX
         ai /= A_MAX
         # Evaluate
-        return -sum(
-                svc.decision_function(np.column_stack((xi, yi, ai)))
-                ) / len(xi)
+        return -np.mean(svc.decision_function(np.column_stack((xi, yi, ai))))
 
     # Start main routine
     last_step = 0
