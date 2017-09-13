@@ -118,6 +118,10 @@ def run_domino_toppling_xp(params, timestep, maxtime, visual=False):
             app.destroy()
         return True
     else:
+        test = world.contact_test_pair(d1.node(), d2.node())
+        if test.get_num_contacts() > 0:
+            return False
+
         time = 0.
         while (d2.get_r() < toppling_angle
                 and (d1.node().is_active() or d2.node().is_active())
