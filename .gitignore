@@ -1,8 +1,4 @@
-_*/
-assets/
-*.npy
-*.npz
+__pycache__/
+*.np[yz]
 *.pkl
-*.swp
-.vim_session
-.envrc
+assets/
