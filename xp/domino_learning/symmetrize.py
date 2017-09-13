@@ -26,10 +26,10 @@ def main():
     if samples.shape[1] > 3:
         print("No method implemented for this number of dimensions.")
         return
-    values = np.load(values)
+    values = np.load(vpath)
 
-    samples_sym = samples.to_list()
-    values_sym = values.to_list()
+    samples_sym = samples.tolist()
+    values_sym = values.tolist()
     if samples.shape[1] == 2:
         for s, v in zip(samples, values):
             if s[1]:
@@ -38,7 +38,7 @@ def main():
     elif samples.shape[1] == 3:
         for s, v in zip(samples, values):
             if s[1]:
-                samples_sym.append([s[0], -s[1], s[2]])
+                samples_sym.append([s[0], -s[1], -s[2]])
                 values_sym.append(v)
 
     root, _ = os.path.splitext(spath)
