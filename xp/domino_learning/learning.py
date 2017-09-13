@@ -17,6 +17,8 @@ import numpy as np
 from sklearn import svm
 from sklearn.externals import joblib
 
+from config import X_MAX, Y_MAX, A_MAX
+
 
 def visualize(samples, values, svc):
     # Create mesh for sampling
@@ -65,8 +67,8 @@ def main():
     spath = sys.argv[1]
     vpath = sys.argv[2]
     samples = np.load(spath)
-    # TODO. This is lazy. Use the actual sampling bounds.
-    samples /= samples.max(axis=0)
+    # Normalize
+    samples /= (X_MAX, Y_MAX, A_MAX)
     values = np.load(vpath)
     svc = svm.SVC(kernel='rbf', gamma=1, C=1).fit(samples, values)
 
