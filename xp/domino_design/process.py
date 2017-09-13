@@ -57,12 +57,11 @@ def main():
     #  out = [timed_method(spline) for spline in splines]
     results, times = zip(*out)  # Unzip!
 
-    dirname = os.path.dirname(spath)
-    prefix = os.path.splitext(os.path.basename(spath))[0]
-    outname = prefix + "-dominoes-method_{}.npz".format(mid)
-    np.savez(os.path.join(dirname, outname), *results)
-    outname = prefix + "-times-method_{}.npy".format(mid)
-    np.save(os.path.join(dirname, outname), times)
+    root, _ = os.path.splitext(spath)
+    outpath = root + "-dominoes-method_{}.npz".format(mid)
+    np.savez(outpath, *results)
+    outpath = root + "-times-method_{}.npy".format(mid)
+    np.save(outpath, times)
 
 
 if __name__ == "__main__":
