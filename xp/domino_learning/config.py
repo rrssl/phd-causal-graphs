@@ -2,6 +2,7 @@
 Global parameters.
 
 """
+SAMPLING_NDIM = 3
 timestep = 1. / 120.    # [s]
 maxtime = 2.            # [s]
 density = 650.          # [kg/m3]

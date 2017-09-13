@@ -1,9 +1,13 @@
 """
-Sampling the parameter space. Enter n as the number of samples.
+Sampling the parameter space.
 
-Domino dimensions are specified in config.py.
-Sampling-specific options (sampled parameters, sampling bounds, file name) are
-defined in the main().
+The domino dimensions and sampling space bounds+dimensions are specified in
+'config.py'.
+
+Parameters
+----------
+n : int
+  Number of samples.
 
 """
 from math import pi, atan
@@ -11,7 +15,8 @@ import numpy as np
 from random import uniform
 import sys
 
-from config import t, w, h, X_MIN, X_MAX, Y_MIN, Y_MAX, A_MIN, A_MAX
+from config import t, w, h
+from config import X_MIN, X_MAX, Y_MIN, Y_MAX, A_MIN, A_MAX, SAMPLING_NDIM
 from functions import make_box, tilt_box_forward, has_contact
 
 
@@ -67,22 +72,23 @@ def sample3d(n, bounds):
 
 def main():
     if len(sys.argv) <= 1:
-        print("Please enter the number of samples.")
+        print(__doc__)
         return
     nsam = int(sys.argv[1])
 
-    # TODO: make them optional script arguments
-    ndim = 3
-    name = "samples-{}D.npy".format(ndim)
-
-    if ndim == 2:
+    if SAMPLING_NDIM == 2:
         # Angle is > 0 because of symmetry.
         bounds = ((X_MIN, X_MAX), (0, A_MAX))
         sample = sample2d
-    else:
+    elif SAMPLING_NDIM == 3:
         # Y is > 0 because of symmetry.
         bounds = ((X_MIN, X_MAX), (0, Y_MAX), (A_MIN, A_MAX))
         sample = sample3d
+    else:
+        print("No method implemented for this number of dimensions.")
+        return
+
+    name = "samples-{}D.npy".format(SAMPLING_NDIM)
     s = sample(nsam, bounds)
     np.save(name, s)
 
