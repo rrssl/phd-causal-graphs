@@ -79,18 +79,21 @@ def main():
     if SAMPLING_NDIM == 2:
         # Angle is > 0 because of symmetry.
         bounds = ((X_MIN, X_MAX), (0, A_MAX))
-        sample = sample2d
+        samples = sample2d(nsam, bounds)
+        samples_sym = [[s[0], -s[1]] for s in samples if s[1]]
+        samples = np.vstack((samples, samples_sym))
     elif SAMPLING_NDIM == 3:
         # Y is > 0 because of symmetry.
         bounds = ((X_MIN, X_MAX), (0, Y_MAX), (A_MIN, A_MAX))
-        sample = sample3d
+        samples = sample3d(nsam, bounds)
+        samples_sym = [[s[0], -s[1], s[2]] for s in samples if s[1]]
+        samples = np.vstack((samples, samples_sym))
     else:
         print("No method implemented for this number of dimensions.")
         return
 
     name = "samples-{}D.npy".format(SAMPLING_NDIM)
-    s = sample(nsam, bounds)
-    np.save(name, s)
+    np.save(name, samples)
 
 
 if __name__ == "__main__":
