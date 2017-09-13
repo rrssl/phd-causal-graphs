@@ -2,7 +2,13 @@
 Processing domino-pair samples. For each sample, test whether if the first
 domino is just out of equilibrium, the second topples.
 
+Parameters
+----------
+spath : string
+  Path to the samples to process.
+
 """
+import os
 import sys
 import numpy as np
 
@@ -27,14 +33,15 @@ def process(samples):
 
 def main():
     if len(sys.argv) <= 1:
-        print("Enter the file name of the samples to process.")
+        print(__doc__)
         return
-    fname = sys.argv[1]
-    samples = np.load(fname)
+    spath = sys.argv[1]
+    samples = np.load(spath)
     assert samples.shape[1] in (2, 3), "Number of dimensions must be 2 or 3."
     values = process(samples)
     #  print(values)
-    np.save(fname[:-4] + "-values.npy", values)
+    root = os.path.splitext(spath)[0]
+    np.save(root + "-values.npy", values)
 
 if __name__ == "__main__":
     main()
