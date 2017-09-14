@@ -327,7 +327,7 @@ def inc_classif_based_v2(spline, init_step=-1, max_ndom=-1):
     # Default values
     length = spl.arclength(spline)
     if init_step == -1:
-        init_step = np.asscalar(spl.arclength_inv(spline, t))
+        init_step = np.asscalar(spl.arclength_inv(spline, h/3))
     if max_ndom == -1:
         max_ndom = int(length / t)
     # Constraints
@@ -356,9 +356,9 @@ def inc_classif_based_v2(spline, init_step=-1, max_ndom=-1):
     # Start main routine
     last_step = 0
     while 1. - u[-1] > last_step and len(u) < max_ndom:
-        init_guess = (2 * last_step) if last_step else init_step
+        init_guess = last_step if last_step else init_step
         unew = opt.fmin_cobyla(objective, u[-1]+init_guess, cons,
-                               rhobeg=init_step, disp=0)
+                               rhobeg=init_guess, disp=0)
         # Early termination condition
         if not test_no_overlap_fast((u[-1], unew), spline):
             print("New sample too close to the previous; terminating.")
