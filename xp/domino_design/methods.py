@@ -416,7 +416,7 @@ def batch_classif_based(spline, batchsize=2, init_step=-1, max_ndom=-1):
         unew = opt.fmin_cobyla(objective, init_guess, cons, rhobeg=init_step,
                                disp=0)
         # Early termination condition
-        if not test_no_overlap_fast([u[-1]] + unew.tolist(), spline):
+        if not test_no_overlap_fast([u[-len(unew)]] + unew.tolist(), spline):
             print("Samples are too close; terminating.")
             break
         # Save result
