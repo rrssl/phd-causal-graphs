@@ -17,7 +17,7 @@ def arclength(tck, t=1):
     """
     t = np.atleast_1d(t)
     return np.array(
-            [quad(lambda u: arclength_der(tck, u), 0, ti, limit=200)[0]
+            [quad(lambda u: arclength_der(tck, u), 0, ti, limit=500)[0]
              for ti in t])
 
 
