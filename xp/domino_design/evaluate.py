@@ -304,7 +304,8 @@ def evaluate_domino_run(u, spline):
 
 
 def get_additional_metrics(u, spline):
-    density = len(u) * t / spl.arclength(spline)
+    length = spl.arclength(spline, u[-1])
+    density = len(u) * t / length if length else 1
     return [density]
 
 
