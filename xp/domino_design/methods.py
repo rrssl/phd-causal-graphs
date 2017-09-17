@@ -24,7 +24,7 @@ from config import t, w, h
 from config import SVC_PATH, SVC2_PATH
 from config import X_MAX, Y_MAX, A_MAX
 from evaluate import run_simu, setup_dominoes, test_all_toppled
-from evaluate import test_no_overlap_fast
+from evaluate import test_no_successive_overlap_fast
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
 
@@ -257,7 +257,7 @@ def inc_physbased_randsearch(spline, max_ndom=-1, max_ntrials=-1):
         ntrials = 0
         while ntrials < max_ntrials:
             unew = random.uniform(umin, umax)
-            if test_no_overlap_fast((ulast, unew), spline):
+            if test_no_successive_overlap_fast((ulast, unew), spline):
                 doms_np = run_simu(*setup_dominoes(u + [unew], spline))
                 if test_all_toppled(doms_np):
                     u.append(unew)
@@ -313,7 +313,7 @@ def inc_classif_based(spline, init_step=-1, max_ndom=-1):
         unew = opt.fmin_cobyla(objective, u[-1]+init_guess, cons,
                                rhobeg=init_step, disp=0)
         # Early termination condition
-        if not test_no_overlap_fast((u[-1], unew), spline):
+        if not test_no_successive_overlap_fast((u[-1], unew), spline):
             print("New sample too close to the previous; terminating.")
             break
         u.append(float(unew))
@@ -360,7 +360,7 @@ def inc_classif_based_v2(spline, init_step=-1, max_ndom=-1):
         unew = opt.fmin_cobyla(objective, u[-1]+init_guess, cons,
                                rhobeg=init_guess, disp=0)
         # Early termination condition
-        if not test_no_overlap_fast((u[-1], unew), spline):
+        if not test_no_successive_overlap_fast((u[-1], unew), spline):
             print("New sample too close to the previous; terminating.")
             break
         u.append(np.asscalar(unew))
@@ -416,7 +416,8 @@ def batch_classif_based(spline, batchsize=2, init_step=-1, max_ndom=-1):
         unew = opt.fmin_cobyla(objective, init_guess, cons, rhobeg=init_step,
                                disp=0)
         # Early termination condition
-        if not test_no_overlap_fast([u[-len(unew)]] + unew.tolist(), spline):
+        if not test_no_successive_overlap_fast(
+                [u[-len(unew)]] + unew.tolist(), spline):
             print("Samples are too close; terminating.")
             break
         # Save result
