@@ -355,11 +355,11 @@ def inc_classif_based_v2(spline, init_step=-1, max_ndom=-1):
     if max_ndom == -1:
         max_ndom = int(length / t)
     # Constraints
-    splev, splang, *_, umin, umax, _ = _init_routines(
-            u, spline)
+    splev, splang, *_, umin, umax, _ = _init_routines_vec(u, spline)
     cons = (umin, umax)
     # Objective
     svc = joblib.load(SVC2_PATH)
+    energy = svc.decision_function
 
     def objective(ui):
         # Get local Cartesien coordinates
@@ -382,7 +382,7 @@ def inc_classif_based_v2(spline, init_step=-1, max_ndom=-1):
         yi /= Y_MAX
         ai /= A_MAX
         # Evaluate
-        return -np.asscalar(svc.decision_function([[xi, yi, ai]]))
+        return -energy(np.column_stack([xi, yi, ai]))
 
     # Start main routine
     last_step = 0
@@ -414,6 +414,7 @@ def batch_classif_based(spline, batchsize=2, init_step=-1, max_ndom=-1):
     cons = (no_overlap, umin, umax)
     # Objective
     svc = joblib.load(SVC_PATH)
+    energy = svc.decision_function
 
     def objective(ui):
         ui = np.concatenate(([u[-len(ui)]], ui))
@@ -439,7 +440,7 @@ def batch_classif_based(spline, batchsize=2, init_step=-1, max_ndom=-1):
         yi /= Y_MAX
         ai /= A_MAX
         # Evaluate
-        return -np.mean(svc.decision_function(np.column_stack((xi, yi, ai))))
+        return -np.mean(energy(np.column_stack((xi, yi, ai))))
 
     # Start main routine
     last_step = 0
