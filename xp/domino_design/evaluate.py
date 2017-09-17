@@ -241,8 +241,7 @@ def setup_dominoes(u, spline, randfactor=0):
     # Set initial conditions for first domino
     first_domino = doms_np.get_child(0)
     #  angvel_init = Vec3(0., 15., 0.)
-    #  angvel_init = Mat3.rotate_mat(spl.splang(0, spline)).xform(
-            #  angvel_init)
+    #  angvel_init = Mat3.rotate_mat(headings[0]).xform(angvel_init)
     #  first_domino.node().set_angular_velocity(angvel_init)
     toppling_angle = get_toppling_angle()
     tilt_box_forward(first_domino, toppling_angle)
@@ -327,7 +326,7 @@ def evaluate_domino_run(u, spline):
 
 def get_additional_metrics(u, spline):
     length = spl.arclength(spline, u[-1])
-    density = len(u) * t / length if length else 1
+    density = (len(u) * t / length) if length else 1
     return [density]
 
 
