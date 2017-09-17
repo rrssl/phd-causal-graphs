@@ -103,19 +103,40 @@ def test_no_overlap(u, spline):
     return not bool(get_overlapping_dominoes(u, spline))
 
 
-def test_no_overlap_fast(u, spline):
-    """Only test for overlaps between successive dominoes."""
+def get_successive_overlapping_dominoes(u, spline):
+    """Get the indices of the successive dominoes that overlap."""
+    overlapping = []
+    if len(u) < 2:
+        return overlapping
+    base = box(-t/2, -w/2, t/2,  w/2)
+    x, y = spl.splev(u, spline)
+    a = spl.splang(u, spline)
+    dominoes = [translate(rotate(base, ai), xi, yi)
+                for xi, yi, ai in zip(x, y, a)]
+    for d1, d2 in zip(dominoes[1:], dominoes[:-1]):
+        if d1.intersects(d2):
+            overlapping.append(i)
+
+    return overlapping
+
+
+def test_no_successive_overlap(u, spline):
+    return not bool(get_successive_overlapping_dominoes(u, spline))
+
+
+def test_no_successive_overlap_fast(u, spline):
+    """Like test_no_successive_overlap, but return as soon as one is found."""
     if len(u) < 2:
         return True
     base = box(-t/2, -w/2, t/2,  w/2)
     x, y = spl.splev(u, spline)
     a = spl.splang(u, spline)
-    b1 = None
-    b2 = translate(rotate(base, a[0]), x[0], y[0])
+    d1 = None
+    d2 = translate(rotate(base, a[0]), x[0], y[0])
     for i in range(1, len(u)):
-        b1 = b2
-        b2 = translate(rotate(base, a[i]), x[i], y[i])
-        if b1.intersects(b2):
+        d1 = d2
+        d2 = translate(rotate(base, a[i]), x[i], y[i])
+        if d1.intersects(d2):
             return False
     return True
 
@@ -275,13 +296,14 @@ def test_all_toppled(doms_np):
 def evaluate_domino_run(u, spline):
     """Evaluate the domino distribution for all criteria."""
     covered = test_path_coverage(u, spline)
-    overlap = get_overlapping_dominoes(u, spline)
-    non_overlapping = not bool(overlap)
+    non_overlapping = test_no_successive_overlap_fast(u, spline)
     # If not valid, make a valid version
     u_valid = list(u)
-    while overlap:
-        u_valid.pop(random.choice(overlap))
-        overlap = get_overlapping_dominoes(u_valid, spline)
+    if not non_overlapping:
+        overlap = get_overlapping_dominoes(u, spline)
+        while overlap:
+            u_valid.pop(random.choice(overlap))
+            overlap = get_overlapping_dominoes(u_valid, spline)
     # Run simulation without uncertainty
     doms_np, world = setup_dominoes(u_valid, spline)
     doms_np = run_simu(doms_np, world)
