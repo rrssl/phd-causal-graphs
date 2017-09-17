@@ -231,7 +231,7 @@ def minimal_spacing(spline, init_step=-1, max_ndom=-1):
     # Default values
     length = spl.arclength(spline)
     if init_step == -1:
-        init_step = spl.arclength_inv(spline, t)
+        init_step = np.asscalar(spl.arclength_inv(spline, h/3))
     if max_ndom == -1:
         max_ndom = int(length / t)
     # Constraints
@@ -245,9 +245,10 @@ def minimal_spacing(spline, init_step=-1, max_ndom=-1):
     # Start main routine
     last_step = 0
     while 1. - u[-1] > last_step and len(u) < max_ndom:
-        init_guess = last_step if last_step else init_step
-        unew = opt.fmin_cobyla(objective, u[-1]+init_guess, cons,
-                               rhobeg=init_step, disp=0)
+        init_step = last_step if last_step else init_step
+        init_guess = np.atleast_1d(u[-1] + init_step)
+        unew = opt.fmin_cobyla(objective, init_guess, cons,
+                               rhobeg=init_step/100, disp=0)
         if abs(unew - u[-1]) < init_step / 10:
             print("New sample too close to the previous; terminating.")
             break
@@ -385,9 +386,10 @@ def inc_classif_based_v2(spline, init_step=-1, max_ndom=-1):
     # Start main routine
     last_step = 0
     while 1. - u[-1] > last_step and len(u) < max_ndom:
-        init_guess = last_step if last_step else init_step
-        unew = opt.fmin_cobyla(objective, u[-1]+init_guess, cons,
-                               rhobeg=init_guess, disp=0)
+        init_step = last_step if last_step else init_step
+        init_guess = np.atleast_1d(u[-1] + init_step)
+        unew = opt.fmin_cobyla(objective, init_guess, cons,
+                               rhobeg=init_step/100, disp=0)
         # Early termination condition
         if not test_no_successive_overlap_fast((u[-1], unew), spline):
             print("New sample too close to the previous; terminating.")
@@ -403,7 +405,7 @@ def batch_classif_based(spline, batchsize=2, init_step=-1, max_ndom=-1):
     # Default values
     length = spl.arclength(spline)
     if init_step == -1:
-        init_step = np.asscalar(spl.arclength_inv(spline, t))
+        init_step = np.asscalar(spl.arclength_inv(spline, h/3))
     if max_ndom == -1:
         max_ndom = int(length / t)
     # Constraints
@@ -442,13 +444,14 @@ def batch_classif_based(spline, batchsize=2, init_step=-1, max_ndom=-1):
     last_step = 0
     while 1. - u[-1] > last_step and len(u) < max_ndom:
         # Define initial guess
-        init_guess = [u[-1] + last_step if last_step else init_step]
+        init_step = last_step if last_step else init_step
+        init_guess = [u[-1] + init_step]
         if len(u) >= batchsize:
             # Insert the 'batchsize'-1 previous dominoes at the beginning.
             init_guess[0:0] = u[len(u)-batchsize+1:]
         # Run optimization
-        unew = opt.fmin_cobyla(objective, init_guess, cons, rhobeg=init_step,
-                               disp=0)
+        unew = opt.fmin_cobyla(objective, init_guess, cons,
+                               rhobeg=init_step/100, disp=0)
         # Early termination condition
         if not test_no_successive_overlap_fast(
                 [u[-len(unew)]] + unew.tolist(), spline):
