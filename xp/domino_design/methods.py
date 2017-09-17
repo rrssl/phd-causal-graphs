@@ -417,6 +417,8 @@ def batch_classif_based(spline, batchsize=2, init_step=-1, max_ndom=-1):
     energy = svc.decision_function
 
     def objective(ui):
+        if not np.isfinite(ui).all():
+            return np.inf
         ui = np.concatenate(([u[-len(ui)]], ui))
         # Get local Cartesian coordinates
         # Change origin
