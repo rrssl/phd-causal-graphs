@@ -164,10 +164,14 @@ def _init_routines_vec(u, spline):
         return 45 - abs(diff)
 
     def umin(ui):
-        return ui - np.concatenate(([u[-len(ui)]], ui[:-1]))
+        diff = ui - np.concatenate(([u[-len(ui)]], ui[:-1]))
+        diff[diff > 0] = 0
+        return diff
 
     def umax(ui):
-        return 1 - np.asarray(ui)
+        diff = 1 - np.asarray(ui)
+        diff[diff > 0] = 0
+        return diff
 
     # Define variables for non-overlap constraint
     base = box(-t/2, -w/2, t/2,  w/2)
