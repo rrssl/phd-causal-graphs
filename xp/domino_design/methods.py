@@ -178,19 +178,19 @@ def _init_routines_vec(u, spline):
     t_tilt = t / math.sqrt(1 + (t / h)**2)  # t*cos(arctan(theta))
     base_tilt = box(-t_tilt/2, -w/2, t_tilt/2,  w/2)  # Project. of tilted base
 
-    def tilted_overlap(ui):
+    def no_overlap(ui):
         ui = np.concatenate(([u[-len(ui)]], ui))
         ai = splang(ui)
         ci = np.column_stack(splev(ui))
         ci_tilt = ci + .5 * (t + t_tilt) * np.column_stack(
                 (np.cos(ai), np.sin(ai)))
-        # Define previous rectangles (projection of tilted base)
+        # Create projections of tilted bases (no need to tilt the last one)
         bi_tilt = [
                 translate(rotate(base_tilt, aij, use_radians=True), *cij_tilt)
                 for aij, cij_tilt in zip(ai[:-1], ci_tilt[:-1])]
-        # Define next rectangles
+        # Create projections of untilted bases
         bi = [translate(rotate(base, aik, use_radians=True), *cik)
-              for aik, cik in zip(ai[1:], ci[1:])]
+              for aik, cik in zip(ai, ci)]
 
         # --For debug--
         #  import matplotlib.pyplot as plt
@@ -203,11 +203,14 @@ def _init_routines_vec(u, spline):
         #  plt.ioff()
         #  plt.show()
 
-        # Return intersection
-        return np.array([- bij_tilt.intersection(bij).area / (t_tilt * w)
-                         for bij_tilt, bij in zip(bi_tilt, bi)])
+        # Return intersections
+        isect = np.array([- bij.intersection(bik).area / (t * w)
+                          for bij, bik in zip(bi[:-1], bi[1:])])
+        isect_tilt = np.array([- bij_tilt.intersection(bij).area / (t_tilt * w)
+                               for bij_tilt, bij in zip(bi_tilt, bi[1:])])
+        return isect + isect_tilt
 
-    return splev, splang, xmin, xmax, yabs, habs, umin, umax, tilted_overlap
+    return splev, splang, xmin, xmax, yabs, habs, umin, umax, no_overlap
 
 
 def equal_spacing(spline, ndom=-1):
@@ -232,8 +235,8 @@ def minimal_spacing(spline, init_step=-1, max_ndom=-1):
     if max_ndom == -1:
         max_ndom = int(length / t)
     # Constraints
-    splev, splang, *_, umin, umax, tilted_overlap = _init_routines(u, spline)
-    cons = (tilted_overlap, umin, umax)
+    splev, splang, *_, umin, umax, no_overlap = _init_routines_vec(u, spline)
+    cons = (no_overlap, umin, umax)
     # Objective
 
     def objective(ui):
@@ -404,11 +407,8 @@ def batch_classif_based(spline, batchsize=2, init_step=-1, max_ndom=-1):
     if max_ndom == -1:
         max_ndom = int(length / t)
     # Constraints
-    splev, splang, *_, habs, umin, umax, tilted_overlap = _init_routines_vec(
-            u, spline)
-    #  cons = (xmin, xmax, yabs, habs, umax, tilted_overlap)
-    #  cons = (xmin, xmax, umin, umax, tilted_overlap)
-    cons = (tilted_overlap, umin, umax, habs)
+    splev, splang, *_, umin, umax, no_overlap = _init_routines_vec(u, spline)
+    cons = (no_overlap, umin, umax)
     # Objective
     svc = joblib.load(SVC_PATH)
 
