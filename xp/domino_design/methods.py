@@ -249,10 +249,11 @@ def minimal_spacing(spline, init_step=-1, max_ndom=-1):
         init_guess = np.atleast_1d(u[-1] + init_step)
         unew = opt.fmin_cobyla(objective, init_guess, cons,
                                rhobeg=init_step/100, disp=0)
-        if abs(unew - u[-1]) < init_step / 10:
+        # Early termination condition
+        if not test_no_successive_overlap_fast((u[-1], unew), spline):
             print("New sample too close to the previous; terminating.")
             break
-        u.append(float(unew))
+        u.append(np.asscalar(unew))
         last_step = u[-1] - u[-2]
 
     return u
