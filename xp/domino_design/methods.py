@@ -127,21 +127,36 @@ def _init_routines_vec(u, spline):
         return spl.splev(ui, spline)
 
     def splang(ui):
-        return spl.splang(ui, spline)
+        return spl.splang(ui, spline, degrees=False)
 
     # Constraints
 
     def xmin(ui):
-        xi = splev(np.concatenate(([u[-len(ui)]], ui)))[0]
-        return abs(xi[1:] - xi[:-1]) - t
+        ui = np.concatenate(([u[-len(ui)]], ui))
+        xi, yi = splev(ui)
+        xi = xi[1:] - xi[:-1]
+        yi = yi[1:] - yi[:-1]
+        ai = splang(ui[:-1])
+        xi = xi*np.cos(ai) + yi*np.sin(ai)
+        return xi - t
 
     def xmax(ui):
-        xi = splev(np.concatenate(([u[-len(ui)]], ui)))[0]
-        return h - abs(xi[1:] - xi[:-1])
+        ui = np.concatenate(([u[-len(ui)]], ui))
+        xi, yi = splev(ui)
+        xi = xi[1:] - xi[:-1]
+        yi = yi[1:] - yi[:-1]
+        ai = splang(ui[:-1])
+        xi = xi*np.cos(ai) + yi*np.sin(ai)
+        return h - xi
 
     def yabs(ui):
-        yi = splev(np.concatenate(([u[-len(ui)]], ui)))[1]
-        return w - abs(yi[1:] - yi[:-1])
+        ui = np.concatenate(([u[-len(ui)]], ui))
+        xi, yi = splev(ui)
+        xi = xi[1:] - xi[:-1]
+        yi = yi[1:] - yi[:-1]
+        ai = splang(ui[:-1])
+        yi = -xi*np.sin(ai) + yi*np.cos(ai)
+        return w - abs(yi)
 
     def habs(ui):
         ai = splang(np.concatenate(([u[-len(ui)]], ui)))
@@ -161,7 +176,7 @@ def _init_routines_vec(u, spline):
 
     def tilted_overlap(ui):
         ui = np.concatenate(([u[-len(ui)]], ui))
-        ai = spl.splang(ui, spline, degrees=False)
+        ai = splang(ui)
         ci = np.column_stack(splev(ui))
         ci_tilt = ci + .5 * (t + t_tilt) * np.column_stack(
                 (np.cos(ai), np.sin(ai)))
@@ -338,14 +353,21 @@ def inc_classif_based_v2(spline, init_step=-1, max_ndom=-1):
     svc = joblib.load(SVC2_PATH)
 
     def objective(ui):
-        # Get local coordinates
+        # Get local Cartesien coordinates
+        # Change origin
         x0, y0 = splev(u[-1])
-        a0 = splang(u[-1])
         xi, yi = splev(ui)
-        ai = splang(ui)
-        xi = np.asscalar(xi - x0)
-        yi = np.asscalar(yi - y0)
-        ai = np.asscalar(ai - a0)
+        xi = xi - x0
+        yi = yi - y0
+        # Rotate by -a0
+        a0 = splang(u[-1])
+        c0 = np.cos(a0)
+        s0 = np.sin(a0)
+        xi = xi*c0 + yi*s0
+        yi = -xi*s0 + yi*c0
+        # Get relative angle
+        ai = np.degrees(splang(ui) - a0)
+        ai = (ai + 180) % 360 - 180  # Convert from [0, 360) to [-180, 180)
         # Normalize
         xi /= X_MAX
         yi /= Y_MAX
@@ -388,12 +410,20 @@ def batch_classif_based(spline, batchsize=2, init_step=-1, max_ndom=-1):
 
     def objective(ui):
         ui = np.concatenate(([u[-len(ui)]], ui))
-        # Get local coordinates
+        # Get local Cartesian coordinates
+        # Change origin
         xi, yi = splev(ui)
-        ai = splang(ui)
         xi = xi[1:] - xi[:-1]
         yi = yi[1:] - yi[:-1]
-        ai = ai[1:] - ai[:-1]
+        # Rotate by -a_i-1
+        ai = splang(ui)
+        ci_ = np.cos(ai[:-1])
+        si_ = np.sin(ai[:-1])
+        xi = xi*ci_ + yi*si_
+        yi = -xi*si_ + yi*ci_
+        # Get relative angles
+        ai = np.degrees(ai[1:] - ai[:-1])
+        ai = (ai + 180) % 360 - 180  # Convert from [0, 360) to [-180, 180)
         # Symmetrize
         ai = np.copysign(ai, yi)
         yi = abs(yi)
