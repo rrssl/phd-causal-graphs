@@ -1,6 +1,5 @@
 """
-Visualize the energy of our incremental classifier based method for a given
-spline and previous domino position.
+Visualize energy for a given spline and previous domino position.
 
 Parameters
 ----------
@@ -12,7 +11,7 @@ uprev : float in [0, 1), optional
   Parametric position of the previous domino.
 
 """
-import math
+from math import cos, pi, sin, sqrt
 import os
 import sys
 
@@ -23,73 +22,113 @@ from shapely.affinity import translate
 from shapely.geometry import box
 from sklearn.externals import joblib
 
-from colorline import colorline
-from config import t, w, h, SVC_PATH
+from config import t, w, h, X_MAX, Y_MAX, A_MAX, SVC_PATH, SVC2_PATH
+from methods import _init_routines_vec
 sys.path.insert(0, os.path.abspath("../.."))
-import spline2d as spl
+import spline2d as spl  # flake8: noqa E402
 
 
-def visualize_svc_energy(uprev, spline):
+def get_inc_classif_based_energy(u, uprev_id, spline):
     svc = joblib.load(SVC_PATH)
 
-    def objective(ui, uprev=0.):
-        # Get local coordinates
-        x0, y0 = spl.splev(uprev, spline)
-        h0 = spl.splang(uprev, spline)
-        xi, yi = spl.splev(ui, spline)
-        hi = spl.splang(ui, spline)
+    splev, splang, *_, habs, umin, umax, tilted_overlap = _init_routines_vec(
+            [u[uprev_id]], spline)
+
+    def objective(ui):
+        # Get local Cartesian coordinates
+        # Change origin
+        x0, y0 = splev(u[uprev_id])
+        xi, yi = splev(ui)
         xi = xi - x0
         yi = yi - y0
-        hi = ui - h0
+        # Rotate by -a0
+        a0 = splang(u[uprev_id])
+        c0 = cos(a0)
+        s0 = sin(a0)
+        xi = xi*c0 + yi*s0
+        yi = -xi*s0 + yi*c0
+        # Get relative angle
+        ai = (splang(ui) - a0) * 180 / pi
+        ai = (ai + 180) % 360 - 180
         # Symmetrize wrt the Ox axis
-        hi = np.copysign(hi, yi)
+        ai = np.copysign(ai, yi)
         yi = abs(yi)
         # Normalize
-        xi /= 1.5*h
-        yi /= w
-        hi /= 90
+        xi /= X_MAX
+        yi /= Y_MAX
+        ai /= A_MAX
         # Evaluate
-        return -svc.decision_function(np.column_stack([xi, yi, hi]))
+        return svc.decision_function(np.column_stack([xi, yi, ai]))
 
-    base = box(-t * .5, -w * .5, t * .5,  w * .5)
-    t_t = t / math.sqrt(1 + (t / h)**2)  # t*cos(arctan(theta))
-    base_t = box(-t_t * .5, -w * .5, t_t * .5,  w * .5)  # Proj. of tilted base
+    f = objective(u)
+    c1 = np.concatenate([tilted_overlap([ui]) for ui in u])
+    c2 = np.concatenate([umin([ui]) for ui in u])
 
-    def tilted_overlap(ui, uprev=0.):
-        u1, u2 = uprev, float(ui)
-        # Define first rectangle (projection of tilted base)
-        h1 = spl.splang(u1, spline)
-        h1_rad = h1 * math.pi / 180
-        c1_t = (np.hstack(spl.splev(u1, spline))
-                + .5 * (t + t_t)
-                * np.array([math.cos(h1_rad), math.sin(h1_rad)]))
-        b1_t = translate(rotate(base_t, h1), c1_t[0], c1_t[1])
-        # Define second rectangle
-        h2 = spl.splang(u2, spline)
-        c2 = np.hstack(spl.splev(u2, spline))
-        b2 = translate(rotate(base, h2), c2[0], c2[1])
-        return b1_t.intersection(b2).area / (t_t * w)
+    return f/20+c1+c2
 
+
+def get_inc_classif_based_v2_energy(u, uprev_id, spline):
+    svc = joblib.load(SVC2_PATH)
+
+    def splev(ui):
+        return spl.splev(ui, spline)
+
+    def splang(ui):
+        return spl.splang(ui, spline, degrees=False)
+
+    def objective(ui):
+        # Get local Cartesian coordinates
+        # Change origin
+        x0, y0 = splev(u[uprev_id])
+        xi, yi = splev(ui)
+        xi = xi - x0
+        yi = yi - y0
+        # Rotate by -a0
+        a0 = splang(u[uprev_id])
+        c0 = cos(a0)
+        s0 = sin(a0)
+        xi = xi*c0 + yi*s0
+        yi = -xi*s0 + yi*c0
+        # Get relative angle
+        ai = (splang(ui) - a0) * 180 / pi
+        ai = (ai + 180) % 360 - 180
+        # Normalize
+        xi /= X_MAX
+        yi /= Y_MAX
+        ai /= A_MAX
+        # Evaluate
+        return svc.decision_function(np.column_stack([xi, yi, ai]))
+
+    f = objective(u)
+
+    return f
+
+
+def visualize_energy(uprev, spline):
     fig, ax = plt.subplots()
     ax.set_aspect('equal', 'datalim')
-    npts = 100
+    npts = 1000
     uprev_id = int(uprev * npts)
     u = np.linspace(0, 1, npts)
     x, y = spl.splev(u, spline)
-    f = objective(u[uprev_id+1:], u[uprev_id])
-    c = [tilted_overlap(ui, u[uprev_id]) for ui in u[uprev_id+1:]]
+    energy = get_inc_classif_based_energy(u, uprev_id, spline)
+    #  energy = get_inc_classif_based_v2_energy(u, uprev_id, spline)
 
-    colorline(ax, x[:uprev_id+2], y[:uprev_id+2], 0, cmap='autumn',
-              linewidth=3)
-    lc = colorline(ax, x[uprev_id+1:], y[uprev_id+1:], f+c, cmap='viridis_r',
-                   linewidth=3)
+    plot = ax.scatter(x, y, c=energy, s=2, cmap='viridis')
 
+    base = box(-t * .5, -w * .5, t * .5,  w * .5)
     b1 = translate(rotate(base, spl.splang(u[uprev_id], spline)),
                    x[uprev_id], y[uprev_id])
     ax.plot(*np.array(b1.exterior.coords).T)
-    #  ax.scatter(x, y, marker='+')
+    sprev = spl.arclength(spline, uprev)
+    margin = int((spl.arclength_inv(spline, sprev + h) - uprev) * npts)
+    max_id = energy[uprev_id:uprev_id+margin].argmax() + uprev_id
+    b2 = translate(rotate(base, spl.splang(u[max_id], spline)),
+                   x[max_id], y[max_id])
+    ax.plot(*np.array(b2.exterior.coords).T)
     ax.autoscale_view()
-    plt.colorbar(lc)
+    ax.set_title("The goal is to maximize the energy. E > 0 = good.")
+    plt.colorbar(plot)
     plt.ioff()
     plt.show()
 
@@ -103,9 +142,9 @@ def main():
     uprev = 0. if len(sys.argv) == 3 else float(sys.argv[3])
 
     with open(spath, 'rb') as f:
-        splines = pickle.load(f)
+        splines = joblib.load(f)
     spline = splines[sid]
-    visualize_svc_energy(uprev, spline)
+    visualize_energy(uprev, spline)
 
 
 if __name__ == "__main__":
