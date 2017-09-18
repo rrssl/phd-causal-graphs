@@ -74,6 +74,8 @@ from domino_learning.functions import tilt_box_forward
 # http://www.panda3d.org/forums/viewtopic.php?t=15645 for a discussion.
 load_prc_file_data("", "garbage-collect-states 0")
 
+VERBOSE = True
+
 
 def test_path_coverage(u, spline):
     return bool((spl.arclength(spline) - spl.arclength(spline, u[-1])) < h)
@@ -292,8 +294,11 @@ def test_all_toppled(doms_np):
     return all(dom.get_r() >= toppling_angle for dom in doms_np.get_children())
 
 
-def evaluate_domino_run(u, spline):
+def evaluate_domino_run(u, spline, _id=None):
     """Evaluate the domino distribution for all criteria."""
+    if VERBOSE:
+        print(_id, ": Starting evaluation.")
+        print(_id, ": Starting deterministic tests.")
     covered = test_path_coverage(u, spline)
     non_overlapping = test_no_successive_overlap_fast(u, spline)
     # If not valid, make a valid version
@@ -310,16 +315,23 @@ def evaluate_domino_run(u, spline):
     top_frac = get_toppling_fraction(u_valid, spline, doms_np)
 
     deterministic_results = [covered, non_overlapping, all_topple, top_frac]
+    if VERBOSE:
+        print(_id, ": Starting randomized tests.")
 
     # Run simulations with uncertainty
     top_frac_rnd = []
     for uncertainty in (.05, .1, .15):
+        if VERBOSE:
+            print(_id, ": Testing with uncertainty = ", uncertainty)
         top_frac_rnd_trials = np.empty(NTRIALS_UNCERTAINTY)
         for i in range(NTRIALS_UNCERTAINTY):
             doms_np = run_simu(*setup_dominoes(u_valid, spline, uncertainty))
             top_frac_rnd_trials[i] = get_toppling_fraction(
                     u_valid, spline, doms_np)
         top_frac_rnd.append(top_frac_rnd_trials.mean())
+
+    if VERBOSE:
+        print(_id, ": Done.")
 
     return deterministic_results + top_frac_rnd
 
@@ -343,9 +355,9 @@ def main():
     domruns = np.load(dompath)
 
     results = Parallel(n_jobs=NCORES)(
-            delayed(evaluate_domino_run)(domruns['arr_{}'.format(i)], s)
+            delayed(evaluate_domino_run)(domruns['arr_{}'.format(i)], s, i)
             for i, s in enumerate(splines))
-    #  results = [evaluate_domino_run(domruns['arr_{}'.format(i)], s)
+    #  results = [evaluate_domino_run(domruns['arr_{}'.format(i)], s, i)
     #             for i, s in enumerate(splines)]
 
     metrics = Parallel(n_jobs=NCORES)(
