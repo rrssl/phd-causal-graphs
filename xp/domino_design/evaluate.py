@@ -147,7 +147,7 @@ def get_toppling_angle():
     return math.atan(t / h) * 180 / math.pi + 1
 
 
-def randomize_dominoes(positions, headings, randfactor):
+def randomize_dominoes(positions, headings, randfactor, maxtrials=10):
     """Randomize dominoes' coordinates, but keep the distribution valid.
 
     Parameters
@@ -176,8 +176,10 @@ def randomize_dominoes(positions, headings, randfactor):
     rng_x = (X_MAX-X_MIN) * randfactor
     rng_y = (Y_MAX-Y_MIN) * randfactor
     rng_a = (A_MAX-A_MIN) * randfactor
-    for i in range(len(positions)):
-        while True:
+    ndoms = len(dominoes)
+    for i in range(ndoms):
+        ntrials = 0
+        while ntrials < maxtrials:
             new_positions[i, 0] = (
                     positions[i, 0] + random.uniform(-rng_x, rng_x))
             new_positions[i, 1] = (
@@ -194,6 +196,18 @@ def randomize_dominoes(positions, headings, randfactor):
             except StopIteration:
                 # No domino intersects the current one
                 break
+            ntrials += 1
+        else:
+            # Valid perturbated coordinates could not be found in time.
+            new_positions[i, 0] = positions[i, 0]
+            new_positions[i, 1] = positions[i, 1]
+            new_headings[i] = headings[i]
+            dominoes[i] = translate(
+                    rotate(base, new_headings[i]),
+                    *new_positions[i, :2])
+            if VERBOSE:
+                print("Could not find valid perturbated coordinates.")
+
     return new_positions, new_headings
 
 
