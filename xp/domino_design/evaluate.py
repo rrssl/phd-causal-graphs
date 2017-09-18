@@ -354,7 +354,7 @@ def main():
         splines = pickle.load(fs)[slice(ns)]
     domruns = np.load(dompath)
 
-    results = Parallel(n_jobs=NCORES)(
+    results = Parallel(n_jobs=NCORES, verbose=VERBOSE)(
             delayed(evaluate_domino_run)(domruns['arr_{}'.format(i)], s, i)
             for i, s in enumerate(splines))
     #  results = [evaluate_domino_run(domruns['arr_{}'.format(i)], s, i)
