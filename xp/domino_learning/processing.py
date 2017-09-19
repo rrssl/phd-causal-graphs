@@ -13,7 +13,7 @@ import sys
 import numpy as np
 
 from functions import run_domino_toppling_xp
-from config import timestep, maxtime, density, t, w, h
+from config import timestep, MAX_WAIT_TIME, density, t, w, h
 
 
 def process(samples):
@@ -22,11 +22,11 @@ def process(samples):
     if samples.shape[1] == 2:
         for i, (d, a) in enumerate(samples):
             values[i] = run_domino_toppling_xp(
-                    (t, w, h, d, 0, a, m), timestep, maxtime)
+                    (t, w, h, d, 0, a, m), timestep, MAX_WAIT_TIME)
     else:
         for i, (x, y, a) in enumerate(samples):
             values[i] = run_domino_toppling_xp(
-                    (t, w, h, x, y, a, m), timestep, maxtime)
+                    (t, w, h, x, y, a, m), timestep, MAX_WAIT_TIME)
 
     return values
 

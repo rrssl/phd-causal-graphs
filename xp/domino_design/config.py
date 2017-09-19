@@ -1,11 +1,13 @@
 import sys
 import os
+
 sys.path.insert(0, os.path.abspath(".."))
 from domino_learning.config import t, w, h
 from domino_learning.config import density
 from domino_learning.config import X_MIN, X_MAX
 from domino_learning.config import Y_MIN, Y_MAX
 from domino_learning.config import A_MIN, A_MAX
+from domino_learning.config import MAX_WAIT_TIME
 
 
 # Number of cores to use for parallelization.

@@ -276,14 +276,22 @@ def run_simu(doms_np, world):
         World for the simulation.
 
     """
-    time = 0.
     n = doms_np.get_num_children()
-    maxtime = n
+    dominoes = list(doms_np.get_children())
+    last_toppled_id = -1
+    last_toppled_time = 0.
+    time = 0.
     toppling_angle = get_toppling_angle()
-    last_domino = doms_np.get_child(n - 1)
-    while (last_domino.get_r() < toppling_angle
-            and any(dom.node().is_active() for dom in doms_np.get_children())
-            and time < maxtime):
+    while True:
+        if dominoes[last_toppled_id+1].get_r() >= toppling_angle:
+            last_toppled_id += 1
+            last_toppled_time = time
+        if last_toppled_id == n-1:
+            # All dominoes toppled in order.
+            break
+        if time - last_toppled_time > MAX_WAIT_TIME:
+            # The chain broke
+            break
         time += 1/120
         world.do_physics(1/120, 2, 1/120)
     return doms_np
