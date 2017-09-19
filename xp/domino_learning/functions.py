@@ -70,7 +70,6 @@ def has_contact(a: NodePath, b: NodePath):
     return test.get_num_contacts() > 0
 
 
-# TODO Refactor with simulation routine in ../domino_design/evaluate.py
 def run_domino_toppling_xp(params, timestep, maxtime, visual=False):
     """
     Run the domino-pair toppling simulation. If not visual, returns True if
