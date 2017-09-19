@@ -15,12 +15,14 @@ import sys
 
 import numpy as np
 
-from config import t, w, PATH_SIZE_RATIO, SMOOTHING_FACTOR
-from methods import get_methods
-from viewdoms import show_dominoes
-
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
+
+if __name__ == "__main__":
+    sys.path.insert(0, os.path.abspath(".."))
+from domino_design.config import t, w, PATH_SIZE_RATIO, SMOOTHING_FACTOR
+from domino_design.methods import get_methods
+from domino_design.viewdoms import show_dominoes
 
 
 def main():

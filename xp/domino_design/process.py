@@ -18,11 +18,12 @@ import time
 
 import numpy as np
 from scipy.interpolate import splev
-from sklearn.externals.joblib import delayed
-from sklearn.externals.joblib import Parallel
+from sklearn.externals.joblib import delayed, Parallel
 
-from config import NCORES
-from methods import get_methods
+if __name__ == "__main__":
+    sys.path.insert(0, os.path.abspath(".."))
+from domino_design.methods import get_methods
+from domino_design.config import NCORES
 
 
 # We use a callable object here instead of a decorator so that it can be

@@ -37,29 +37,28 @@ import random
 import sys
 
 import numpy as np
-from panda3d.core import load_prc_file_data
 from panda3d.bullet import BulletWorld
+from panda3d.core import load_prc_file_data
 from panda3d.core import NodePath
-from panda3d.core import Vec3
-from panda3d.core import Mat3
-from shapely.affinity import rotate
-from shapely.affinity import translate
+from panda3d.core import Vec3, Mat3
+from shapely.affinity import rotate, translate
 from shapely.geometry import box
-from sklearn.externals.joblib import delayed
-from sklearn.externals.joblib import Parallel
+from sklearn.externals.joblib import delayed, Parallel
 
-from config import t, w, h
-from config import density
-from config import NCORES
-from config import NTRIALS_UNCERTAINTY
-from config import X_MIN, X_MAX
-from config import Y_MIN, Y_MAX
-from config import A_MIN, A_MAX
 sys.path.insert(0, os.path.abspath("../.."))
 from primitives import DominoMaker
 from primitives import Floor
 import spline2d as spl
+
 sys.path.insert(0, os.path.abspath(".."))
+from domino_design.config import t, w, h
+from domino_design.config import density
+from domino_design.config import MAX_WAIT_TIME
+from domino_design.config import NTRIALS_UNCERTAINTY
+from domino_design.config import X_MIN, X_MAX
+from domino_design.config import Y_MIN, Y_MAX
+from domino_design.config import A_MIN, A_MAX
+from domino_design.config import NCORES
 from domino_learning.functions import tilt_box_forward
 
 

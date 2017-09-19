@@ -16,15 +16,16 @@ import pickle
 import sys
 
 import numpy as np
-from panda3d.core import Vec3
-from panda3d.core import Mat3
+from panda3d.core import Vec3, Mat3
 
-from config import t, w, h, density
 sys.path.insert(0, os.path.abspath("../.."))
-from primitives import DominoMaker
-from primitives import Floor
+from primitives import DominoMaker, Floor
 from viewers import PhysicsViewer
 import spline2d as spl
+
+if __name__ == "__main__":
+    sys.path.insert(0, os.path.abspath(".."))
+from domino_design.config import t, w, h, density
 
 
 def show_dominoes(u, spline):

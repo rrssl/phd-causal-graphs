@@ -6,6 +6,7 @@ Various methods used to distribute dominoes along a path.
 3. Incremental physically based random search
 4. Incremental classifier based
 5. Batch classifier based
+
 """
 from functools import partial
 import math
@@ -20,13 +21,14 @@ from shapely.affinity import translate
 from shapely.geometry import box
 from sklearn.externals import joblib
 
-from config import t, w, h
-from config import SVC_PATH, SVC2_PATH
-from config import X_MAX, Y_MAX, A_MAX
-from evaluate import run_simu, setup_dominoes, test_all_toppled
-from evaluate import test_no_successive_overlap_fast
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
+
+from .config import t, w, h
+from .config import SVC_PATH, SVC2_PATH
+from .config import X_MAX, Y_MAX, A_MAX
+from .evaluate import run_simu, setup_dominoes, test_all_toppled
+from .evaluate import test_no_successive_overlap_fast
 
 
 def get_methods():

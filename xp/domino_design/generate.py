@@ -17,19 +17,19 @@ import sys
 
 import numpy as np
 from scipy.signal import argrelmax
-from shapely.affinity import rotate
-from shapely.affinity import translate
-from shapely.geometry import box
-from shapely.geometry import LineString
-from shapely.geometry import Point
+from shapely.affinity import rotate, translate
+from shapely.geometry import box, LineString, Point
 from sklearn.externals.joblib import Parallel, delayed
 
-from config import MIN_SIZE_RATIO, MAX_SIZE_RATIO
-from config import MIN_SMOOTHING_FACTOR, MAX_SMOOTHING_FACTOR
-from config import t, w, h
-from config import NCORES
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
+
+if __name__ == "__main__":
+    sys.path.insert(0, os.path.abspath(".."))
+from domino_design.config import MIN_SIZE_RATIO, MAX_SIZE_RATIO
+from domino_design.config import MIN_SMOOTHING_FACTOR, MAX_SMOOTHING_FACTOR
+from domino_design.config import t, w, h
+from domino_design.config import NCORES
 
 
 class DominoPathTester:

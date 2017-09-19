@@ -22,10 +22,14 @@ from shapely.affinity import translate
 from shapely.geometry import box
 from sklearn.externals import joblib
 
-from config import t, w, h, X_MAX, Y_MAX, A_MAX, SVC_PATH, SVC2_PATH
-from methods import _init_routines_vec
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl  # flake8: noqa E402
+
+if __name__ == "__main__":
+    sys.path.insert(0, os.path.abspath(".."))
+from domino_design.config import t, w, h
+from domino_design.config import X_MAX, Y_MAX, A_MAX, SVC_PATH, SVC2_PATH
+from domino_design.methods import _init_routines_vec
 
 
 def get_inc_classif_based_energy(u, uprev_id, spline):
