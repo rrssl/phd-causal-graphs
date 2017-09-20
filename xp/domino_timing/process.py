@@ -44,15 +44,15 @@ def compute_times(u, spline, _id):
         if time - toppling_times[last_toppled_id] > MAX_WAIT_TIME:
             # The chain broke
             break
-        time += 1/120
-        world.do_physics(1/120, 2, 1/120)
+        time += 1/480
+        world.do_physics(1/480, 2, 1/480)
     if VERBOSE:
         print("Done with distribution {}".format(_id))
     return toppling_times
 
 
 def main():
-    if len(sys.argv) < 4:
+    if len(sys.argv) < 2:
         print(__doc__)
         return
     spath = sys.argv[1]
