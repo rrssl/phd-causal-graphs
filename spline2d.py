@@ -4,21 +4,23 @@ Utility functions for 2D splines.
 """
 import numpy as np
 from panda3d.core import LineSegs
-from scipy.integrate import quad
+from scipy.integrate import romberg
 from scipy.interpolate import splev
 from scipy.interpolate import splprep
 from scipy.optimize import fsolve
 
 
-def arclength(tck, t=1):
-    """Return the length of the (T, C, K) spline over [0, t], t <= 1.
+def arclength(tck, t1=1, t0=0):
+    """Return the length of the (T, C, K) spline over [t0, t1], t <= 1.
     Defaults to the total arc length.
 
     """
-    t = np.atleast_1d(t)
-    return np.array(
-            [quad(lambda u: arclength_der(tck, u), 0, ti, limit=500)[0]
-             for ti in t])
+    t0 = np.atleast_1d(t0)
+    t1 = np.atleast_1d(t1)
+    return np.array([
+        romberg(lambda u: arclength_der(tck, u), t0i, t1i, tol=1e-4,
+                vec_func=True)
+        for t0i, t1i in zip(t0, t1)])
 
 
 def arclength_der(tck, t):
