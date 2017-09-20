@@ -6,10 +6,6 @@ Parameters
 ----------
 spath : string
   Path to the .pkl file of candidate splines.
-dpath : string
-  Path to the .npz array of domino distributions.
-d2spath: string
-  Path to the .npy array mapping distributions to splines.
 
 """
 import os
@@ -60,8 +56,9 @@ def main():
         print(__doc__)
         return
     spath = sys.argv[1]
-    dpath = sys.argv[2]
-    d2spath = sys.argv[3]
+    root, _ = os.path.splitext(spath)
+    dpath = root + "-doms.npz"
+    d2spath = root + "-dom2spl.npy"
 
     with open(spath, 'rb') as f:
         splines = pickle.load(f)
@@ -73,7 +70,6 @@ def main():
                                    splines[dom2spl[i]], i)
             for i in range(len(doms.files)))
 
-    root, _ = os.path.splitext(dpath)
     np.savez(root + "-times.npz", *times)
 
 
