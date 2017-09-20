@@ -5,12 +5,6 @@ Parameters
 ----------
 spath : string
   Path to the .pkl file of candidate splines.
-dpath : string
-  Path to the .npz list of domino distributions.
-d2spath : string
-  Path to the .npy array mapping distributions to splines.
-tpath : string
-  Path to the .npz list of domino timings.
 
 """
 import os
@@ -25,7 +19,7 @@ import spline2d as spl
 
 
 USE_KRV_INSTEAD_OF_ANGLE = 1
-COMBINE_PLOTS = 1
+COMBINE_PLOTS = 0
 
 
 def get_local_variables(spline, dominoes, times):
@@ -56,13 +50,15 @@ def visualize(ax, x, y, z):
 
 
 def main():
-    if len(sys.argv) < 4:
+    if len(sys.argv) < 2:
         print(__doc__)
         return
     spath = sys.argv[1]
-    dpath = sys.argv[2]
-    d2spath = sys.argv[3]
-    tpath = sys.argv[4]
+    root, _ = os.path.splitext(spath)
+    dpath = root + "-doms.npz"
+    d2spath = root + "-dom2spl.npy"
+    tpath = root + "-doms-times.npz"
+    denpath = root + "-densities.npy"
 
     with open(spath, 'rb') as f:
         splines = pickle.load(f)
@@ -135,8 +131,8 @@ def main():
         else:
             ax.set_title("Local toppling time wrt angle difference")
             ax.set_xlabel("Angle difference between two dominoes")
-    root = os.path.dirname(spath)
-    plt.savefig(root+"/local.png", bbox_inches='tight')
+    dirname = os.path.dirname(spath)
+    plt.savefig(dirname+"/local.png", bbox_inches='tight')
 
 
     # Figure 2: global
@@ -178,7 +174,7 @@ def main():
                          "angle difference")
             ax.set_xlabel("Average angle difference between successive\n"
                           "dominoes on the path")
-    plt.savefig(root+"/global.png", bbox_inches='tight')
+    plt.savefig(dirname+"/global.png", bbox_inches='tight')
 
 
     plt.show()
