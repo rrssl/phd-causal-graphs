@@ -65,13 +65,14 @@ def main():
     doms = np.load(dpath)
     dom2spl = np.load(d2spath)
     times = np.load(tpath)
+    dens = np.load(denpath)
 
     # Local variables
     arclength_diffs = []
     angle_diffs = []
     time_diffs = []
     # Global variables
-    avg_arclength_diffs = []
+    densities = []
     avg_angle_diffs = []
     avg_speeds = []
 
@@ -85,7 +86,7 @@ def main():
         angle_diffs.extend(angd)
         time_diffs.extend(timed)
         # Global variables
-        avg_arclength_diffs.append(arcd.mean())
+        densities.append(dens[i])
         avg_angle_diffs.append(angd.mean())
         avg_speeds.append(timed.sum() / arcd.sum())
 
@@ -97,7 +98,7 @@ def main():
     angle_diffs = np.ma.masked_array(angle_diffs, mask=time_diffs.mask)
     mean, std = np.mean(avg_speeds), np.std(avg_speeds)
     avg_speeds = np.ma.masked_outside(avg_speeds, mean - n*std, mean + n*std)
-    avg_arclength_diffs = np.ma.masked_array(avg_arclength_diffs, mask=avg_speeds.mask)
+    densities = np.ma.masked_array(densities, mask=avg_speeds.mask)
     avg_angle_diffs = np.ma.masked_array(avg_angle_diffs, mask=avg_speeds.mask)
 
     # Figure 1: local
@@ -139,29 +140,24 @@ def main():
     if COMBINE_PLOTS:
         fig = plt.figure(2)
         ax = fig.add_subplot(111)
-        ax.scatter(avg_arclength_diffs, avg_angle_diffs, c=avg_speeds,
+        ax.scatter(densities, avg_angle_diffs, c=avg_speeds,
                    edgecolor='none')
-        ax.set_xlabel("Average arc length between successive dominoes "
-                      "on the path")
+        ax.set_xlabel("Domino density along the path")
         if USE_KRV_INSTEAD_OF_ANGLE:
-            ax.set_title("Total path toppling speed wrt average\n"
-                         "arclength distance "
+            ax.set_title("Total path toppling speed wrt density "
                          "and curvature")
             ax.set_ylabel("Average curvature along the path")
         else:
-            ax.set_title("Total path toppling speed wrt average\n"
-                         "arclength distance "
+            ax.set_title("Total path toppling speed wrt density "
                          "and angle difference")
             ax.set_ylabel("Average angle difference between successive\n"
                           "dominoes on the path")
     else:
         fig = plt.figure(2, figsize=(10, 5))
         ax = fig.add_subplot(121)
-        ax.scatter(avg_arclength_diffs, avg_speeds, edgecolor='none')
-        ax.set_title("Total path toppling speed wrt average\n"
-                     "arclength distance")
-        ax.set_xlabel("Average arc length between successive dominoes\n"
-                      "on the path")
+        ax.scatter(densities, avg_speeds, edgecolor='none')
+        ax.set_title("Total path toppling speed wrt density")
+        ax.set_xlabel("Domino density along the path")
         ax.set_ylabel("Total path toppling speed")
 
         ax = fig.add_subplot(122, sharey=ax)
