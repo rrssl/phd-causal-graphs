@@ -218,15 +218,12 @@ def _init_routines_vec(u, spline):
 
 
 def equal_spacing(spline, ndom=-1):
-    u = [0.]
     # Default value
     length = spl.arclength(spline)
     if ndom == -1:
         ndom = math.floor(length / (h / 3))
 
-    s = np.linspace(0, length, ndom)[1:]
-    u.extend(spl.arclength_inv(spline, s))
-
+    u = spl.linspace(spline, ndom)
     return u
 
 

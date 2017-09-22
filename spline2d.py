@@ -12,11 +12,14 @@ from scipy.optimize import fsolve
 
 def arclength(tck, t1=1, t0=0):
     """Return the length of the (T, C, K) spline over [t0, t1], t <= 1.
-    Defaults to the total arc length.
 
+    Defaults to the total arc length.
     """
-    t0 = np.atleast_1d(t0)
     t1 = np.atleast_1d(t1)
+    if t1.size > 1 and t0 == 0:
+        t0 = np.zeros_like(t1)
+    else:
+        t0 = np.atleast_1d(t0)
     return np.array([
         romberg(lambda u: arclength_der(tck, u), t0i, t1i, tol=1e-4,
                 vec_func=True)
@@ -36,6 +39,25 @@ def arclength_inv(tck, s):
             lambda t: arclength(tck, t) - s,
             init_guess,
             fprime=lambda t: np.diag(arclength_der(tck, t)))
+
+
+def linspace(tck, n, t1=1, t0=0, sampling_factor=2):
+    """Return the parameter values of n equally spaced points along the
+    (T, C, K) spline, optionally in the [t0, t1] interval.
+
+    This methods computes (u, s(u)) values and uses interpolation to compute
+    u(s_eq), with s_eq the equally spaced points along the spline.
+    Precision of the results can be increased with the interpolation sampling
+    factor: number of points used for interpolation = n * sampling_factor.
+
+    For a sampling factor of 2, experiments suggest a 5x speedup compared to
+    using arclength_inv(), with an error on parameters of 1e-3.
+    """
+    u_ref = np.linspace(t0, t1, sampling_factor*n)
+    s_ref = arclength(tck, u_ref)
+    s_lin = np.linspace(s_ref[0], s_ref[-1], n)
+    s_interp = np.interp(s_lin, s_ref, u_ref)
+    return s_interp
 
 
 def curvature(tck, t):
