@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import linregress
 from sklearn.externals import joblib
+from sklearn.metrics import confusion_matrix
 
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
@@ -56,12 +57,11 @@ def eval_pairs_in_distrib(u, spline, classifier):
     return classifier.predict(np.column_stack((xi, yi, ai)))
 
 
-def get_estimated_toppling_fraction(u, spline, classifier):
-    pairs_results = eval_pairs_in_distrib(u, spline, classifier)
-    n = len(pairs_results)
+def get_estimated_toppling_fraction(u, spline, pairwise_topple):
+    n = len(pairwise_topple)
     try:
         # Find the first domino that didn't topple.
-        idx = next(i for i in range(n) if pairs_results[i] == -1)
+        idx = next(i for i in range(n) if not pairwise_topple[i])
     except StopIteration:
         # All dominoes toppled
         idx = n
@@ -89,25 +89,40 @@ def main():
 
     lengths = []
     abs_errors = []
+    all_topple = []
+    all_topple_estimated = []
     for dominoes, validities in zip(methods_dominoes, methods_validities):
         for i, spline in enumerate(splines):
             no_overlap = validities[i, 1]
             if no_overlap:
-                toppling_fraction = validities[i, 3]
                 u = dominoes['arr_{}'.format(i)]
-                estimated_toppling_fraction = get_estimated_toppling_fraction(
-                        u, spline, classifier)
-                abs_error = abs(toppling_fraction-estimated_toppling_fraction)
                 lengths.append(len(u))
+                # Get toppling results obtained from simulation
+                all_topple.append(validities[i, 2])
+                toppling_fraction = validities[i, 3]
+                # Estimate toppling with classifier
+                pairwise_topple = eval_pairs_in_distrib(u, spline, classifier)
+                #  print(pairwise_topple)
+                estimated_toppling_fraction = get_estimated_toppling_fraction(
+                        u, spline, pairwise_topple)
+                all_topple_estimated.append(pairwise_topple.all())
+                # Compute error
+                abs_error = abs(toppling_fraction-estimated_toppling_fraction)
                 abs_errors.append(np.asscalar(abs_error))
 
-    binsize = 5
-    bins = list(range(0, max(lengths), binsize))
-    inds = np.digitize(lengths, bins) - 1
-    abs_errors = np.array(abs_errors)
-    mean_abs_errors = [abs_errors[inds == i].mean() if (inds == i).any() else 0
-                       for i in range(len(bins))]
+    # Confusion matrix
+    conf_mat = confusion_matrix(all_topple, all_topple_estimated)
+    print("Classifier performance")
+    print("Confusion matrix:\n", conf_mat)
+    (tn, fp), (fn, tp) = conf_mat
+    precision = tp / (tp + fp)
+    recall = tp / (tp + fn)
+    accuracy = (tp + tn) / len(all_topple)
+    print("Precision = {}, recall = {}, accuracy = {}".format(
+        precision, recall, accuracy))
 
+    # Estimate correlation between chain length and estimation error
+    print("\nCorrelation between chain length and estimation error")
     slope, intercept, r_value, p_value, std_err = linregress(
             lengths, abs_errors)
     x = np.array([0, max(lengths)])
@@ -115,6 +130,14 @@ def main():
     print("Correlation coefficient: ", r_value)
     print("p-value: ", p_value)
     print("Standard error of the estimate: ", std_err)
+
+    # Bin results for bar plot
+    binsize = 10
+    bins = list(range(0, max(lengths), binsize))
+    inds = np.digitize(lengths, bins) - 1
+    abs_errors = np.array(abs_errors)
+    mean_abs_errors = [abs_errors[inds == i].mean() if (inds == i).any() else 0
+                       for i in range(len(bins))]
 
     fig, ax = plt.subplots()
     ax.bar(np.array(bins)+binsize/2, mean_abs_errors, width=binsize)
