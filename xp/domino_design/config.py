@@ -2,20 +2,20 @@ import sys
 import os
 
 sys.path.insert(0, os.path.abspath(".."))
-from domino_learning.config import t, w, h
-from domino_learning.config import density
-from domino_learning.config import X_MIN, X_MAX
-from domino_learning.config import Y_MIN, Y_MAX
-from domino_learning.config import A_MIN, A_MAX
-from domino_learning.config import MAX_WAIT_TIME
+from predicting_domino_toppling.config import t, w, h
+from predicting_domino_toppling.config import density
+from predicting_domino_toppling.config import X_MIN, X_MAX
+from predicting_domino_toppling.config import Y_MIN, Y_MAX
+from predicting_domino_toppling.config import A_MIN, A_MAX
+from predicting_domino_toppling.config import MAX_WAIT_TIME
 
 
 # Number of cores to use for parallelization.
 NCORES = 4
 
 # Path to the classifier.
-SVC_PATH = "../../../data/xp/domino_learning/20170824/samples-3D-model.pkl"
-SVC2_PATH = "../../../data/xp/domino_learning/20170913-3/samples-3D-sym-classifier.pkl"
+SVC_PATH = "../../../data/xp/predicting_domino_toppling/20170824/samples-3D-model.pkl"
+SVC2_PATH = "../../../data/xp/predicting_domino_toppling/20170913-3/samples-3D-sym-classifier.pkl"
 
 # Spline interpolation parameters.
 

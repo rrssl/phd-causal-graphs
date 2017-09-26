@@ -2,7 +2,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath(".."))
-from domino_learning.config import t, w, h, density, timestep, MAX_WAIT_TIME
+from predicting_domino_toppling.config import t, w, h, density, timestep, MAX_WAIT_TIME
 
 
 NCORES = 7

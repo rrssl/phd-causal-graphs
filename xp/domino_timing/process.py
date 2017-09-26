@@ -23,13 +23,13 @@ from panda3d.core import Vec3
 from config import t, w, h, density, timestep, NCORES, MAX_WAIT_TIME
 sys.path.insert(0, os.path.abspath(".."))
 from domino_design.evaluate import get_toppling_angle
-from domino_learning.functions import tilt_box_forward
+from predicting_domino_toppling.functions import tilt_box_forward
 
 sys.path.insert(0, os.path.abspath("../.."))
 from primitives import Floor, DominoMaker
 
 
-# See ../domino_learning/functions.py
+# See ../predicting_domino_toppling/functions.py
 load_prc_file_data("", "garbage-collect-states 0")
 
 

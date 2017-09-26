@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
 
 sys.path.insert(0, os.path.abspath(".."))
-from domino_learning.config import X_MAX, Y_MAX, A_MAX
+from predicting_domino_toppling.config import X_MAX, Y_MAX, A_MAX
 
 
 def eval_pairs_in_distrib(u, spline, classifier):

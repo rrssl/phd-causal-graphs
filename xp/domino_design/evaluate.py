@@ -59,7 +59,7 @@ from domino_design.config import X_MIN, X_MAX
 from domino_design.config import Y_MIN, Y_MAX
 from domino_design.config import A_MIN, A_MAX
 from domino_design.config import NCORES
-from domino_learning.functions import tilt_box_forward
+from predicting_domino_toppling.functions import tilt_box_forward
 
 
 # The next line avoids a "memory leak" that notably happens when
