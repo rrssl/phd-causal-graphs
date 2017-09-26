@@ -1,54 +1,87 @@
 """
-Run the simulation for each domino distribution and record the toppling time
-of each domino.
+Run the simulation for each domino pair and record the toppling-to-toppling
+time.
 
 Parameters
 ----------
 spath : string
-  Path to the .pkl file of candidate splines.
+  Path to the .npy samples.
 
 """
 import os
-import pickle
 import sys
 
 import numpy as np
 from sklearn.externals.joblib import delayed
 from sklearn.externals.joblib import Parallel
 
-from config import NCORES, MAX_WAIT_TIME
+from panda3d.bullet import BulletWorld
+from panda3d.core import load_prc_file_data
+from panda3d.core import NodePath
+from panda3d.core import Vec3
+
+from config import t, w, h, density, timestep, NCORES, MAX_WAIT_TIME
 sys.path.insert(0, os.path.abspath(".."))
-from domino_design.evaluate import setup_dominoes, get_toppling_angle
+from domino_design.evaluate import get_toppling_angle
+from domino_learning.functions import tilt_box_forward
+
+sys.path.insert(0, os.path.abspath("../.."))
+from primitives import Floor, DominoMaker
 
 
-VERBOSE = True
+# See ../domino_learning/functions.py
+load_prc_file_data("", "garbage-collect-states 0")
 
 
-def compute_times(u, spline, _id):
-    if VERBOSE:
-        print("Simulating distribution {}".format(_id))
-    doms_np, world = setup_dominoes(u, spline)
-    n = len(u)
-    dominoes = list(doms_np.get_children())
-    last_toppled_id = -1
-    toppling_times = np.full(n, np.inf)
-    time = 0.
+def run_domino_timing_xp(params, timestep):
+    # World
+    world = BulletWorld()
+    world.set_gravity(Vec3(0, 0, -9.81))
+    # Floor
+    floor_path = NodePath("floor")
+    floor = Floor(floor_path, world)
+    floor.create()
+    # Dominoes
+    dom_path = NodePath("dominoes")
+    dom_fact = DominoMaker(dom_path, world, make_geom=False)
+    t, w, h, x, y, a, m = params
+    d1 = dom_fact.add_domino(Vec3(0, 0, h*.5), 0, Vec3(t, w, h), m, "d1")
+    d2 = dom_fact.add_domino(Vec3(x, y, h*.5), a, Vec3(t, w, h), m, "d2")
+    # Initial state
     toppling_angle = get_toppling_angle()
-    while True:
-        if dominoes[last_toppled_id+1].get_r() >= toppling_angle:
-            last_toppled_id += 1
-            toppling_times[last_toppled_id] = time
-        if last_toppled_id == n-1:
-            # All dominoes toppled in order.
-            break
-        if time - toppling_times[last_toppled_id] > MAX_WAIT_TIME:
-            # The chain broke
-            break
-        time += 1/480
-        world.do_physics(1/480, 2, 1/480)
-    if VERBOSE:
-        print("Done with distribution {}".format(_id))
-    return toppling_times
+    tilt_box_forward(d1, toppling_angle)
+    d1.node().set_transform_dirty()
+
+    test = world.contact_test_pair(d1.node(), d2.node())
+    if test.get_num_contacts() > 0:
+        return np.inf
+
+    time = 0.
+    while time < MAX_WAIT_TIME:
+        # Early termination conditions
+        if d2.get_r() >= toppling_angle:
+            return time
+        if not (d1.node().is_active() or d2.node().is_active()):
+            return np.inf
+        time += timestep
+        world.do_physics(timestep, 2, timestep)
+    else:
+        return np.inf
+
+
+def compute_times(samples):
+    m = density * t * w * h
+    if samples.shape[1] == 2:
+        times = Parallel(n_jobs=NCORES)(
+                delayed(run_domino_timing_xp)
+                ((t, w, h, d, 0, a, m), timestep)
+                for d, a in samples)
+    else:
+        times = Parallel(n_jobs=NCORES)(
+                delayed(run_domino_timing_xp)
+                ((t, w, h, x, y, a, m), timestep)
+                for x, y, a in samples)
+    return times
 
 
 def main():
@@ -56,21 +89,11 @@ def main():
         print(__doc__)
         return
     spath = sys.argv[1]
+    samples = np.load(spath)
+    assert samples.shape[1] in (2, 3), "Number of dimensions must be 2 or 3."
+    times = compute_times(samples)
     root, _ = os.path.splitext(spath)
-    dpath = root + "-doms.npz"
-    d2spath = root + "-dom2spl.npy"
-
-    with open(spath, 'rb') as f:
-        splines = pickle.load(f)
-    doms = np.load(dpath)
-    dom2spl = np.load(d2spath)
-
-    times = Parallel(n_jobs=NCORES)(
-            delayed(compute_times)(doms['arr_{}'.format(i)],
-                                   splines[dom2spl[i]], i)
-            for i in range(len(doms.files)))
-
-    np.savez(root + "-times.npz", *times)
+    np.save(root + "-times.npy", times)
 
 
 if __name__ == "__main__":
