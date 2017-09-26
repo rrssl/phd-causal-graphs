@@ -3,7 +3,7 @@ Global parameters.
 
 """
 SAMPLING_NDIM = 3
-timestep = 1. / 120.    # [s]
+timestep = 1e-3         # [s]
 MAX_WAIT_TIME = 2.      # [s]
 density = 650.          # [kg/m3]
 h = .05                 # height [m]
