@@ -33,7 +33,7 @@ from primitives import Floor, DominoMaker
 load_prc_file_data("", "garbage-collect-states 0")
 
 
-def run_domino_timing_xp(params, timestep):
+def run_predicting_domino_timing_xp(params, timestep):
     # World
     world = BulletWorld()
     world.set_gravity(Vec3(0, 0, -9.81))
@@ -73,12 +73,12 @@ def compute_times(samples):
     m = density * t * w * h
     if samples.shape[1] == 2:
         times = Parallel(n_jobs=NCORES)(
-                delayed(run_domino_timing_xp)
+                delayed(run_predicting_domino_timing_xp)
                 ((t, w, h, d, 0, a, m), timestep)
                 for d, a in samples)
     else:
         times = Parallel(n_jobs=NCORES)(
-                delayed(run_domino_timing_xp)
+                delayed(run_predicting_domino_timing_xp)
                 ((t, w, h, x, y, a, m), timestep)
                 for x, y, a in samples)
     return times
