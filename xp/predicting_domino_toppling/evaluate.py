@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import linregress
 from sklearn.externals import joblib
-from sklearn.metrics import confusion_matrix
+from sklearn import metrics
 
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
@@ -38,7 +38,7 @@ def eval_pairs_in_distrib(u, spline, classifier):
     xi = xi[1:] - xi[:-1]
     yi = yi[1:] - yi[:-1]
     # Rotate by -a_i-1
-    ai = spl.splang(u, spline)
+    ai = spl.splang(u, spline, degrees=False)
     ci_ = np.cos(ai[:-1])
     si_ = np.sin(ai[:-1])
     xi = xi*ci_ + yi*si_
@@ -66,7 +66,7 @@ def get_estimated_toppling_fraction(u, spline, pairwise_topple):
         # All dominoes toppled
         idx = n
 
-    return spl.arclength(spline, u[idx]) / spl.arclength(spline)
+    return np.asscalar(spl.arclength(spline, u[idx]) / spl.arclength(spline))
 
 
 def main():
@@ -88,7 +88,8 @@ def main():
     methods_validities = [np.load(vpath) for vpath in vpaths]
 
     lengths = []
-    abs_errors = []
+    simulated_failpoint = []
+    predicted_failpoint = []
     all_topple = []
     all_topple_estimated = []
     for dominoes, validities in zip(methods_dominoes, methods_validities):
@@ -99,19 +100,16 @@ def main():
                 lengths.append(len(u))
                 # Get toppling results obtained from simulation
                 all_topple.append(validities[i, 2])
-                toppling_fraction = validities[i, 3]
+                simulated_failpoint.append(validities[i, 3])
                 # Estimate toppling with classifier
                 pairwise_topple = eval_pairs_in_distrib(u, spline, classifier)
-                #  print(pairwise_topple)
-                estimated_toppling_fraction = get_estimated_toppling_fraction(
-                        u, spline, pairwise_topple)
+                predicted_failpoint.append(get_estimated_toppling_fraction(
+                        u, spline, pairwise_topple))
                 all_topple_estimated.append(pairwise_topple.all())
-                # Compute error
-                abs_error = abs(toppling_fraction-estimated_toppling_fraction)
-                abs_errors.append(np.asscalar(abs_error))
+    abs_errors = np.abs(np.subtract(simulated_failpoint, predicted_failpoint))
 
     # Confusion matrix
-    conf_mat = confusion_matrix(all_topple, all_topple_estimated)
+    conf_mat = metrics.confusion_matrix(all_topple, all_topple_estimated)
     print("Classifier performance")
     print("Confusion matrix:\n", conf_mat)
     (tn, fp), (fn, tp) = conf_mat
@@ -120,6 +118,19 @@ def main():
     accuracy = (tp + tn) / len(all_topple)
     print("Precision = {}, recall = {}, accuracy = {}".format(
         precision, recall, accuracy))
+
+    print("\nClassifier performance over entire chains")
+    r2_score = metrics.r2_score(simulated_failpoint, predicted_failpoint)
+    expvar_score = metrics.explained_variance_score(
+            simulated_failpoint, predicted_failpoint)
+    mean_abserror = metrics.mean_absolute_error(
+            simulated_failpoint, predicted_failpoint)
+    med_abserror = metrics.median_absolute_error(
+            simulated_failpoint, predicted_failpoint)
+    print("R^2 score: ", r2_score)
+    print("Mean absolute error: ", mean_abserror)
+    print("Median absolute error: ", med_abserror)
+
 
     # Estimate correlation between chain length and estimation error
     print("\nCorrelation between chain length and estimation error")
@@ -132,7 +143,7 @@ def main():
     print("Standard error of the estimate: ", std_err)
 
     # Bin results for bar plot
-    binsize = 10
+    binsize = 5
     bins = list(range(0, max(lengths), binsize))
     inds = np.digitize(lengths, bins) - 1
     abs_errors = np.array(abs_errors)
