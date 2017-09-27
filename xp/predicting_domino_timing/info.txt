@@ -1,12 +1,12 @@
 There are two pipelines in this folder:
 
 1. Showing the relationship between toppling time, domino spacing, and position in the run
- a. generate_simple_splines.py -> .pkl file of spline(s)
+ a. gen_simple_splines.py -> .pkl file of spline(s)
         Optional. You can use a file from somewhere else. Using a straight spline helps separating the factors of influence.
- b. generate_distributions.py -> .npz file of distributions, .npy mapping file
- c. time_distributions.py -> .npy file of times
+ b. gen_eq_spaced_distribs.py -> .npz file of distributions, .npy mapping file
+ c. time_toppling_along_path.py -> .npy file of times
  d. show_time_control_factors.py
 
 2. Learning this relationship at a domino-pair level.
  a. time_pairwise_toppling.py -> .npy file of times
- b. learn_pairwise_toppling_time.py -> .pkl classifier
+ b. learn_toppling_time.py -> .pkl predictor
