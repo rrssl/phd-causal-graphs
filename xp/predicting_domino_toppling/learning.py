@@ -36,7 +36,10 @@ def main():
         return
     samples /= den
     values = np.load(vpath)
-    svc = svm.SVC(kernel='rbf', gamma=1, C=1).fit(samples, values)
+    svc = svm.SVC(
+            kernel='rbf', gamma=.1, C=.5, cache_size=1024,
+            #  class_weight='balanced',
+            ).fit(samples, values)
 
     print("Score: ", svc.score(samples, values))
     root, _ = os.path.splitext(spath)
