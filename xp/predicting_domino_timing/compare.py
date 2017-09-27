@@ -104,10 +104,10 @@ def main():
     #  densities = np.ma.masked_array(densities, mask=avg_speeds.mask)
     #  avg_angle_diffs = np.ma.masked_array(avg_angle_diffs,
     #                                       mask=avg_speeds.mask)
-    if SHOW_ARCLENGTHS:
-        arclengths = np.ma.masked_less(arclengths, 0.2)
-        arclength_diffs = np.ma.masked_array(arclength_diffs,
-                                             mask=arclengths.mask)
+    #  if SHOW_ARCLENGTHS:
+    #      arclengths = np.ma.masked_less(arclengths, 0.2)
+    #      arclength_diffs = np.ma.masked_array(arclength_diffs,
+    #                                           mask=arclengths.mask)
 
     # Figure 1: local
     if COMBINE_PLOTS:
