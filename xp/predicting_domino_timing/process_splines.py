@@ -16,15 +16,15 @@ import numpy as np
 from sklearn.externals.joblib import delayed
 from sklearn.externals.joblib import Parallel
 
-from config import NCORES, MAX_WAIT_TIME
 sys.path.insert(0, os.path.abspath(".."))
 from domino_design.evaluate import setup_dominoes, get_toppling_angle
+from predicting_domino_timing.config import NCORES, MAX_WAIT_TIME, timestep
 
 
-VERBOSE = True
+VERBOSE = 0
 
 
-def compute_times(u, spline, _id):
+def compute_times(u, spline, _id=None):
     if VERBOSE:
         print("Simulating distribution {}".format(_id))
     doms_np, world = setup_dominoes(u, spline)
@@ -44,8 +44,8 @@ def compute_times(u, spline, _id):
         if time - toppling_times[last_toppled_id] > MAX_WAIT_TIME:
             # The chain broke
             break
-        time += 1/480
-        world.do_physics(1/480, 2, 1/480)
+        time += timestep
+        world.do_physics(timestep, 2, timestep)
     if VERBOSE:
         print("Done with distribution {}".format(_id))
     return toppling_times
