@@ -14,8 +14,8 @@ from predicting_domino_toppling.config import MAX_WAIT_TIME
 NCORES = 4
 
 # Path to the classifier.
-SVC_PATH = "../../../data/xp/predicting_domino_toppling/20170824/samples-3D-model.pkl"
-SVC2_PATH = "../../../data/xp/predicting_domino_toppling/20170913-3/samples-3D-sym-classifier.pkl"
+SVC_PATH = "../predicting_domino_toppling/data/20170927/samples-3D-classifier.pkl"
+SVC2_PATH = "../predicting_domino_toppling/data/20170913-3/samples-3D-sym-classifier.pkl"
 
 # Spline interpolation parameters.
 
