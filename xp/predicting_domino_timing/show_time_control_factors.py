@@ -135,7 +135,7 @@ def main():
             ax.scatter(arclength_diffs, arclengths, c=np.log(time_diffs),
                        edgecolor='none')
             ax.set_xlabel("Arclength distance between two dominoes")
-            ax.set_ylabel("Arclength value")
+            ax.set_ylabel("Arclength parameter value")
             ax.set_title("Log of local toppling time wrt arclength distance "
                          "and arclength value")
 
@@ -144,8 +144,12 @@ def main():
         fig = plt.figure(1, figsize=(naxes*5, 5))
         axid = 1
 
+        plt.set_cmap('flag')
+        inds = np.concatenate([np.arange(times['arr_{}'.format(i)].size-2)
+                               for i in range(len(times.files))])
+
         ax = fig.add_subplot(1, naxes, axid)
-        ax.scatter(arclength_diffs, time_diffs, edgecolor='none')
+        ax.scatter(arclength_diffs, time_diffs, c=inds, edgecolor='none')
         ax.set_title("Local toppling time wrt arclength distance")
         ax.set_xlabel("Arclength distance between two dominoes")
         ax.set_ylabel("Local toppling time")
@@ -164,9 +168,9 @@ def main():
 
         if SHOW_ARCLENGTHS:
             ax = fig.add_subplot(1, naxes, axid, sharey=ax)
-            ax.scatter(arclengths, time_diffs, edgecolor='none')
+            ax.scatter(arclengths, time_diffs, c=inds, edgecolor='none')
             ax.set_title("Local toppling time wrt arclength")
-            ax.set_xlabel("Arclength value")
+            ax.set_xlabel("Arclength parameter value")
 
     dirname = os.path.dirname(spath)
     plt.savefig(dirname+"/local.png", bbox_inches='tight')
