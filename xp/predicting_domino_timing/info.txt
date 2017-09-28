@@ -8,5 +8,6 @@ There are two pipelines in this folder:
  d. show_time_control_factors.py
 
 2. Learning this relationship at a domino-pair level.
- a. time_pairwise_toppling.py -> .npy file of times
- b. learn_toppling_time.py -> .pkl predictor
+ a. gen_training_samples.py -> .npy file of samples
+ b. time_training_samples.py -> .npy file of times
+ c. learn_toppling_time.py -> .pkl predictor
