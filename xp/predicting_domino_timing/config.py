@@ -9,7 +9,7 @@ from predicting_domino_toppling.config import X_MIN, X_MAX, Y_MIN, Y_MAX, A_MIN,
 
 MIN_DENSITY = .2
 MAX_DENSITY = .5
-MIN_SPACING = 1.1 * t
-MAX_SPACING = 0.9 * h
+MIN_SPACING = .008
+MAX_SPACING = .035
 
 NCORES = 7
