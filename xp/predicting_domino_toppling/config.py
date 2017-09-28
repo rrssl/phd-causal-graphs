@@ -10,7 +10,7 @@ h = .05                 # height [m]
 w = h / 3.              # width [m]
 t = h / 10.             # thickness [m]
 
-X_MIN = t
+X_MIN = 0
 X_MAX = 1.5 * h
 Y_MIN = -w*1.1
 Y_MAX = w*1.1
