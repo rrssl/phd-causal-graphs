@@ -19,7 +19,6 @@ import numpy as np
 from sklearn.externals.joblib import delayed
 from sklearn.externals.joblib import Parallel
 
-
 from config import t, h
 from config import NCORES, MIN_DENSITY, MAX_DENSITY
 sys.path.insert(0, os.path.abspath(".."))

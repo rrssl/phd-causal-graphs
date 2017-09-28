@@ -21,7 +21,7 @@ from sklearn.externals import joblib
 import sklearn.metrics as metrics
 
 sys.path.insert(0, os.path.abspath('..'))
-from predicting_domino_toppling.config import X_MAX, Y_MAX, A_MAX
+from predicting_domino_timing.config import X_MAX, Y_MAX, A_MAX, MAX_SPACING
 
 
 # 0 = Support Vector Machine, 1 = Kernel Ridge, 2 = Neural Network
@@ -46,6 +46,8 @@ def main():
         den = (X_MAX, A_MAX)
     elif samples.shape[1] == 3:
         den = (X_MAX, Y_MAX, A_MAX)
+    elif samples.shape[1] == 4:
+        den = (X_MAX, Y_MAX, A_MAX, MAX_SPACING)
     else:
         print("Cannot normalize for this number of dimensions.")
         return
