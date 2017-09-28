@@ -50,15 +50,15 @@ def compute_toppling_time(x, y, a, s, nprev, _visual=False):
     dom_fact = DominoMaker(dom_path, world, make_geom=_visual)
     m = density * t * w * h
     length = s * nprev
-    x = np.concatenate((np.linspace(-length, 0, nprev), [x]))
-    y = np.concatenate((np.zeros(nprev), [y]))
-    a = np.concatenate((np.zeros(nprev), [a]))
+    x = np.concatenate((np.linspace(-length, 0, nprev+1), [x]))
+    y = np.concatenate((np.zeros(nprev+1), [y]))
+    a = np.concatenate((np.zeros(nprev+1), [a]))
     for i, (xi, yi, ai) in enumerate(zip(x, y, a)):
         dom_fact.add_domino(Vec3(xi, yi, h*.5), ai, Vec3(t, w, h), m,
                             "d{}".format(i))
     d0 = dom_path.get_child(0)
-    dpen = dom_path.get_child(nprev-1)
-    dlast = dom_path.get_child(nprev)
+    dpen = dom_path.get_child(nprev)
+    dlast = dom_path.get_child(nprev+1)
     # Initial state
     toppling_angle = get_toppling_angle()
     tilt_box_forward(d0, toppling_angle)
@@ -109,7 +109,7 @@ def main():
             for x, y, a, s in samples)
 
     root, _ = os.path.splitext(spath)
-    np.save(root + "-times.npy", times)
+    np.save(root + "-times-{}.npy".format(nprev), times)
 
 
 if __name__ == "__main__":
