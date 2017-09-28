@@ -37,7 +37,7 @@ from primitives import Floor, DominoMaker
 load_prc_file_data("", "garbage-collect-states 0")
 
 
-def run_predicting_domino_timing_xp(x, y, a, s, nprev):
+def compute_toppling_time(x, y, a, s, nprev, _visual=False):
     # World
     world = BulletWorld()
     world.set_gravity(Vec3(0, 0, -9.81))
@@ -47,7 +47,7 @@ def run_predicting_domino_timing_xp(x, y, a, s, nprev):
     floor.create()
     # Dominoes
     dom_path = NodePath("dominoes")
-    dom_fact = DominoMaker(dom_path, world, make_geom=False)
+    dom_fact = DominoMaker(dom_path, world, make_geom=_visual)
     m = density * t * w * h
     length = s * nprev
     x = np.concatenate((np.linspace(-length, 0, nprev), [x]))
@@ -63,6 +63,17 @@ def run_predicting_domino_timing_xp(x, y, a, s, nprev):
     toppling_angle = get_toppling_angle()
     tilt_box_forward(d0, toppling_angle)
     d0.node().set_transform_dirty()
+
+    if _visual:
+        from viewers import PhysicsViewer
+        app = PhysicsViewer()
+        dom_path.reparent_to(app.models)
+        app.world = world
+        try:
+            app.run()
+        except SystemExit:
+            app.destroy()
+        return
 
     time_prev = 0
     time = 0
@@ -84,13 +95,6 @@ def run_predicting_domino_timing_xp(x, y, a, s, nprev):
         return np.inf
 
 
-def compute_times(samples, nprev):
-    times = Parallel(n_jobs=NCORES)(
-            delayed(run_predicting_domino_timing_xp)(x, y, a, s, nprev)
-            for x, y, a, s in samples)
-    return times
-
-
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
@@ -100,7 +104,9 @@ def main():
 
     samples = np.load(spath)
     assert samples.shape[1] == 4, "Number of dimensions must be 4."
-    times = compute_times(samples, nprev)
+    times = Parallel(n_jobs=NCORES)(
+            delayed(compute_toppling_time)(x, y, a, s, nprev)
+            for x, y, a, s in samples)
 
     root, _ = os.path.splitext(spath)
     np.save(root + "-times.npy", times)
