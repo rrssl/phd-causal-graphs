@@ -80,7 +80,7 @@ def main():
     print("R2 score: ", metrics.r2_score(times, predicted))
 
     # Save the estimator
-    root, _ = os.path.splitext(spath)
+    root, _ = os.path.splitext(tpath)
     joblib.dump(estimator, root + "-estimator.pkl")
 
 
