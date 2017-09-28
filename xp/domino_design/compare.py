@@ -10,10 +10,11 @@ import matplotlib.pyplot as plt
 
 MAKE_FIGURES = 1
 METHODS = (
-        "Equal spacing",
+        "Equal spacing (h/3)",
         "Minimal spacing",
         "Simul. based inc. random search",
         "Classifier based incremental",
+        "Classifier based incremental v2",
         "Classifier based batch (n=2)",
         "Classifier based batch (n=3)",
         )
@@ -22,8 +23,8 @@ HEADERS = (
         "Fully covered path",
         "No overlap",
         "All dominoes topple",
-        "Overall success",
-        #  "False start",
+        #  "Overall success",
+        "False start",
         "Time/domino (ms)",
         )
 HEADERS2 = (
@@ -37,7 +38,7 @@ HEADERS3 = (
         "Method",
         "Density",
         )
-FILES_PREFIX = "data/20170909-2/"
+FILES_PREFIX = "data/latest/"
 DOM_FILES = [
         FILES_PREFIX + "candidates-dominoes-method_{}.npz".format(i)
         for i in range(1, len(METHODS)+1)
@@ -71,9 +72,10 @@ def main():
         ndomarray = np.array([len(domarrays['arr_{}'.format(i)])
                               for i in range(len(domarrays.files))])
         valarray = np.load(valfile)
-        overallarray = np.logical_and(
-                valarray[:, 0],
-                np.logical_and(valarray[:, 1], valarray[:, 2]))
+        #  overallarray = np.logical_and(
+        #          valarray[:, 0],
+        #          np.logical_and(valarray[:, 1], valarray[:, 2]))
+        fsarray = ndomarray == (2 if method == METHODS[-1] else 1)
         timearray = np.load(timefile)
         metarray = np.load(metfile)
         table.append([
@@ -81,16 +83,16 @@ def main():
             valarray[:, 0].mean(),
             valarray[:, 1].mean(),
             valarray[:, 2].mean(),
-            overallarray.mean(),
-            #  (ndomarray == 1) .mean(),
+            #  overallarray.mean(),
+            fsarray .mean(),
             (timearray / ndomarray).mean() * 1000,
             ])
         table_err.append([
             ERR_FUNC(valarray[:, 0]),
             ERR_FUNC(valarray[:, 1]),
             ERR_FUNC(valarray[:, 2]),
-            ERR_FUNC(overallarray),
-            #  ERR_FUNC((ndomarray == 1)),
+            #  ERR_FUNC(overallarray),
+            ERR_FUNC(fsarray),
             ERR_FUNC((timearray / ndomarray) * 1000),
             ])
         table2.append([
@@ -149,7 +151,8 @@ def main():
     ax.set_xlabel("Percentage of error in domino placement")
     ax.set_ylabel("Fraction of the path that toppled")
     handles, labels = ax.get_legend_handles_labels()
-    ax.legend(handles, labels)
+    ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(.5, -.05),
+              borderaxespad=2, ncol=2)
     ax.set_title("Comparison of success fraction as a function of error")
     plt.savefig(FILES_PREFIX + "uncertainty.png", bbox_inches='tight')
     # Third figure
@@ -160,13 +163,13 @@ def main():
         ax.bar(index + i*bar_width, means[:3], bar_width, label=method)
         ax.errorbar(index + i*bar_width, means[:3], yerr=err[:3],
                     fmt='none', capsize=5, ecolor='k')
-    #  ax.set_xlim(-.03, .05)
     ax.set_ylim(0, 1)
-    ax.set_xticks(index + bar_width*(len(table)-1)/2)
-    ax.set_xticklabels(HEADERS3[1:])
+    ax.set_xticks([])
+    #  ax.set_xticks(index + bar_width*(len(table)-1)/2)
+    #  ax.set_xticklabels(HEADERS3[1:])
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(handles, labels)
-    ax.set_title("Metrics comparisons for different spacing values")
+    ax.set_title("Density comparison for different methods")
     plt.savefig(FILES_PREFIX + "metrics.png", bbox_inches='tight')
 
 
