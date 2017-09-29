@@ -3,10 +3,10 @@ Evaluate different ways of estimating the toppling time of domino chains.
 
 Parameters
 ----------
-spath : string
-  Path to the .pkl file of splines.
-dpath : string
-  Path to the .npz distributions along these splines.
+mid : int
+  Index of the evaluation method. See methods.py for details. Note that mid==0
+  should be called before any other, as it will produce a reference for
+  failure points.
 
 """
 import os
@@ -15,101 +15,59 @@ import sys
 import timeit
 
 import numpy as np
-from sklearn import metrics
-from tabulate import tabulate
+from sklearn.externals.joblib import Parallel, delayed
 
 sys.path.insert(0, os.path.abspath('..'))
+from predicting_domino_timing.config import NCORES
 from predicting_domino_timing.methods import get_methods
 
 
-BASEDIR = "data/latest/"
-METHODS = (
-        "Simulator based",
-        "Estimator (nprev=0)",
-        "Estimator (nprev=1)",
-        "Estimator (nprev=6)",
-        "Combined estimators (0-6)",
-        )
-HEADERS = (
-        "Method",
-        "Mean absolute error",
-        "R^2 score",
-        "Average time per domino",
-        )
+SPL_PATH = "../domino_design/data/latest/candidates.pkl"
+DOM_PATH = "../domino_design/data/latest/candidates-dominoes-method_2.npz"
+OUT_DIR = "data/latest/"
+
+
+def eval_method(method, distrib, spline):
+    t = timeit.default_timer()
+    top_times = method(distrib, spline)
+    comp_time = timeit.default_timer() - t
+    ind = np.argmax(top_times)
+    # Check for chain failure (i.e. infinite time)
+    if top_times[ind] == np.inf:
+        ind -= 1
+    phys_time = top_times[ind]  # Total toppling time, until failure or end
+    return phys_time, comp_time, ind
 
 
 def main():
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 2:
         print(__doc__)
         return
-    spath = sys.argv[1]
-    dpath = sys.argv[2]
+    mid = int(sys.argv[1])
 
-    with open(spath, 'rb') as f:
+    with open(SPL_PATH, 'rb') as f:
         splines = pickle.load(f)
-    doms = np.load(dpath)
-    ns = len(splines)
-    ref_method, *methods = get_methods()
+    doms = np.load(DOM_PATH)
+    method = get_methods()[mid]
 
-    # Gather data
-    ref_top_times = np.empty(ns)  # /!\ Simulator time
-    ref_eval_times = np.empty(ns)  # /!\ Computation time
-    est_top_times = np.empty((len(methods), ns))  # /!\ Simulator time
-    est_eval_times = np.empty((len(methods), ns))  # /!\ Computation time
-    ndoms = np.empty(ns)
-
-    for i in range(len(doms.files)):
-        spline = splines[i]
-        distrib = doms['arr_{}'.format(i)]
-        ndoms[i] = len(distrib)
-
-        t = timeit.default_timer()
-        ref_top_times[i] = ref_method(distrib, spline)
-        ref_eval_times[i] = timeit.default_timer() - t
-
-        for j, method in enumerate(methods):
-            t = timeit.default_timer()
-            est_top_times[j, i] = method(distrib, spline)
-            est_eval_times[j, i] = timeit.default_timer() - t
-
-    # Compute global statistics
-    mean_abs_errors = np.array(
-            [metrics.mean_absolute_error(ref_top_times, ett)
-             for ett in est_top_times])
-    r2_scores = np.array(
-            [metrics.r2_score(ref_top_times, ett)
-             for ett in est_top_times])
-    est_eval_times_per_dom = np.array(
-            [(eet / ndoms).mean()
-             for eet in est_eval_times])
-    all_eval_times_per_dom = np.concatenate(
-            ((ref_eval_times / ndoms).mean(), est_eval_times_per_dom))
-
-    # Show tables
-    table = np.column_stack((METHODS[1:], mean_abs_errors, r2_scores))
-    print(tabulate(table, headers=HEADERS[:-1]))
-    table2 = np.column_stack((METHODS, all_eval_times_per_dom))
-    print(tabulate(table2, headers=HEADERS[-1]))
-
-    #  # First figure
-    #  fig, ax = plt.subplots(figsize=(9, 6))
-    #  index = np.arange(4)
-    #  bar_width = .1
-    #  maxtime = max(time for *_, time in table)
-    #  for i, ((method, *means), err) in enumerate(zip(table, table_err)):
-    #      x = index + i * bar_width
-    #      y = means[:3] + [means[4] / maxtime]
-    #      err = err[:3] + [err[4] / maxtime]
-    #      ax.bar(x, y, bar_width, label=method)
-    #      ax.errorbar(x, y, yerr=err, fmt='none', capsize=5, ecolor='k')
-    #  ax.set_xticks(index + bar_width*(len(table)-1)/2)
-    #  ax.set_xticklabels(HEADERS[1:4] + (HEADERS[5] + "\n(rel. to max)",))
-    #  ax.set_ylabel("Percentage of curves following the criterion")
-    #  handles, labels = ax.get_legend_handles_labels()
-    #  ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(.5, -.05),
-    #            borderaxespad=2, ncol=2)
-    #  ax.set_title("Comparison of regression scores between the methods")
-    #  plt.savefig(BASEDIR + "methods_comparison.png", bbox_inches='tight')
+    if mid == 0:
+        results = Parallel(n_jobs=NCORES)(
+                delayed(eval_method)(
+                    method, doms['arr_{}'.format(i)], spline)
+                for i, spline in enumerate(splines))
+        phys_times, comp_times, inds = zip(*results)
+        # For this method we also record the last toppling domino index.
+        np.save(OUT_DIR + "last-top-inds.npy", inds)
+    else:
+        inds = np.load(OUT_DIR + "last-top-inds.npy")
+        results = Parallel(n_jobs=NCORES)(
+                delayed(eval_method)(
+                    method, doms['arr_{}'.format(i)][:ind+1], spline)
+                for i, (ind, spline) in enumerate(zip(inds, splines)))
+        phys_times, comp_times, _ = zip(*results)
+    method_name = "method_{}".format(mid)
+    np.save(OUT_DIR + method_name + "-phys-times.npy", phys_times)
+    np.save(OUT_DIR + method_name + "-comp-times.npy", comp_times)
 
 
 if __name__ == "__main__":

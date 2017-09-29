@@ -1,7 +1,9 @@
 """
 Time evaluation methods.
 
-In the current version, each method returns the total toppling time.
+In the current version, each method returns the time at which each domino
+topples.
+
 """
 from functools import partial
 from glob import glob
@@ -13,7 +15,7 @@ import numpy as np
 from sklearn.externals import joblib
 
 sys.path.insert(0, os.path.abspath('..'))
-from .config import timestep, MAX_WAIT_TIME
+from .config import TIMESTEP, TIMESTEP_PRECISE, MAX_WAIT_TIME
 from .config import X_MAX, Y_MAX, A_MAX, MAX_SPACING
 from domino_design.evaluate import setup_dominoes, get_toppling_angle
 
@@ -27,10 +29,12 @@ ESTIMATORS = [joblib.load(path) for path in TIME_ESTIMATOR_PATHS]
 
 
 def get_methods():
+    physics_based_precise = partial(physics_based, ts=TIMESTEP_PRECISE)
     prev0_estimator = partial(nprev_estimator, nprev=0)
     prev1_estimator = partial(nprev_estimator, nprev=1)
     prev6_estimator = partial(nprev_estimator, nprev=6)
-    return (physics_based,
+    return (physics_based_precise,
+            physics_based,
             prev0_estimator,
             prev1_estimator,
             prev6_estimator,
@@ -38,7 +42,7 @@ def get_methods():
 
 
 
-def _get_simu_top_times(u, spline):
+def _get_simu_top_times(u, spline, ts):
     doms_np, world = setup_dominoes(u, spline)
     n = len(u)
     dominoes = list(doms_np.get_children())
@@ -56,13 +60,13 @@ def _get_simu_top_times(u, spline):
         if time - toppling_times[last_toppled_id] > MAX_WAIT_TIME:
             # The chain broke
             break
-        time += timestep
-        world.do_physics(timestep, 2, timestep)
+        time += ts
+        world.do_physics(ts, 2, ts)
     return toppling_times
 
 
-def physics_based(u, spline):
-    return _get_simu_top_times(u, spline).max()
+def physics_based(u, spline, ts=TIMESTEP):
+    return _get_simu_top_times(u, spline, ts)
 
 
 #  cachedir = tempfile.mkdtemp()
@@ -96,12 +100,12 @@ def nprev_estimator(u, spline, nprev):
 
     assert nprev >= 0
     if nprev == 0:
-        return estimator.predict(xya).sum()
+        return np.concatenate(([0.], np.cumsum(estimator.predict(xya))))
     else:
         length = np.asscalar(spl.arclength(spline, u[-1]))
         s = (length / len(u)) / MAX_SPACING
         xyas = np.hstack([xya, np.full((len(u)-1, 1), s)])
-        return estimator.predict(xyas).sum()
+        return np.concatenate(([0.], np.cumsum(estimator.predict(xyas))))
 
 
 def combined_estimators(u, spline):
@@ -118,4 +122,4 @@ def combined_estimators(u, spline):
         else:
             s = distances[i-nprev:i].mean() / MAX_SPACING
             rel_times[i] = np.asscalar(estimator.predict([[x, y, a, s]]))
-    return sum(rel_times)
+    return np.concatenate(([0.], np.cumsum(rel_times)))
