@@ -8,6 +8,7 @@ import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.stats import linregress
 from sklearn import metrics
 from tabulate import tabulate
 
@@ -18,7 +19,11 @@ METHODS = (
         "Simulator based (ts=1/60)",
         "Estimator (nprev=0)",
         "Estimator (nprev=1)",
+        "Estimator (nprev=3)",
+        "Estimator (nprev=4)",
+        "Estimator (nprev=5)",
         "Estimator (nprev=6)",
+        "Estimator (nprev=7)",
         "Combined estimators (0-6)",
         )
 HEADERS = (
@@ -77,6 +82,26 @@ def main():
     #            borderaxespad=2, ncol=2)
     #  ax.set_title("Comparison of regression scores between the methods")
     #  plt.savefig(BASEDIR + "methods_comparison.png", bbox_inches='tight')
+
+    # Show absolute error as a function of chain size
+    lengths = np.load(BASEDIR + "last-top-inds.npy")
+    abs_errors = abs(phys_times[1:] - phys_times[0])
+    fig, ax = plt.subplots()
+    for ae, method in zip(abs_errors, METHODS[1:]):
+        slope, intercept, r_value, p_value, std_err = linregress(
+                lengths, ae)
+        x = np.array([0, max(lengths)])
+        y = x * slope + intercept
+        ax.plot(x, y, label=method)
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(.5, -.05),
+              borderaxespad=2, ncol=2)
+    ax.set_xlabel("Length of the chain")
+    ax.set_ylabel("Mean absolute error in time")
+    ax.set_ylim(-0.1, 5)
+
+    plt.savefig(BASEDIR + "error_vs_chain_length.png", bbox_inches='tight')
+    plt.show()
 
 
 if __name__ == "__main__":
