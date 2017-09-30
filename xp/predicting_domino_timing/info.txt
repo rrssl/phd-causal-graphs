@@ -11,3 +11,6 @@ There are two pipelines in this folder:
  a. gen_training_samples.py -> .npy file of samples
  b. time_training_samples.py -> .npy file of times
  c. learn_toppling_time.py -> .pkl predictor
+ d. evaluate_estimation.py -> .npy file of in-world times, .npy file of computation times
+        When method 0 is used, it also produces a .npy file of the last domino of each spline that toppled. Methods not based on simulation won't see the failure point; therefore we need to tell them where to stop for a fair comparison.
+ e. compare_methods.py
