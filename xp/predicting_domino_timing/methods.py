@@ -15,6 +15,7 @@ import numpy as np
 from sklearn.externals import joblib
 
 sys.path.insert(0, os.path.abspath('..'))
+from .config import w
 from .config import TIMESTEP, TIMESTEP_PRECISE, MAX_WAIT_TIME
 from .config import X_MAX, Y_MAX, A_MAX, MAX_SPACING
 from domino_design.evaluate import setup_dominoes, get_toppling_angle
@@ -32,12 +33,20 @@ def get_methods():
     physics_based_precise = partial(physics_based, ts=TIMESTEP_PRECISE)
     prev0_estimator = partial(nprev_estimator, nprev=0)
     prev1_estimator = partial(nprev_estimator, nprev=1)
+    prev3_estimator = partial(nprev_estimator, nprev=3)
+    prev4_estimator = partial(nprev_estimator, nprev=4)
+    prev5_estimator = partial(nprev_estimator, nprev=5)
     prev6_estimator = partial(nprev_estimator, nprev=6)
+    prev7_estimator = partial(nprev_estimator, nprev=7)
     return (physics_based_precise,
             physics_based,
             prev0_estimator,
             prev1_estimator,
+            prev4_estimator,
+            prev3_estimator,
+            prev5_estimator,
             prev6_estimator,
+            prev7_estimator,
             combined_estimators)
 
 
@@ -110,16 +119,34 @@ def nprev_estimator(u, spline, nprev):
 
 def combined_estimators(u, spline):
     XYA = _get_relative_coords(u, spline)
-    distances = np.sqrt(XYA[:, 0]**2 + XYA[:, 1]**2)
+    distances = XYA[:, 0] / MAX_SPACING
     xya = XYA / (X_MAX, Y_MAX, A_MAX)
 
     rel_times = np.empty(len(xya))
-    for i, (x, y, a) in enumerate(xya):
-        nprev = min(i, len(ESTIMATORS)-1)
-        estimator = ESTIMATORS[nprev]
-        if i == 0:
-            rel_times[i] = np.asscalar(estimator.predict([[x, y, a]]))
-        else:
-            s = distances[i-nprev:i].mean() / MAX_SPACING
-            rel_times[i] = np.asscalar(estimator.predict([[x, y, a, s]]))
+
+    rel_times[0] = np.asscalar(ESTIMATORS[0].predict([xya[0]]))
+
+    x, y, a = xya[1]
+    s = distances[0]
+    rel_times[1] = np.asscalar(ESTIMATORS[1].predict([[x, y, a, s]]))
+
+    x, y, a = xya[2]
+    s = distances[:2].min()
+    rel_times[2] = np.asscalar(ESTIMATORS[2].predict([[x, y, a, s]]))
+
+    x, y, a = xya[3]
+    s = distances[:3].min()
+    rel_times[3] = np.asscalar(ESTIMATORS[3].predict([[x, y, a, s]]))
+
+    x, y, a = xya[4]
+    s = distances[:4].min()
+    rel_times[4] = np.asscalar(ESTIMATORS[4].predict([[x, y, a, s]]))
+
+    x, y, a = xya[5]
+    s = distances[:5].min()
+    rel_times[5] = np.asscalar(ESTIMATORS[5].predict([[x, y, a, s]]))
+
+    s = np.array([[distances[i-6:i].min()] for i in range(6, len(xya))])
+    rel_times[6:] = ESTIMATORS[6].predict(np.hstack((xya[6:], s)))
+
     return np.concatenate(([0.], np.cumsum(rel_times)))
