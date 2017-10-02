@@ -19,12 +19,15 @@ from .config import w
 from .config import TIMESTEP, TIMESTEP_PRECISE, MAX_WAIT_TIME
 from .config import X_MAX, Y_MAX, A_MAX, MAX_SPACING
 from domino_design.evaluate import setup_dominoes, get_toppling_angle
+from predicting_domino_toppling.functions import get_rel_coords
 
 sys.path.insert(0, os.path.abspath('../..'))
 import spline2d as spl
 
 
-TIME_ESTIMATOR_PATHS = glob("data/latest/samples-4D-times-*-estimator.pkl")
+TIME_ESTIMATOR_PATHS = glob(
+        os.path.dirname(__file__)
+        + "/data/latest/samples-4D-times-*-estimator.pkl")
 TIME_ESTIMATOR_PATHS.sort()
 ESTIMATORS = [joblib.load(path) for path in TIME_ESTIMATOR_PATHS]
 
@@ -78,34 +81,9 @@ def physics_based(u, spline, ts=TIMESTEP):
     return _get_simu_top_times(u, spline, ts)
 
 
-#  cachedir = tempfile.mkdtemp()
-#  memory = joblib.Memory(cachedir=cachedir, verbose=0)
-#  @memory.cache
-def _get_relative_coords(u, spline):
-    # Get local Cartesian coordinates
-    # Change origin
-    xi, yi = spl.splev(u, spline)
-    xi = xi[1:] - xi[:-1]
-    yi = yi[1:] - yi[:-1]
-    # Rotate by -a_i-1
-    ai = spl.splang(u, spline, degrees=False)
-    ci_ = np.cos(ai[:-1])
-    si_ = np.sin(ai[:-1])
-    xi = xi*ci_ + yi*si_
-    yi = -xi*si_ + yi*ci_
-    # Get relative angles
-    ai = np.degrees(ai[1:] - ai[:-1])
-    ai = (ai + 180) % 360 - 180  # Convert from [0, 360) to [-180, 180)
-    # Symmetrize
-    ai = np.copysign(ai, yi)
-    yi = abs(yi)
-
-    return np.column_stack((xi, yi, ai))
-
-
 def nprev_estimator(u, spline, nprev):
     estimator = ESTIMATORS[nprev]
-    xya = _get_relative_coords(u, spline) / (X_MAX, Y_MAX, A_MAX)
+    xya = get_rel_coords(u, spline) / (X_MAX, Y_MAX, A_MAX)
 
     assert nprev >= 0
     if nprev == 0:
@@ -118,7 +96,7 @@ def nprev_estimator(u, spline, nprev):
 
 
 def combined_estimators(u, spline):
-    XYA = _get_relative_coords(u, spline)
+    XYA = get_rel_coords(u, spline)
     distances = XYA[:, 0] / MAX_SPACING
     xya = XYA / (X_MAX, Y_MAX, A_MAX)
 
