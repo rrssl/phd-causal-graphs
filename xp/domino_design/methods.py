@@ -373,17 +373,17 @@ def inc_classif_based_v2(spline, init_step=-1, max_ndom=-1):
         a0 = splang(u[-1])
         c0 = np.cos(a0)
         s0 = np.sin(a0)
-        xi = xi*c0 + yi*s0
-        yi = -xi*s0 + yi*c0
+        xi_r = xi*c0 + yi*s0
+        yi_r = -xi*s0 + yi*c0
         # Get relative angle
         ai = np.degrees(splang(ui) - a0)
         ai = (ai + 180) % 360 - 180  # Convert from [0, 360) to [-180, 180)
         # Normalize
-        xi /= X_MAX
-        yi /= Y_MAX
+        xi_r /= X_MAX
+        yi_r /= Y_MAX
         ai /= A_MAX
         # Evaluate
-        return -energy(np.column_stack([xi, yi, ai]))
+        return -energy(np.column_stack([xi_r, yi_r, ai]))
 
     # Start main routine
     last_step = 0
@@ -424,26 +424,26 @@ def batch_classif_based(spline, batchsize=2, init_step=-1, max_ndom=-1):
         # Get local Cartesian coordinates
         # Change origin
         xi, yi = splev(ui)
-        xi = xi[1:] - xi[:-1]
-        yi = yi[1:] - yi[:-1]
+        xi = np.diff(xi)
+        yi = np.diff(yi)
         # Rotate by -a_i-1
         ai = splang(ui)
         ci_ = np.cos(ai[:-1])
         si_ = np.sin(ai[:-1])
-        xi = xi*ci_ + yi*si_
-        yi = -xi*si_ + yi*ci_
+        xi_r = xi*ci_ + yi*si_
+        yi_r = -xi*si_ + yi*ci_
         # Get relative angles
-        ai = np.degrees(ai[1:] - ai[:-1])
+        ai = np.degrees(np.diff(ai))
         ai = (ai + 180) % 360 - 180  # Convert from [0, 360) to [-180, 180)
         # Symmetrize
-        ai = np.copysign(ai, yi)
-        yi = abs(yi)
+        ai = np.copysign(ai, yi_r)
+        yi_r = abs(yi_r)
         # Normalize
-        xi /= X_MAX
-        yi /= Y_MAX
+        xi_r /= X_MAX
+        yi_r /= Y_MAX
         ai /= A_MAX
         # Evaluate
-        return -np.mean(energy(np.column_stack((xi, yi, ai))))
+        return -np.mean(energy(np.column_stack((xi_r, yi_r, ai))))
 
     # Start main routine
     last_step = 0
