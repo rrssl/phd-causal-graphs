@@ -29,32 +29,14 @@ import spline2d as spl
 
 sys.path.insert(0, os.path.abspath(".."))
 from predicting_domino_toppling.config import X_MAX, Y_MAX, A_MAX
+from predicting_domino_toppling.functions import get_rel_coords
 
 
 def eval_pairs_in_distrib(u, spline, classifier):
-    # Get local Cartesian coordinates
-    # Change origin
-    xi, yi = spl.splev(u, spline)
-    xi = xi[1:] - xi[:-1]
-    yi = yi[1:] - yi[:-1]
-    # Rotate by -a_i-1
-    ai = spl.splang(u, spline, degrees=False)
-    ci_ = np.cos(ai[:-1])
-    si_ = np.sin(ai[:-1])
-    xi = xi*ci_ + yi*si_
-    yi = -xi*si_ + yi*ci_
-    # Get relative angles
-    ai = np.degrees(ai[1:] - ai[:-1])
-    ai = (ai + 180) % 360 - 180  # Convert from [0, 360) to [-180, 180)
-    # Symmetrize
-    ai = np.copysign(ai, yi)
-    yi = abs(yi)
     # Normalize
-    xi /= X_MAX
-    yi /= Y_MAX
-    ai /= A_MAX
+    xya = get_rel_coords(u, spline) / (X_MAX, Y_MAX, A_MAX)
     # Evaluate
-    return classifier.predict(np.column_stack((xi, yi, ai)))
+    return classifier.predict(xya)
 
 
 def get_estimated_toppling_fraction(u, spline, pairwise_topple):
@@ -121,8 +103,6 @@ def main():
 
     print("\nClassifier performance over entire chains")
     r2_score = metrics.r2_score(simulated_failpoint, predicted_failpoint)
-    expvar_score = metrics.explained_variance_score(
-            simulated_failpoint, predicted_failpoint)
     mean_abserror = metrics.mean_absolute_error(
             simulated_failpoint, predicted_failpoint)
     med_abserror = metrics.median_absolute_error(
@@ -130,7 +110,6 @@ def main():
     print("R^2 score: ", r2_score)
     print("Mean absolute error: ", mean_abserror)
     print("Median absolute error: ", med_abserror)
-
 
     # Estimate correlation between chain length and estimation error
     print("\nCorrelation between chain length and estimation error")

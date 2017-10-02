@@ -1,9 +1,12 @@
 """
-Test if two boxes collide.
+Functions used to train and evaluate the classifier.
+
 """
 from math import atan, pi
 import os
 import sys
+
+import numpy as np
 
 from panda3d.bullet import BulletWorld, BulletBoxShape, BulletRigidBodyNode
 from panda3d.core import load_prc_file_data
@@ -12,6 +15,7 @@ from panda3d.core import Point3, Vec3
 
 sys.path.insert(0, os.path.abspath("../.."))
 from primitives import Floor, DominoMaker
+import spline2d as spl
 
 
 # The next line avoids a "memory leak" that notably happens when
@@ -129,6 +133,29 @@ def run_domino_toppling_xp(params, timestep, maxtime, visual=False):
             world.do_physics(timestep, 2, timestep)
 
         return d2.get_r() >= toppling_angle
+
+
+def get_rel_coords(u, spline):
+    """Get the relative configuration of each domino wrt the previous."""
+    # Get local Cartesian coordinates
+    # Change origin
+    xi, yi = spl.splev(u, spline)
+    xi = np.diff(xi)
+    yi = np.diff(yi)
+    # Rotate by -a_i-1
+    ai = spl.splang(u, spline, degrees=False)
+    ci_ = np.cos(ai[:-1])
+    si_ = np.sin(ai[:-1])
+    xi_r = xi*ci_ + yi*si_
+    yi_r = -xi*si_ + yi*ci_
+    # Get relative angles
+    ai = np.degrees(np.diff(ai))
+    ai = (ai + 180) % 360 - 180  # Convert from [0, 360) to [-180, 180)
+    # Symmetrize
+    ai = np.copysign(ai, yi_r)
+    yi_r = np.abs(yi_r)
+
+    return np.column_stack((xi_r, yi_r, ai))
 
 
 def test_contact():

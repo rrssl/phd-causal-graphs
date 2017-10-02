@@ -37,7 +37,7 @@ def main():
     samples /= den
     values = np.load(vpath)
     svc = svm.SVC(
-            kernel='rbf', gamma=.1, C=.5, cache_size=1024,
+            kernel='rbf', gamma=1, C=1, cache_size=1024,
             #  class_weight='balanced',
             ).fit(samples, values)
 
