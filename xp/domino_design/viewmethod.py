@@ -43,7 +43,7 @@ def main():
     spline = spl.get_smooth_path(path, s=SMOOTHING_FACTOR)
 
     u = method(spline)
-    show_dominoes(u, spline)
+    show_dominoes([u], [spline])
 
 
 if __name__ == "__main__":

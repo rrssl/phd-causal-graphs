@@ -43,7 +43,7 @@ def main():
 
 
     u = method(spline)
-    show_dominoes(u, spline)
+    show_dominoes([u], [spline])
 
 
 if __name__ == "__main__":
