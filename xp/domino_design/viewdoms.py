@@ -15,6 +15,7 @@ import os
 import pickle
 import sys
 
+from matplotlib import cm
 import numpy as np
 from panda3d.core import Vec3
 
@@ -60,9 +61,12 @@ def show_dominoes(distribs, splines):
         tilt_box_forward(d_init, toppling_angle)
         d_init.node().set_transform_dirty()
         # Visual indicators
+        color = cm.hsv(np.random.random())
+        for domino in domino_run_np.get_children():
+            domino.set_color(color)
         v = np.linspace(0., 1., 100)
         spl.show_spline2d(app.render, spline, v, "path_{}".format(i),
-                          color=(1, 0, 1, 1))
+                          color=color)
 
     # Useful if you have to run several in a row.
     try:
