@@ -10,13 +10,14 @@ n : int
   Number of samples.
 
 """
-from math import pi, atan
-import numpy as np
 from random import uniform
 import sys
 
-from config import t, w, h
-from config import X_MIN, X_MAX, Y_MIN, Y_MAX, A_MIN, A_MAX, SAMPLING_NDIM
+import numpy as np
+
+from config import SAMPLING_NDIM
+from config import t, w, h, TOPPLING_ANGLE
+from config import X_MIN, X_MAX, Y_MIN, Y_MAX, A_MIN, A_MAX
 from functions import make_box, tilt_box_forward, has_contact
 
 
@@ -38,7 +39,7 @@ def sample2d(n, bounds, filter_overlap=True):
 
             d1 = make_box((t, w, h), (0, 0, h/2), (0, 0, 0))
             d2 = make_box((t, w, h), (d, 0, h/2), (a, 0, 0))
-            tilt_box_forward(d1, atan(t / h) * 180 / pi + 1.)
+            tilt_box_forward(d1, TOPPLING_ANGLE + 1)
             if has_contact(d1, d2):
                 pass
             else:
@@ -67,7 +68,7 @@ def sample3d(n, bounds, filter_overlap=True):
 
             d1 = make_box((t, w, h), (0, 0, h/2), (0, 0, 0))
             d2 = make_box((t, w, h), (x, y, h/2), (a, 0, 0))
-            tilt_box_forward(d1, atan(t / h) * 180 / pi + 1.)
+            tilt_box_forward(d1, TOPPLING_ANGLE + 1)
             if has_contact(d1, d2):
                 pass
             else:

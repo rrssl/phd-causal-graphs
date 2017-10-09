@@ -18,7 +18,7 @@ import numpy as np
 from sklearn.externals import joblib
 
 from config import X_MAX, A_MAX
-from config import t, w, h, density
+from config import t, w, h, MASS
 from functions import run_domino_toppling_xp
 
 
@@ -68,8 +68,7 @@ def visualize(samples, values, svc):
         d, a = samples[idx]
         d *= X_MAX
         a *= A_MAX
-        mass = t * w * h * density
-        run_domino_toppling_xp((t, w, h, d, 0, a, mass), 0, 0, visual=True)
+        run_domino_toppling_xp((t, w, h, d, 0, a, MASS), 0, 0, visual=True)
     fig.canvas.mpl_connect('pick_event', onpick)
 
     plt.show()

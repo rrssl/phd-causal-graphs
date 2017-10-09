@@ -1,20 +1,11 @@
 """
-Global parameters.
+Configuration parameters.
 
 """
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath("../.."))
+from xp.config import *
+
 SAMPLING_NDIM = 3
-timestep = 1/500        # [s]
-MAX_WAIT_TIME = 2.      # [s]
-density = 650.          # [kg/m3]
-h = .05                 # height [m]
-w = h / 3.              # width [m]
-t = h / 10.             # thickness [m]
-
-X_MIN = 0
-X_MAX = 1.5 * h
-Y_MIN = -w*1.1
-Y_MAX = w*1.1
-A_MIN = -90
-A_MAX = 90
-
-NCORES = 7

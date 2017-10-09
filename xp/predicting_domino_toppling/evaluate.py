@@ -24,12 +24,10 @@ from scipy.stats import linregress
 from sklearn.externals import joblib
 from sklearn import metrics
 
+from config import X_MAX, Y_MAX, A_MAX
+from functions import get_rel_coords
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
-
-sys.path.insert(0, os.path.abspath(".."))
-from predicting_domino_toppling.config import X_MAX, Y_MAX, A_MAX
-from predicting_domino_toppling.functions import get_rel_coords
 
 
 def eval_pairs_in_distrib(u, spline, classifier):

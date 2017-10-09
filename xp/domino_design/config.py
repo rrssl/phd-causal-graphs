@@ -1,21 +1,13 @@
 import sys
 import os
 
-sys.path.insert(0, os.path.abspath(".."))
-from predicting_domino_toppling.config import t, w, h
-from predicting_domino_toppling.config import density
-from predicting_domino_toppling.config import X_MIN, X_MAX
-from predicting_domino_toppling.config import Y_MIN, Y_MAX
-from predicting_domino_toppling.config import A_MIN, A_MAX
-from predicting_domino_toppling.config import MAX_WAIT_TIME
+sys.path.insert(0, os.path.abspath("../.."))
+from xp.config import *
 
-
-# Number of cores to use for parallelization.
-NCORES = 4
 
 # Path to the classifier.
-SVC_PATH = "../predicting_domino_toppling/data/20170927/samples-3D-classifier.pkl"
-SVC2_PATH = "../predicting_domino_toppling/data/20170913-3/samples-3D-sym-classifier.pkl"
+SVC_PATH = "../xp/data/20170927/samples-3D-classifier.pkl"
+SVC2_PATH = "../xp/data/20170913-3/samples-3D-sym-classifier.pkl"
 
 # Spline interpolation parameters.
 
