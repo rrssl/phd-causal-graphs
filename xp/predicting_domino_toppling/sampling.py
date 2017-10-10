@@ -1,13 +1,12 @@
 """
 Sampling the parameter space.
 
-The domino dimensions and sampling space bounds+dimensions are specified in
-'config.py'.
-
 Parameters
 ----------
-n : int
+nsam : int
   Number of samples.
+ndof : int, optional
+  Number of degrees of freedom. Defaults to 3 (relative x, y, and angle).
 
 """
 from random import uniform
@@ -15,7 +14,6 @@ import sys
 
 import numpy as np
 
-from config import SAMPLING_NDIM
 from config import t, w, h, TOPPLING_ANGLE
 from config import X_MIN, X_MAX, Y_MIN, Y_MAX, A_MIN, A_MAX
 from functions import make_box, tilt_box_forward, has_contact
@@ -83,16 +81,17 @@ def sample3d(n, bounds, filter_overlap=True):
 
 
 def main():
-    if len(sys.argv) <= 1:
+    if len(sys.argv) < 2:
         print(__doc__)
         return
     nsam = int(sys.argv[1])
+    ndim = int(sys.argv[2]) if len(sys.argv) > 2 else 3
 
-    if SAMPLING_NDIM == 2:
+    if ndim == 2:
         # Angle is > 0 because of symmetry.
         bounds = ((X_MIN, X_MAX), (0, A_MAX))
         samples = sample2d(nsam, bounds, filter_overlap=False)
-    elif SAMPLING_NDIM == 3:
+    elif ndim == 3:
         # Y is > 0 because of symmetry.
         bounds = ((X_MIN, X_MAX), (0, Y_MAX), (A_MIN, A_MAX))
         samples = sample3d(nsam, bounds, filter_overlap=False)
@@ -100,7 +99,7 @@ def main():
         print("No method implemented for this number of dimensions.")
         return
 
-    name = "samples-{}D.npy".format(SAMPLING_NDIM)
+    name = "samples-{}D.npy".format(ndim)
     np.save(name, samples)
 
 
