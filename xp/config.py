@@ -5,19 +5,29 @@ Global parameters.
 from math import atan, pi
 
 
-# Number of cores to use for parallelization.
+## Number of cores to use for parallelization.
 NCORES = 7
-# Domino properties.
-h = .05                     # height [m]
-w = h / 3.                  # width [m]
-t = h / 10.                 # thickness [m]
-DENSITY = 650.              # [kg/m^3]
-MASS = t * w *h * DENSITY   # [kg]
+
+## Domino properties.
+# Arbitrary values
+#  h = .05                     # height [m]
+#  w = h / 3.                  # width [m]
+#  t = h / 10.                 # thickness [m]
+#  DENSITY = 650.              # [kg/m^3]
+#  MASS = t * w *h * DENSITY   # [kg]
+# Experimental values
+h = .044
+w = .02
+t = .007
+MASS = .00305
+# Computed values
 TOPPLING_ANGLE = atan(t / h) * 180 / pi     # [degrees]
-# Simulation parameters.
+
+## Simulation parameters.
 TIMESTEP = 1/500            # [s]
 MAX_WAIT_TIME = 2.          # [s]
-# Bounds of the configuration space.
+
+## Bounds of the configuration space.
 X_MIN = 0               # min. x in the relative frame of reference [m]
 X_MAX = 1.5 * h         # max. x in the relative frame of reference [m]
 Y_MIN = -w * 1.1        # min. y in the relative frame of reference [m]
