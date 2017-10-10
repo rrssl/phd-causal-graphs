@@ -90,11 +90,11 @@ def main():
     if ndim == 2:
         # Angle is > 0 because of symmetry.
         bounds = ((X_MIN, X_MAX), (0, A_MAX))
-        samples = sample2d(nsam, bounds, filter_overlap=False)
+        samples = sample2d(nsam, bounds)
     elif ndim == 3:
         # Y is > 0 because of symmetry.
         bounds = ((X_MIN, X_MAX), (0, Y_MAX), (A_MIN, A_MAX))
-        samples = sample3d(nsam, bounds, filter_overlap=False)
+        samples = sample3d(nsam, bounds)
     else:
         print("No method implemented for this number of dimensions.")
         return
