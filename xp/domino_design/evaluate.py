@@ -52,7 +52,7 @@ import spline2d as spl
 
 sys.path.insert(0, os.path.abspath(".."))
 from domino_design.config import t, w, h
-from domino_design.config import density
+from domino_design.config import MASS
 from domino_design.config import MAX_WAIT_TIME
 from domino_design.config import NTRIALS_UNCERTAINTY
 from domino_design.config import X_MIN, X_MAX
@@ -248,11 +248,10 @@ def setup_dominoes(u, spline, randfactor=0):
     if randfactor:
         positions, headings = randomize_dominoes(
                 positions, headings, randfactor)
-    mass = density * t * w * h
     extents = Vec3(t, w, h)
     for i, (pos, head) in enumerate(zip(positions, headings)):
         domino_factory.add_domino(
-                Vec3(*pos), head, extents, mass, prefix="domino_{}".format(i))
+                Vec3(*pos), head, extents, MASS, prefix="domino_{}".format(i))
     # Set initial conditions for first domino
     first_domino = doms_np.get_child(0)
     #  angvel_init = Vec3(0., 15., 0.)

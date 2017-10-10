@@ -20,7 +20,7 @@ from panda3d.core import load_prc_file_data
 from panda3d.core import NodePath
 from panda3d.core import Vec3
 
-from config import t, w, h, density, timestep, NCORES, MAX_WAIT_TIME
+from config import t, w, h, MASS, TIMESTEP, NCORES, MAX_WAIT_TIME
 sys.path.insert(0, os.path.abspath(".."))
 from domino_design.evaluate import get_toppling_angle
 from predicting_domino_toppling.functions import tilt_box_forward
@@ -70,16 +70,15 @@ def run_predicting_domino_timing_xp(params, timestep):
 
 
 def compute_times(samples):
-    m = density * t * w * h
     if samples.shape[1] == 2:
         times = Parallel(n_jobs=NCORES)(
                 delayed(run_predicting_domino_timing_xp)
-                ((t, w, h, d, 0, a, m), timestep)
+                ((t, w, h, d, 0, a, MASS), TIMESTEP)
                 for d, a in samples)
     else:
         times = Parallel(n_jobs=NCORES)(
                 delayed(run_predicting_domino_timing_xp)
-                ((t, w, h, x, y, a, m), timestep)
+                ((t, w, h, x, y, a, MASS), TIMESTEP)
                 for x, y, a in samples)
     return times
 

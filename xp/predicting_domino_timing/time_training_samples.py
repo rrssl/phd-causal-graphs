@@ -23,8 +23,8 @@ from panda3d.core import NodePath
 from panda3d.core import Vec3
 
 sys.path.insert(0, os.path.abspath(".."))
-from predicting_domino_timing.config import t, w, h, density
-from predicting_domino_timing.config import timestep, MAX_WAIT_TIME
+from predicting_domino_timing.config import t, w, h, MASS
+from predicting_domino_timing.config import TIMESTEP, MAX_WAIT_TIME
 from predicting_domino_timing.config import NCORES
 from domino_design.evaluate import get_toppling_angle
 from predicting_domino_toppling.functions import tilt_box_forward
@@ -48,13 +48,12 @@ def compute_toppling_time(x, y, a, s, nprev, _visual=False):
     # Dominoes
     dom_path = NodePath("dominoes")
     dom_fact = DominoMaker(dom_path, world, make_geom=_visual)
-    m = density * t * w * h
     length = s * nprev
     x = np.concatenate((np.linspace(-length, 0, nprev+1), [x]))
     y = np.concatenate((np.zeros(nprev+1), [y]))
     a = np.concatenate((np.zeros(nprev+1), [a]))
     for i, (xi, yi, ai) in enumerate(zip(x, y, a)):
-        dom_fact.add_domino(Vec3(xi, yi, h*.5), ai, Vec3(t, w, h), m,
+        dom_fact.add_domino(Vec3(xi, yi, h*.5), ai, Vec3(t, w, h), MASS,
                             "d{}".format(i))
     d0 = dom_path.get_child(0)
     dpen = dom_path.get_child(nprev)
@@ -89,8 +88,8 @@ def compute_toppling_time(x, y, a, s, nprev, _visual=False):
         if not any(di.node().is_active() for di in dom_path.get_children()):
             return np.inf
 
-        time += timestep
-        world.do_physics(timestep, 2, timestep)
+        time += TIMESTEP
+        world.do_physics(TIMESTEP, 2, TIMESTEP)
     else:
         return np.inf
 

@@ -26,7 +26,7 @@ import spline2d as spl
 
 if __name__ == "__main__":
     sys.path.insert(0, os.path.abspath(".."))
-from domino_design.config import t, w, h, density
+from domino_design.config import t, w, h, MASS
 from domino_design.evaluate import get_toppling_angle
 from predicting_domino_toppling.functions import tilt_box_forward
 
@@ -45,7 +45,6 @@ def show_dominoes(distribs, splines):
     floor.create()
     # Domino distributions
     toppling_angle = get_toppling_angle()
-    mass = density * t * w * h
     for i, (distrib, spline) in enumerate(zip(distribs, splines)):
         domino_run_np = app.models.attach_new_node("domrun_{}".format(i))
         domino_factory = DominoMaker(domino_run_np, app.world)
@@ -54,7 +53,7 @@ def show_dominoes(distribs, splines):
         headings = spl.splang(distrib, spline)
         for j, (pos, head) in enumerate(zip(positions, headings)):
             domino_factory.add_domino(
-                    Vec3(*pos), head, Vec3(t, w, h), mass=mass,
+                    Vec3(*pos), head, Vec3(t, w, h), mass=MASS,
                     prefix="domino_{}".format(j))
         # Initial state
         d_init = domino_run_np.get_child(0)

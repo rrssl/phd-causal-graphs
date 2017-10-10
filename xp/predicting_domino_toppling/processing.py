@@ -15,7 +15,7 @@ import numpy as np
 from sklearn.externals.joblib import Parallel, delayed
 
 from config import t, w, h, MASS
-from config import timestep, MAX_WAIT_TIME
+from config import TIMESTEP, MAX_WAIT_TIME
 from config import NCORES
 from functions import run_domino_toppling_xp
 
@@ -24,12 +24,12 @@ def process(samples):
     if samples.shape[1] == 2:
         values = Parallel(n_jobs=NCORES)(
                 delayed(run_domino_toppling_xp)(
-                    (t, w, h, d, 0, a, MASS), timestep, MAX_WAIT_TIME)
+                    (t, w, h, d, 0, a, MASS), TIMESTEP, MAX_WAIT_TIME)
                 for d, a in samples)
     else:
         values = Parallel(n_jobs=NCORES)(
                 delayed(run_domino_toppling_xp)(
-                    (t, w, h, x, y, a, MASS), timestep, MAX_WAIT_TIME)
+                    (t, w, h, x, y, a, MASS), TIMESTEP, MAX_WAIT_TIME)
                 for x, y, a in samples)
 
     return values

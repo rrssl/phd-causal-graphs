@@ -11,11 +11,11 @@ NCORES = 7
 h = .05                     # height [m]
 w = h / 3.                  # width [m]
 t = h / 10.                 # thickness [m]
-density = 650.              # [kg/m^3]
-MASS = t * w *h * density   # [kg]
+DENSITY = 650.              # [kg/m^3]
+MASS = t * w *h * DENSITY   # [kg]
 TOPPLING_ANGLE = atan(t / h) * 180 / pi     # [degrees]
 # Simulation parameters.
-timestep = 1/500            # [s]
+TIMESTEP = 1/500            # [s]
 MAX_WAIT_TIME = 2.          # [s]
 # Bounds of the configuration space.
 X_MIN = 0               # min. x in the relative frame of reference [m]

@@ -18,7 +18,7 @@ from sklearn.externals.joblib import Parallel
 
 sys.path.insert(0, os.path.abspath(".."))
 from domino_design.evaluate import setup_dominoes, get_toppling_angle
-from predicting_domino_timing.config import NCORES, MAX_WAIT_TIME, timestep
+from predicting_domino_timing.config import NCORES, MAX_WAIT_TIME, TIMESTEP
 
 
 VERBOSE = 0
@@ -44,8 +44,8 @@ def compute_times(u, spline, _id=None):
         if time - toppling_times[last_toppled_id] > MAX_WAIT_TIME:
             # The chain broke
             break
-        time += timestep
-        world.do_physics(timestep, 2, timestep)
+        time += TIMESTEP
+        world.do_physics(TIMESTEP, 2, TIMESTEP)
     if VERBOSE:
         print("Done with distribution {}".format(_id))
     return toppling_times
