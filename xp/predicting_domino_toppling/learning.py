@@ -1,5 +1,5 @@
 """
-Regress the domino-validation function.
+Train the domino-topples classifier.
 
 Parameters
 ----------
