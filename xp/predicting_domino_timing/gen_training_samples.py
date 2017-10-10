@@ -16,13 +16,11 @@ import sys
 
 import numpy as np
 
-sys.path.insert(0, os.path.abspath(".."))
-from predicting_domino_timing.config import t, w, h
-from predicting_domino_timing.config import X_MIN, X_MAX
-from predicting_domino_timing.config import Y_MAX
-from predicting_domino_timing.config import A_MIN, A_MAX
-from predicting_domino_timing.config import MIN_SPACING, MAX_SPACING
-from predicting_domino_toppling.functions import make_box, has_contact
+sys.path.insert(0, os.path.abspath("../.."))
+from xp.config import t, w, h
+from xp.config import X_MIN, X_MAX, Y_MAX, A_MIN, A_MAX
+from xp.config import MIN_SPACING, MAX_SPACING
+from xp.predicting_domino_toppling.functions import make_box, has_contact
 
 
 def sample(n, bounds, filter_overlap=True):
