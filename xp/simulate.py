@@ -2,6 +2,11 @@
 This module provides the necessary functions to simulate a domino run.
 
 """
+from pathlib import Path
+import sys
+
+import numpy as np
+
 from panda3d.bullet import BulletWorld, BulletBoxShape, BulletRigidBodyNode
 from panda3d.core import load_prc_file_data
 from panda3d.core import NodePath
@@ -9,6 +14,9 @@ from panda3d.core import Point3, Vec3
 
 from .config import t, w, h, MASS, TOPPLING_ANGLE
 from .config import TIMESTEP, MAX_WAIT_TIME
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from primitives import DominoMaker, Floor
 
 
 # The next line avoids a "memory leak" that notably happens when
@@ -79,7 +87,7 @@ def setup_dominoes(global_coords, _make_geom=False):
                 Vec3(x, y, h/2), a, extents, MASS, prefix="D{}".format(i))
     # Set initial conditions for first domino
     first_domino = doms_np.get_child(0)
-    tilt_box_forward(first_domino, TOPPLING_ANGLE)
+    tilt_box_forward(first_domino, TOPPLING_ANGLE+1)
     first_domino.node().set_transform_dirty()
     # Alternative with initial velocity:
     #  angvel_init = Vec3(0., 15., 0.)
@@ -113,7 +121,7 @@ def run_simu(doms_np: NodePath, world: BulletWorld, timestep=TIMESTEP,
         from viewers import PhysicsViewer
 
         app = PhysicsViewer()
-        dom_np.reparent_to(app.models)
+        doms_np.reparent_to(app.models)
         app.world = world
         try:
             app.run()
@@ -130,11 +138,11 @@ def run_simu(doms_np: NodePath, world: BulletWorld, timestep=TIMESTEP,
         if dominoes[last_toppled_id+1].get_r() >= TOPPLING_ANGLE:
             last_toppled_id += 1
             toppling_times[last_toppled_id] = time
-        if dominoes[last_toppled_id+1].get_r() >= TOPPLING_ANGLE:
-            print("Warning: next domino had already toppled")
         if last_toppled_id == n-1:
             # All dominoes toppled in order.
             break
+        if dominoes[last_toppled_id+1].get_r() >= TOPPLING_ANGLE:
+            print("Warning: next domino had already toppled")
         if time - toppling_times[last_toppled_id] > MAX_WAIT_TIME:
             # The chain broke
             break
