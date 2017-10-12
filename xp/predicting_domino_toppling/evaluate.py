@@ -25,9 +25,9 @@ from sklearn.externals import joblib
 from sklearn import metrics
 
 from config import X_MAX, Y_MAX, A_MAX
-from functions import get_rel_coords
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
+from xp.dompath import get_rel_coords
 
 
 def eval_pairs_in_distrib(u, spline, classifier):

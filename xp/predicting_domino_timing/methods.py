@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
 from xp.config import X_MAX, Y_MAX, A_MAX, MAX_SPACING
 from xp.domino_design.evaluate import setup_dominoes
+from xp.dompath import get_rel_coords
 from xp.predicting_domino_timing.config import TIMESTEP, TIMESTEP_PRECISE
-from xp.predicting_domino_toppling.functions import get_rel_coords
 import xp.simulate as simu
 
 
