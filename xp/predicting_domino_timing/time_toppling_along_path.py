@@ -13,12 +13,12 @@ import pickle
 import sys
 
 import numpy as np
-from sklearn.externals.joblib import delayed
-from sklearn.externals.joblib import Parallel
+from sklearn.externals.joblib import delayed, Parallel
 
-sys.path.insert(0, os.path.abspath(".."))
-from domino_design.evaluate import setup_dominoes, get_toppling_angle
-from predicting_domino_timing.config import NCORES, MAX_WAIT_TIME, TIMESTEP
+sys.path.insert(0, os.path.abspath("../.."))
+from xp.config import NCORES
+from xp.domino_design.evaluate import setup_dominoes
+from xp.simulate import run_simu
 
 
 VERBOSE = 0
@@ -28,24 +28,7 @@ def compute_times(u, spline, _id=None):
     if VERBOSE:
         print("Simulating distribution {}".format(_id))
     doms_np, world = setup_dominoes(u, spline)
-    n = len(u)
-    dominoes = list(doms_np.get_children())
-    last_toppled_id = -1
-    toppling_times = np.full(n, np.inf)
-    time = 0.
-    toppling_angle = get_toppling_angle()
-    while True:
-        if dominoes[last_toppled_id+1].get_r() >= toppling_angle:
-            last_toppled_id += 1
-            toppling_times[last_toppled_id] = time
-        if last_toppled_id == n-1:
-            # All dominoes toppled in order.
-            break
-        if time - toppling_times[last_toppled_id] > MAX_WAIT_TIME:
-            # The chain broke
-            break
-        time += TIMESTEP
-        world.do_physics(TIMESTEP, 2, TIMESTEP)
+    toppling_times = run_simu(doms_np, world)
     if VERBOSE:
         print("Done with distribution {}".format(_id))
     return toppling_times

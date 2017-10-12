@@ -30,48 +30,25 @@ ns : int, optional
   Only process the ns first splines of the list.
 
 """
-import math
 import os
 import pickle
 import random
 import sys
 
 import numpy as np
-from panda3d.bullet import BulletWorld
-from panda3d.core import load_prc_file_data
-from panda3d.core import NodePath
-from panda3d.core import Vec3, Mat3
 from shapely.affinity import rotate, translate
 from shapely.geometry import box
 from sklearn.externals.joblib import delayed, Parallel
 
+from config import NTRIALS_UNCERTAINTY
 sys.path.insert(0, os.path.abspath("../.."))
-from primitives import DominoMaker
-from primitives import Floor
 import spline2d as spl
+from xp.config import t, w, h
+from xp.config import X_MAX, Y_MAX, A_MAX
+from xp.config import TOPPLING_ANGLE
+from xp.config import NCORES
+import xp.simulate as simu
 
-sys.path.insert(0, os.path.abspath(".."))
-from domino_design.config import t, w, h
-from domino_design.config import MASS
-from domino_design.config import MAX_WAIT_TIME
-from domino_design.config import NTRIALS_UNCERTAINTY
-from domino_design.config import X_MIN, X_MAX
-from domino_design.config import Y_MIN, Y_MAX
-from domino_design.config import A_MIN, A_MAX
-from domino_design.config import NCORES
-from predicting_domino_toppling.functions import tilt_box_forward
-
-
-# The next line avoids a "memory leak" that notably happens when
-# BulletWorld.do_physics is called a huge number of times out of the
-# regular Panda3D task process. In a nutshell, objects transforms are
-# cached and compared by pointer to avoid expensive recomputation; the
-# cache is configured to flush itself at the end of each frame, which never
-# happens when we don't use frames. The solutions are: don't use the cache
-# ("transform-cache 0"), or don't defer flushing to the end of the frame
-# ("garbage-collect-states 0"). See
-# http://www.panda3d.org/forums/viewtopic.php?t=15645 for a discussion.
-load_prc_file_data("", "garbage-collect-states 0")
 
 VERBOSE = True
 
@@ -116,7 +93,7 @@ def get_successive_overlapping_dominoes(u, spline):
                 for xi, yi, ai in zip(x, y, a)]
     for d1, d2 in zip(dominoes[1:], dominoes[:-1]):
         if d1.intersects(d2):
-            overlapping.append(i)
+            overlapping.append(d1)
 
     return overlapping
 
@@ -142,51 +119,42 @@ def test_no_successive_overlap_fast(u, spline):
     return True
 
 
-def get_toppling_angle():
-    return math.atan(t / h) * 180 / math.pi + 1
-
-
 def randomize_dominoes(positions, headings, randfactor, maxtrials=10):
     """Randomize dominoes' coordinates, but keep the distribution valid.
 
     Parameters
     ----------
-    positions : (n,3) numpy array
-        3D positions of the dominoes.
+    positions : (n,2) numpy array
+        2D global coordinates of the dominoes.
     headings : (n,) numpy array
-        Headings of the dominoes.
+        Headings of the dominoes (in degrees).
     randfactor : float
         Randomization factor (see setup_dominoes).
 
     Returns
     -------
-    new_positions : (n,3) numpy array
-        New 3D Positions.
+    new_positions : (n,2) numpy array
+        New 2D positions.
     new_headings : (n,) numpy array
         New headings.
 
     """
     base = box(-t/2, -w/2, t/2,  w/2)
     dominoes = [translate(rotate(base, ai), xi, yi)
-                for (xi, yi, _), ai in zip(positions, headings)]
+                for (xi, yi), ai in zip(positions, headings)]
     new_positions = np.empty_like(positions)
-    new_positions[:, 2] = positions[:, 2]
     new_headings = np.empty_like(headings)
-    rng_x = (X_MAX-X_MIN) * randfactor
-    rng_y = (Y_MAX-Y_MIN) * randfactor
-    rng_a = (A_MAX-A_MIN) * randfactor
-    ndoms = len(dominoes)
-    for i in range(ndoms):
+    rng_x = X_MAX * randfactor
+    rng_y = Y_MAX * randfactor
+    rng_a = A_MAX * randfactor
+    for i in range(len(dominoes)):
         ntrials = 0
         while ntrials < maxtrials:
-            new_positions[i, 0] = (
-                    positions[i, 0] + random.uniform(-rng_x, rng_x))
-            new_positions[i, 1] = (
-                    positions[i, 1] + random.uniform(-rng_y, rng_y))
+            new_positions[i] = positions[i] + [random.uniform(-rng_x, rng_x),
+                                               random.uniform(-rng_y, rng_y)]
             new_headings[i] = headings[i] + random.uniform(-rng_a, rng_a)
             dominoes[i] = translate(
-                    rotate(base, new_headings[i]),
-                    *new_positions[i, :2])
+                    rotate(base, new_headings[i]), *new_positions[i])
 
             # Find first domino to intersect the current domino
             try:
@@ -198,12 +166,10 @@ def randomize_dominoes(positions, headings, randfactor, maxtrials=10):
             ntrials += 1
         else:
             # Valid perturbated coordinates could not be found in time.
-            new_positions[i, 0] = positions[i, 0]
-            new_positions[i, 1] = positions[i, 1]
+            new_positions[i] = positions[i]
             new_headings[i] = headings[i]
             dominoes[i] = translate(
-                    rotate(base, new_headings[i]),
-                    *new_positions[i, :2])
+                    rotate(base, new_headings[i]), *new_positions[i])
             if VERBOSE:
                 print("Could not find valid perturbated coordinates.")
 
@@ -232,77 +198,22 @@ def setup_dominoes(u, spline, randfactor=0):
     world : BulletWorld
         World for the simulation.
     """
-    # World
-    world = BulletWorld()
-    world.set_gravity((0, 0, -9.81))
-    # Floor
-    floor_np = NodePath("floor")
-    floor = Floor(floor_np, world)
-    floor.create()
-    # Dominoes
-    doms_np = NodePath("domino_run")
-    domino_factory = DominoMaker(doms_np, world, make_geom=False)
     u = np.asarray(u)
-    positions = spl.splev3d(u, spline, h/2)
+    positions = spl.splev(u, spline)
     headings = spl.splang(u, spline)
     if randfactor:
         positions, headings = randomize_dominoes(
                 positions, headings, randfactor)
-    extents = Vec3(t, w, h)
-    for i, (pos, head) in enumerate(zip(positions, headings)):
-        domino_factory.add_domino(
-                Vec3(*pos), head, extents, MASS, prefix="domino_{}".format(i))
-    # Set initial conditions for first domino
-    first_domino = doms_np.get_child(0)
-    #  angvel_init = Vec3(0., 15., 0.)
-    #  angvel_init = Mat3.rotate_mat(headings[0]).xform(angvel_init)
-    #  first_domino.node().set_angular_velocity(angvel_init)
-    toppling_angle = get_toppling_angle()
-    tilt_box_forward(first_domino, toppling_angle)
-    first_domino.node().set_transform_dirty()
 
-    return doms_np, world
-
-
-def run_simu(doms_np, world):
-    """Run the simulation.
-
-    Parameters
-    ----------
-    doms_np : NodePath
-        Contains all the dominoes.
-    world : BulletWorld
-        World for the simulation.
-
-    """
-    n = doms_np.get_num_children()
-    dominoes = list(doms_np.get_children())
-    last_toppled_id = -1
-    last_toppled_time = 0.
-    time = 0.
-    toppling_angle = get_toppling_angle()
-    while True:
-        if dominoes[last_toppled_id+1].get_r() >= toppling_angle:
-            last_toppled_id += 1
-            last_toppled_time = time
-        if last_toppled_id == n-1:
-            # All dominoes toppled in order.
-            break
-        if time - last_toppled_time > MAX_WAIT_TIME:
-            # The chain broke
-            break
-        time += 1/120
-        world.do_physics(1/120, 2, 1/120)
-    return doms_np
+    return simu.setup_dominoes()
 
 
 def get_toppling_fraction(u, spline, doms_np):
-    toppling_angle = get_toppling_angle()
     n = doms_np.get_num_children()
     try:
         # Find the first domino that didn't topple.
         idx = next(i for i in range(n)
-                   if doms_np.get_child(i).get_r() < toppling_angle)
+                   if doms_np.get_child(i).get_r() < TOPPLING_ANGLE)
     except StopIteration:
         # All dominoes toppled
         idx = n
@@ -310,8 +221,7 @@ def get_toppling_fraction(u, spline, doms_np):
 
 
 def test_all_toppled(doms_np):
-    toppling_angle = get_toppling_angle()
-    return all(dom.get_r() >= toppling_angle for dom in doms_np.get_children())
+    return all(dom.get_r() >= TOPPLING_ANGLE for dom in doms_np.get_children())
 
 
 def evaluate_domino_run(u, spline, _id=None):
@@ -330,7 +240,7 @@ def evaluate_domino_run(u, spline, _id=None):
             overlap = get_overlapping_dominoes(u_valid, spline)
     # Run simulation without uncertainty
     doms_np, world = setup_dominoes(u_valid, spline)
-    doms_np = run_simu(doms_np, world)
+    doms_np = simu.run_simu(doms_np, world)
     all_topple = test_all_toppled(doms_np)
     top_frac = get_toppling_fraction(u_valid, spline, doms_np)
 
@@ -345,7 +255,8 @@ def evaluate_domino_run(u, spline, _id=None):
             print(_id, ": Testing with uncertainty = ", uncertainty)
         top_frac_rnd_trials = np.empty(NTRIALS_UNCERTAINTY)
         for i in range(NTRIALS_UNCERTAINTY):
-            doms_np = run_simu(*setup_dominoes(u_valid, spline, uncertainty))
+            doms_np = simu.run_simu(
+                    *setup_dominoes(u_valid, spline, uncertainty))
             top_frac_rnd_trials[i] = get_toppling_fraction(
                     u_valid, spline, doms_np)
         top_frac_rnd.append(top_frac_rnd_trials.mean())
@@ -383,7 +294,6 @@ def main():
     metrics = Parallel(n_jobs=NCORES)(
             delayed(get_additional_metrics)(domruns['arr_{}'.format(i)], s)
             for i, s in enumerate(splines))
-
 
     dirname = os.path.dirname(dompath)
     prefix = os.path.splitext(os.path.basename(dompath))[0]

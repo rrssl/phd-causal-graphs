@@ -12,73 +12,35 @@ import os
 import sys
 
 import numpy as np
-from sklearn.externals.joblib import delayed
-from sklearn.externals.joblib import Parallel
-
-from panda3d.bullet import BulletWorld
-from panda3d.core import load_prc_file_data
-from panda3d.core import NodePath
-from panda3d.core import Vec3
-
-from config import t, w, h, MASS, TIMESTEP, NCORES, MAX_WAIT_TIME
-sys.path.insert(0, os.path.abspath(".."))
-from domino_design.evaluate import get_toppling_angle
-from predicting_domino_toppling.functions import tilt_box_forward
+from sklearn.externals.joblib import delayed, Parallel
 
 sys.path.insert(0, os.path.abspath("../.."))
-from primitives import Floor, DominoMaker
+from xp.config import NCORES
+import xp.simulate as simu
 
 
-# See ../predicting_domino_toppling/functions.py
-load_prc_file_data("", "garbage-collect-states 0")
+def run_predicting_domino_timing_xp(params):
+    x, y, a = params
+    global_coords = [[0, 0, 0], [x, y, a]]
+    doms_np, world = simu.setup_dominoes(global_coords)
 
-
-def run_predicting_domino_timing_xp(params, timestep):
-    # World
-    world = BulletWorld()
-    world.set_gravity(Vec3(0, 0, -9.81))
-    # Floor
-    floor_path = NodePath("floor")
-    floor = Floor(floor_path, world)
-    floor.create()
-    # Dominoes
-    dom_path = NodePath("dominoes")
-    dom_fact = DominoMaker(dom_path, world, make_geom=False)
-    t, w, h, x, y, a, m = params
-    d1 = dom_fact.add_domino(Vec3(0, 0, h*.5), 0, Vec3(t, w, h), m, "d1")
-    d2 = dom_fact.add_domino(Vec3(x, y, h*.5), a, Vec3(t, w, h), m, "d2")
-    # Initial state
-    toppling_angle = get_toppling_angle()
-    tilt_box_forward(d1, toppling_angle)
-    d1.node().set_transform_dirty()
-
+    d1, d2 = doms_np.get_children()
     test = world.contact_test_pair(d1.node(), d2.node())
     if test.get_num_contacts() > 0:
         return np.inf
 
-    time = 0.
-    while time < MAX_WAIT_TIME:
-        # Early termination conditions
-        if d2.get_r() >= toppling_angle:
-            return time
-        if not (d1.node().is_active() or d2.node().is_active()):
-            return np.inf
-        time += timestep
-        world.do_physics(timestep, 2, timestep)
-    else:
-        return np.inf
+    toppling_times = simu.run_simu(doms_np, world)
+    return toppling_times.max()
 
 
 def compute_times(samples):
     if samples.shape[1] == 2:
         times = Parallel(n_jobs=NCORES)(
-                delayed(run_predicting_domino_timing_xp)
-                ((t, w, h, d, 0, a, MASS), TIMESTEP)
+                delayed(run_predicting_domino_timing_xp)(d, 0, a)
                 for d, a in samples)
     else:
         times = Parallel(n_jobs=NCORES)(
-                delayed(run_predicting_domino_timing_xp)
-                ((t, w, h, x, y, a, MASS), TIMESTEP)
+                delayed(run_predicting_domino_timing_xp)(x, y, a)
                 for x, y, a in samples)
     return times
 

@@ -14,15 +14,13 @@ import sys
 import numpy as np
 from sklearn.externals import joblib
 
-sys.path.insert(0, os.path.abspath('..'))
-from .config import w
-from .config import TIMESTEP, TIMESTEP_PRECISE, MAX_WAIT_TIME
-from .config import X_MAX, Y_MAX, A_MAX, MAX_SPACING
-from domino_design.evaluate import setup_dominoes, get_toppling_angle
-from predicting_domino_toppling.functions import get_rel_coords
-
-sys.path.insert(0, os.path.abspath('../..'))
+sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
+from xp.config import X_MAX, Y_MAX, A_MAX, MAX_SPACING
+from xp.domino_design.evaluate import setup_dominoes
+from xp.predicting_domino_timing.config import TIMESTEP, TIMESTEP_PRECISE
+from xp.predicting_domino_toppling.functions import get_rel_coords
+import xp.simulate as simu
 
 
 TIME_ESTIMATOR_PATHS = glob(
@@ -34,51 +32,15 @@ ESTIMATORS = [joblib.load(path) for path in TIME_ESTIMATOR_PATHS]
 
 def get_methods():
     physics_based_precise = partial(physics_based, ts=TIMESTEP_PRECISE)
-    prev0_estimator = partial(nprev_estimator, nprev=0)
-    prev1_estimator = partial(nprev_estimator, nprev=1)
-    prev3_estimator = partial(nprev_estimator, nprev=3)
-    prev4_estimator = partial(nprev_estimator, nprev=4)
-    prev5_estimator = partial(nprev_estimator, nprev=5)
-    prev6_estimator = partial(nprev_estimator, nprev=6)
-    prev7_estimator = partial(nprev_estimator, nprev=7)
-    return (physics_based_precise,
-            physics_based,
-            prev0_estimator,
-            prev1_estimator,
-            prev4_estimator,
-            prev3_estimator,
-            prev5_estimator,
-            prev6_estimator,
-            prev7_estimator,
-            combined_estimators)
-
-
-
-def _get_simu_top_times(u, spline, ts):
-    doms_np, world = setup_dominoes(u, spline)
-    n = len(u)
-    dominoes = list(doms_np.get_children())
-    last_toppled_id = -1
-    toppling_times = np.full(n, np.inf)
-    time = 0.
-    toppling_angle = get_toppling_angle()
-    while True:
-        if dominoes[last_toppled_id+1].get_r() >= toppling_angle:
-            last_toppled_id += 1
-            toppling_times[last_toppled_id] = time
-        if last_toppled_id == n-1:
-            # All dominoes toppled in order.
-            break
-        if time - toppling_times[last_toppled_id] > MAX_WAIT_TIME:
-            # The chain broke
-            break
-        time += ts
-        world.do_physics(ts, 2, ts)
-    return toppling_times
+    nprev_estimators = [partial(nprev_estimator, nprev=i)
+                        for i in range(len(ESTIMATORS))]
+    return [physics_based_precise, physics_based] + nprev_estimators + [
+            combined_estimators]
 
 
 def physics_based(u, spline, ts=TIMESTEP):
-    return _get_simu_top_times(u, spline, ts)
+    doms_np, world = setup_dominoes(u, spline)
+    return simu.run_simu(doms_np, world, ts)
 
 
 def nprev_estimator(u, spline, nprev):

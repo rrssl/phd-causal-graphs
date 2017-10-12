@@ -14,82 +14,33 @@ import os
 import sys
 
 import numpy as np
-from sklearn.externals.joblib import delayed
-from sklearn.externals.joblib import Parallel
-
-from panda3d.bullet import BulletWorld
-from panda3d.core import load_prc_file_data
-from panda3d.core import NodePath
-from panda3d.core import Vec3
-
-sys.path.insert(0, os.path.abspath(".."))
-from predicting_domino_timing.config import t, w, h, MASS
-from predicting_domino_timing.config import TIMESTEP_PRECISE, MAX_WAIT_TIME
-from predicting_domino_timing.config import NCORES
-from domino_design.evaluate import get_toppling_angle
-from predicting_domino_toppling.functions import tilt_box_forward
+from sklearn.externals.joblib import delayed, Parallel
 
 sys.path.insert(0, os.path.abspath("../.."))
-from primitives import Floor, DominoMaker
-
-
-# See ../predicting_domino_toppling/functions.py
-load_prc_file_data("", "garbage-collect-states 0")
+from xp.config import NCORES
+import xp.simulate as simu
 
 
 def compute_toppling_time(x, y, a, s, nprev, _visual=False):
-    # World
-    world = BulletWorld()
-    world.set_gravity(Vec3(0, 0, -9.81))
-    # Floor
-    floor_path = NodePath("floor")
-    floor = Floor(floor_path, world)
-    floor.create()
-    # Dominoes
-    dom_path = NodePath("dominoes")
-    dom_fact = DominoMaker(dom_path, world, make_geom=_visual)
     length = s * nprev
-    x = np.concatenate((np.linspace(-length, 0, nprev+1), [x]))
-    y = np.concatenate((np.zeros(nprev+1), [y]))
-    a = np.concatenate((np.zeros(nprev+1), [a]))
-    for i, (xi, yi, ai) in enumerate(zip(x, y, a)):
-        dom_fact.add_domino(Vec3(xi, yi, h*.5), ai, Vec3(t, w, h), MASS,
-                            "d{}".format(i))
-    d0 = dom_path.get_child(0)
-    dpen = dom_path.get_child(nprev)
-    dlast = dom_path.get_child(nprev+1)
-    # Initial state
-    toppling_angle = get_toppling_angle()
-    tilt_box_forward(d0, toppling_angle)
-    d0.node().set_transform_dirty()
+    # Typical global coordinates (s=.5, nprev=2):
+    # [[ -1, 0, 0],
+    #  [-.5, 0, 0],
+    #  [  0, 0, 0],
+    #  [  x, y, a]]
+    global_coords = np.zeros((nprev+2, 3))
+    global_coords[:-1, 0] = np.linspace(-length, 0, nprev+1)
+    global_coords[-1] = x, y, a
+    doms_np, world = simu.setup_dominoes(
+            np.column_stack((x, y, a)), _make_geom=_visual)
 
     if _visual:
-        from viewers import PhysicsViewer
-        app = PhysicsViewer()
-        dom_path.reparent_to(app.models)
-        app.world = world
-        try:
-            app.run()
-        except SystemExit:
-            app.destroy()
+        simu.run_simu(doms_np, world, _visual=True)
         return
 
-    time_prev = 0
-    time = 0
-    maxtime = (nprev+1) * MAX_WAIT_TIME
-    while time < maxtime:
-        if dpen.get_r() >= toppling_angle and time_prev == 0:
-            time_prev = time
-        # Early termination conditions
-        if dlast.get_r() >= toppling_angle:
-            return time - time_prev
-        if time_prev > 0 and (time - time_prev) > MAX_WAIT_TIME:
-            return np.inf
-        if not any(di.node().is_active() for di in dom_path.get_children()):
-            return np.inf
-
-        time += TIMESTEP_PRECISE
-        world.do_physics(TIMESTEP_PRECISE, 2, TIMESTEP_PRECISE)
+    toppling_times = simu.run_simu(doms_np, world)
+    if np.isfinite(toppling_times).all():
+        return toppling_times[-1] - toppling_times[-2]
     else:
         return np.inf
 
