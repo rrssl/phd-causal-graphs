@@ -9,6 +9,7 @@ ndof : int, optional
   Number of degrees of freedom. Defaults to 3 (relative x, y, and angle).
 
 """
+import os
 from random import uniform
 import sys
 
@@ -16,7 +17,8 @@ import numpy as np
 
 from config import t, w, h, TOPPLING_ANGLE
 from config import X_MIN, X_MAX, Y_MIN, Y_MAX, A_MIN, A_MAX
-from functions import make_box, tilt_box_forward, has_contact
+sys.path.insert(0, os.path.abspath("../.."))
+from xp.domgeom import make_box, tilt_box_forward, has_contact
 
 
 def sample2d(n, bounds, filter_overlap=True):

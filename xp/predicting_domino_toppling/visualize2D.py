@@ -11,6 +11,7 @@ cpath : string
   Path to the classifier.
 
 """
+import os
 import sys
 
 import matplotlib.pyplot as plt
@@ -18,8 +19,8 @@ import numpy as np
 from sklearn.externals import joblib
 
 from config import X_MAX, A_MAX
-from config import t, w, h, MASS
-from functions import run_domino_toppling_xp
+sys.path.insert(0, os.path.abspath("../.."))
+import xp.simulate as simu
 
 
 SHOW_DECISION_FUNCTION = 0
@@ -68,7 +69,9 @@ def visualize(samples, values, svc):
         d, a = samples[idx]
         d *= X_MAX
         a *= A_MAX
-        run_domino_toppling_xp((t, w, h, d, 0, a, MASS), 0, 0, visual=True)
+        global_coords = [[0, 0, 0], [d, 0, a]]
+        doms_np, world = simu.setup_dominoes(global_coords, _make_geom=True)
+        simu.run_simu(doms_np, world, _visual=True)
     fig.canvas.mpl_connect('pick_event', onpick)
 
     plt.show()

@@ -7,8 +7,8 @@ splpath : string
   Path to the list of splines
 dompath : string
   Path to the list of domino runs
-did : int
-  Index of the domino run
+did : sequence of int
+  Indexes of the domino runs
 
 """
 import os
@@ -24,11 +24,9 @@ from primitives import DominoMaker, Floor
 from viewers import PhysicsViewer
 import spline2d as spl
 
-if __name__ == "__main__":
-    sys.path.insert(0, os.path.abspath(".."))
-from domino_design.config import t, w, h, MASS
-from domino_design.evaluate import get_toppling_angle
-from predicting_domino_toppling.functions import tilt_box_forward
+from config import t, w, h, MASS, TOPPLING_ANGLE
+sys.path.insert(0, os.path.abspath("../.."))
+from xp.domgeom import tilt_box_forward
 
 
 def show_dominoes(distribs, splines):

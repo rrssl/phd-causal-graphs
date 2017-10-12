@@ -14,22 +14,54 @@ import sys
 import numpy as np
 from sklearn.externals.joblib import Parallel, delayed
 
-from config import t, w, h, MASS
-from config import TIMESTEP, MAX_WAIT_TIME
 from config import NCORES
-from functions import run_domino_toppling_xp
+sys.path.insert(0, os.path.abspath("../.."))
+import xp.simulate as simu
+
+
+def run_domino_toppling_xp(params, visual=False):
+    """
+    Run the domino-pair toppling simulation. If not visual, returns True if
+    the second domino topples.
+
+    Parameters
+    ----------
+    params : sequence
+        Parameter vector (x, y, angle), i.e. D2's coordinates relative to D1.
+    visual : boolean
+        Run the experiment in 'visual' mode, that is, actually display the
+        scene in a window. In that case, 'timestep' and 'maxtime' are ignored.
+    """
+    x, y, a = params
+    global_coords = [[0, 0, 0], [x, y, a]]
+    doms_np, world = simu.setup_dominoes(global_coords, _make_geom=visual)
+
+    if visual:
+        simu.run_simu(doms_np, world, _visual=True)
+        return True
+    else:
+        d1, d2 = doms_np.get_children()
+        test = world.contact_test_pair(d1.node(), d2.node())
+        if test.get_num_contacts() > 0:
+            return False
+
+        times = simu.run_simu(doms_np, world)
+        if np.isfinite(times).all():
+            return True
+
+
+def _test_domino_toppling_xp():
+    assert run_domino_toppling_xp((.02, .01, 15), 0)
 
 
 def process(samples):
     if samples.shape[1] == 2:
         values = Parallel(n_jobs=NCORES)(
-                delayed(run_domino_toppling_xp)(
-                    (t, w, h, d, 0, a, MASS), TIMESTEP, MAX_WAIT_TIME)
+                delayed(run_domino_toppling_xp)((d, 0, a))
                 for d, a in samples)
     else:
         values = Parallel(n_jobs=NCORES)(
-                delayed(run_domino_toppling_xp)(
-                    (t, w, h, x, y, a, MASS), TIMESTEP, MAX_WAIT_TIME)
+                delayed(run_domino_toppling_xp)((x, y, a))
                 for x, y, a in samples)
 
     return values
