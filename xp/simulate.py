@@ -15,7 +15,9 @@ from panda3d.core import Point3, Vec3
 from .config import t, w, h, MASS, TOPPLING_ANGLE
 from .config import TIMESTEP, MAX_WAIT_TIME
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+_import_path = str(Path(__file__).resolve().parents[1])
+if _import_path not in sys.path:
+    sys.path.insert(0, _import_path)
 from primitives import DominoMaker, Floor
 
 
@@ -116,8 +118,6 @@ def run_simu(doms_np: NodePath, world: BulletWorld, timestep=TIMESTEP,
 
     """
     if _visual:
-        import os, sys
-        sys.path.insert(0, os.path.abspath('..'))
         from viewers import PhysicsViewer
 
         app = PhysicsViewer()
