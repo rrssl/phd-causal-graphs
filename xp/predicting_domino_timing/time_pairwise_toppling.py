@@ -14,8 +14,8 @@ import sys
 import numpy as np
 from sklearn.externals.joblib import delayed, Parallel
 
+from config import NCORES
 sys.path.insert(0, os.path.abspath("../.."))
-from xp.config import NCORES
 import xp.simulate as simu
 
 

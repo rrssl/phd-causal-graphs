@@ -15,8 +15,8 @@ import sys
 import numpy as np
 from sklearn.externals.joblib import delayed, Parallel
 
+from config import NCORES
 sys.path.insert(0, os.path.abspath("../.."))
-from xp.config import NCORES
 from xp.domino_design.evaluate import setup_dominoes
 from xp.simulate import run_simu
 

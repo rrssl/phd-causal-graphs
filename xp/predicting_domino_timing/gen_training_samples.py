@@ -16,10 +16,9 @@ import sys
 
 import numpy as np
 
+from config import t, w, h
+from config import X_MIN, X_MAX, Y_MAX, A_MIN, A_MAX, MIN_SPACING, MAX_SPACING
 sys.path.insert(0, os.path.abspath("../.."))
-from xp.config import t, w, h
-from xp.config import X_MIN, X_MAX, Y_MAX, A_MIN, A_MAX
-from xp.config import MIN_SPACING, MAX_SPACING
 from xp.predicting_domino_toppling.functions import make_box, has_contact
 
 
