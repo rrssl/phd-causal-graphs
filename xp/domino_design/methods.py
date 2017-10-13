@@ -21,14 +21,13 @@ from shapely.affinity import translate
 from shapely.geometry import box
 from sklearn.externals import joblib
 
-sys.path.insert(0, os.path.abspath("../.."))
-import spline2d as spl
-
 from .config import t, w, h
 from .config import SVC_PATH, SVC2_PATH
 from .config import X_MAX, Y_MAX, A_MAX
-from .evaluate import run_simu, setup_dominoes, test_all_toppled
-from .evaluate import test_no_successive_overlap_fast
+from .evaluate import test_all_toppled, test_no_successive_overlap_fast
+sys.path.insert(0, os.path.abspath("../.."))
+import spline2d as spl
+import xp.simulate as simu
 
 
 def get_methods():
@@ -283,7 +282,9 @@ def inc_physbased_randsearch(spline, max_ndom=-1, max_ntrials=-1):
         while ntrials < max_ntrials:
             unew = random.uniform(umin, umax)
             if test_no_successive_overlap_fast((ulast, unew), spline):
-                doms_np = run_simu(*setup_dominoes(u + [unew], spline))
+                doms_np, world = simu.setup_dominoes_from_path(
+                        u + [unew], spline)
+                simu.run_simu(doms_np, world)
                 if test_all_toppled(doms_np):
                     u.append(unew)
                     break

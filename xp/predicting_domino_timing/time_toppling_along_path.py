@@ -17,8 +17,7 @@ from sklearn.externals.joblib import delayed, Parallel
 
 from config import NCORES
 sys.path.insert(0, os.path.abspath("../.."))
-from xp.domino_design.evaluate import setup_dominoes
-from xp.simulate import run_simu
+import xp.simulate as simu
 
 
 VERBOSE = 0
@@ -27,8 +26,8 @@ VERBOSE = 0
 def compute_times(u, spline, _id=None):
     if VERBOSE:
         print("Simulating distribution {}".format(_id))
-    doms_np, world = setup_dominoes(u, spline)
-    toppling_times = run_simu(doms_np, world)
+    doms_np, world = simu.setup_dominoes_from_path(u, spline)
+    toppling_times = simu.run_simu(doms_np, world)
     if VERBOSE:
         print("Done with distribution {}".format(_id))
     return toppling_times

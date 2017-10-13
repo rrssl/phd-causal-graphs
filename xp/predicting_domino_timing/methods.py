@@ -17,9 +17,8 @@ from sklearn.externals import joblib
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
 from xp.config import X_MAX, Y_MAX, A_MAX, MAX_SPACING
-from xp.domino_design.evaluate import setup_dominoes
 from xp.dompath import get_rel_coords
-from xp.predicting_domino_timing.config import TIMESTEP, TIMESTEP_PRECISE
+from xp.predicting_domino_timing.config import TIMESTEP_FAST, TIMESTEP_PRECISE
 import xp.simulate as simu
 
 
@@ -38,8 +37,8 @@ def get_methods():
             combined_estimators]
 
 
-def physics_based(u, spline, ts=TIMESTEP):
-    doms_np, world = setup_dominoes(u, spline)
+def physics_based(u, spline, ts=TIMESTEP_FAST):
+    doms_np, world = simu.setup_dominoes_from_path(u, spline)
     return simu.run_simu(doms_np, world, ts)
 
 

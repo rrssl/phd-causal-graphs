@@ -44,7 +44,6 @@ from config import NTRIALS_UNCERTAINTY
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
 from xp.config import t, w, h
-from xp.config import X_MAX, Y_MAX, A_MAX
 from xp.config import TOPPLING_ANGLE
 from xp.config import NCORES
 import xp.simulate as simu
@@ -119,95 +118,6 @@ def test_no_successive_overlap_fast(u, spline):
     return True
 
 
-def randomize_dominoes(positions, headings, randfactor, maxtrials=10):
-    """Randomize dominoes' coordinates, but keep the distribution valid.
-
-    Parameters
-    ----------
-    positions : (n,2) numpy array
-        2D global coordinates of the dominoes.
-    headings : (n,) numpy array
-        Headings of the dominoes (in degrees).
-    randfactor : float
-        Randomization factor (see setup_dominoes).
-
-    Returns
-    -------
-    new_positions : (n,2) numpy array
-        New 2D positions.
-    new_headings : (n,) numpy array
-        New headings.
-
-    """
-    base = box(-t/2, -w/2, t/2,  w/2)
-    dominoes = [translate(rotate(base, ai), xi, yi)
-                for (xi, yi), ai in zip(positions, headings)]
-    new_positions = np.empty_like(positions)
-    new_headings = np.empty_like(headings)
-    rng_x = X_MAX * randfactor
-    rng_y = Y_MAX * randfactor
-    rng_a = A_MAX * randfactor
-    for i in range(len(dominoes)):
-        ntrials = 0
-        while ntrials < maxtrials:
-            new_positions[i] = positions[i] + [random.uniform(-rng_x, rng_x),
-                                               random.uniform(-rng_y, rng_y)]
-            new_headings[i] = headings[i] + random.uniform(-rng_a, rng_a)
-            dominoes[i] = translate(
-                    rotate(base, new_headings[i]), *new_positions[i])
-
-            # Find first domino to intersect the current domino
-            try:
-                next(dom for dom in dominoes
-                     if dom is not dominoes[i] and dom.intersects(dominoes[i]))
-            except StopIteration:
-                # No domino intersects the current one
-                break
-            ntrials += 1
-        else:
-            # Valid perturbated coordinates could not be found in time.
-            new_positions[i] = positions[i]
-            new_headings[i] = headings[i]
-            dominoes[i] = translate(
-                    rotate(base, new_headings[i]), *new_positions[i])
-            if VERBOSE:
-                print("Could not find valid perturbated coordinates.")
-
-    return new_positions, new_headings
-
-
-def setup_dominoes(u, spline, randfactor=0):
-    """Setup the world and objects to run the simulation.
-
-    Parameters
-    ----------
-    u : sequence
-        Samples along the spline.
-    spline : 'spline' as defined in spline2d
-        Path of the domino run.
-    randfactor : float
-        If > 0, a randomization will be applied to all dominoes' coordinates,
-        with this factor as a fraction of the 'reasonable' range for each
-        coordinate, which will be used as the parameter of the uniform
-        distribution used for the randomization.
-
-    Returns
-    -------
-    doms_np : NodePath
-        Contains all the dominoes.
-    world : BulletWorld
-        World for the simulation.
-    """
-    u = np.asarray(u)
-    positions = spl.splev(u, spline)
-    headings = spl.splang(u, spline)
-    if randfactor:
-        positions, headings = randomize_dominoes(
-                positions, headings, randfactor)
-
-    return simu.setup_dominoes()
-
-
 def get_toppling_fraction(u, spline, doms_np):
     n = doms_np.get_num_children()
     try:
@@ -239,8 +149,8 @@ def evaluate_domino_run(u, spline, _id=None):
             u_valid.pop(random.choice(overlap))
             overlap = get_overlapping_dominoes(u_valid, spline)
     # Run simulation without uncertainty
-    doms_np, world = setup_dominoes(u_valid, spline)
-    doms_np = simu.run_simu(doms_np, world)
+    doms_np, world = simu.setup_dominoes_from_path(u_valid, spline)
+    simu.run_simu(doms_np, world)
     all_topple = test_all_toppled(doms_np)
     top_frac = get_toppling_fraction(u_valid, spline, doms_np)
 
@@ -255,8 +165,9 @@ def evaluate_domino_run(u, spline, _id=None):
             print(_id, ": Testing with uncertainty = ", uncertainty)
         top_frac_rnd_trials = np.empty(NTRIALS_UNCERTAINTY)
         for i in range(NTRIALS_UNCERTAINTY):
-            doms_np = simu.run_simu(
-                    *setup_dominoes(u_valid, spline, uncertainty))
+            doms_np, world = simu.setup_dominoes_from_path(
+                    u_valid, spline, uncertainty)
+            simu.run_simu(doms_np, world)
             top_frac_rnd_trials[i] = get_toppling_fraction(
                     u_valid, spline, doms_np)
         top_frac_rnd.append(top_frac_rnd_trials.mean())
