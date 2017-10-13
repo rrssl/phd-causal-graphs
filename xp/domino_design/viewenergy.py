@@ -22,14 +22,11 @@ from shapely.affinity import translate
 from shapely.geometry import box
 from sklearn.externals import joblib
 
+from config import t, w, h
+from config import X_MAX, Y_MAX, A_MAX, SVC_PATH, SVC2_PATH
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl  # flake8: noqa E402
-
-if __name__ == "__main__":
-    sys.path.insert(0, os.path.abspath(".."))
-from domino_design.config import t, w, h
-from domino_design.config import X_MAX, Y_MAX, A_MAX, SVC_PATH, SVC2_PATH
-from domino_design.methods import _init_routines_vec
+from xp.domino_design.methods import _init_routines_vec
 
 
 def get_inc_classif_based_energy(u, uprev_id, spline):
@@ -49,20 +46,20 @@ def get_inc_classif_based_energy(u, uprev_id, spline):
         a0 = splang(u[uprev_id])
         c0 = cos(a0)
         s0 = sin(a0)
-        xi = xi*c0 + yi*s0
-        yi = -xi*s0 + yi*c0
+        xi_r = xi*c0 + yi*s0
+        yi_r = -xi*s0 + yi*c0
         # Get relative angle
-        ai = (splang(ui) - a0) * 180 / pi
-        ai = (ai + 180) % 360 - 180
+        ai_r = (splang(ui) - a0) * 180 / pi
+        ai_r = (ai_r + 180) % 360 - 180
         # Symmetrize wrt the Ox axis
-        ai = np.copysign(ai, yi)
-        yi = abs(yi)
+        ai_r = np.copysign(ai_r, yi_r)
+        yi_r = abs(yi_r)
         # Normalize
-        xi /= X_MAX
-        yi /= Y_MAX
-        ai /= A_MAX
+        xi_r /= X_MAX
+        yi_r /= Y_MAX
+        ai_r /= A_MAX
         # Evaluate
-        return svc.decision_function(np.column_stack([xi, yi, ai]))
+        return svc.decision_function(np.column_stack([xi_r, yi_r, ai_r]))
 
     f = objective(u)
     c1 = np.concatenate([tilted_overlap([ui]) for ui in u])
@@ -91,17 +88,17 @@ def get_inc_classif_based_v2_energy(u, uprev_id, spline):
         a0 = splang(u[uprev_id])
         c0 = cos(a0)
         s0 = sin(a0)
-        xi = xi*c0 + yi*s0
-        yi = -xi*s0 + yi*c0
+        xi_r = xi*c0 + yi*s0
+        yi_r = -xi*s0 + yi*c0
         # Get relative angle
-        ai = (splang(ui) - a0) * 180 / pi
-        ai = (ai + 180) % 360 - 180
+        ai_r = (splang(ui) - a0) * 180 / pi
+        ai_r = (ai_r + 180) % 360 - 180
         # Normalize
-        xi /= X_MAX
-        yi /= Y_MAX
-        ai /= A_MAX
+        xi_r /= X_MAX
+        yi_r /= Y_MAX
+        ai_r /= A_MAX
         # Evaluate
-        return svc.decision_function(np.column_stack([xi, yi, ai]))
+        return svc.decision_function(np.column_stack([xi_r, yi_r, ai_r]))
 
     f = objective(u)
 

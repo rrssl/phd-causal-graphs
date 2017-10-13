@@ -19,14 +19,12 @@ from matplotlib import cm
 import numpy as np
 from panda3d.core import Vec3
 
-sys.path.insert(0, os.path.abspath("../.."))
+from config import t, w, h, MASS, TOPPLING_ANGLE
+from domgeom import tilt_box_forward
+sys.path.insert(0, os.path.abspath(".."))
 from primitives import DominoMaker, Floor
 from viewers import PhysicsViewer
 import spline2d as spl
-
-from config import t, w, h, MASS, TOPPLING_ANGLE
-sys.path.insert(0, os.path.abspath("../.."))
-from xp.domgeom import tilt_box_forward
 
 
 def show_dominoes(distribs, splines):
