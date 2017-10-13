@@ -17,8 +17,8 @@ import timeit
 import numpy as np
 from sklearn.externals.joblib import Parallel, delayed
 
-sys.path.insert(0, os.path.abspath('..'))
-from predicting_domino_timing.config import NCORES
+from config import NCORES
+sys.path.insert(0, os.path.abspath(".."))
 from predicting_domino_timing.methods import get_methods
 
 

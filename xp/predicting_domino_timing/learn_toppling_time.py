@@ -20,8 +20,7 @@ from sklearn import kernel_ridge
 from sklearn.externals import joblib
 import sklearn.metrics as metrics
 
-sys.path.insert(0, os.path.abspath('..'))
-from predicting_domino_timing.config import X_MAX, Y_MAX, A_MAX, MAX_SPACING
+from config import X_MAX, Y_MAX, A_MAX, MAX_SPACING
 
 
 # 0 = Support Vector Machine, 1 = Kernel Ridge, 2 = Neural Network
