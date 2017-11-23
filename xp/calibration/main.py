@@ -12,26 +12,182 @@ import numpy as np
 from panda3d.core import Vec3, Point3
 import pandas
 import scipy.optimize as opt
+#  from sklearn.externals import joblib
 import skopt
 import stochopy
 sys.path.insert(0, os.path.abspath("../.."))
 from _ext import go_amp  # noqa
 
 from xp.config import MAX_WAIT_TIME, TOPPLING_ANGLE, t, h  # noqa
-from xp.simulate import setup_dominoes_from_path  # noqa
+import xp.simulate as simu  # noqa
+from viewers import PhysicsViewer  # noqa
 
 
-MAKE_VISUALS = 0
+MAKE_VISUALS = 1
 BASES = ["data/20171104/I", "data/20171104/U", "data/20171104/O"]
 SPLINE_EXT = ".pkl"
 DOMS_EXT = "-doms.npz"
 REF_TIMES_EXT = "-groundtruth.txt"
 FPS = 480  # Hz
+OPTIM_SOLVERS = ('scipy_DE',
+                 'skopt_GP', 'skopt_GBRT', 'skopt_forest',
+                 'stochopy_PSO', 'stochopy_CPSO', 'stochopy_CMAES',
+                 )
+
+
+class CustomViewer(PhysicsViewer):
+    def __init__(self, world, dominoes, push_duration, push_dir, push_point):
+        super().__init__()
+        self.cam_distance = 2
+        self.min_cam_distance = .2
+        self.camLens.set_near(.1)
+        self.zoom_speed = .2
+
+        self.push_duration = push_duration
+        self.push_dir = push_dir
+        self.push_point = push_point
+
+        for domino in dominoes:
+            self.models.attach_new_node(domino)
+        self.first_dom = dominoes[0]
+        self.world = world
+
+    def update_physics(self, task):
+        if self.play_physics and self.world_time <= self.push_duration:
+            self.first_dom.apply_force(self.push_dir, self.push_point)
+        return super().update_physics(task)
+
+
+class Objective:
+    def __init__(self, data_dicts):
+        self.n_events = 2
+        self.n_shapes = len(data_dicts)
+        self.distributions = [dd['doms'] for dd in data_dicts]
+        self.splines = [dd['spline'] for dd in data_dicts]
+        self.push_times = [dd['ref_times'][0] for dd in data_dicts]
+        self.A_ref = np.array([dd['ref_times'][1:] for dd in data_dicts])
+        self.E = np.zeros((self.n_shapes, self.n_events))
+        self.push_point = Point3(-t/2, 0, h/3)
+        #  self.worlds = [simu.setup_dominoes_from_path(
+        #      dd['doms'], dd['spline'], tilt_first_dom=False,
+        #      _make_geom=_visual)[1]
+        #      for dd in data_dicts]
+        #  self.bodies_cache = [
+        #          (body, body.get_transform())
+        #          for world in self.worlds
+        #          for body in world.get_rigid_bodies()
+        #          if not body.is_static()]
+        ### DEBUG ###
+        #  self._cache = {}
+        ### DEBUG ###
+        self.denorm_factor = np.array([1/10, 1, 1, 1, 1/10])
+
+    def __call__(self, x, _visual=False, _print=False):
+        parameters = x * self.denorm_factor
+        # Reset world for each shape
+        self.worlds = [simu.setup_dominoes_from_path(
+            distrib, spline, tilt_first_dom=False, _make_geom=_visual)[1]
+            for distrib, spline in zip(self.distributions, self.splines)
+            ]
+        #  for world in self.worlds:
+        #      for man in world.get_manifolds():
+        #          man.clear_manifold()
+        #  for body, xform in self.bodies_cache:
+        #      body.set_transform(xform)
+        #      body.set_linear_velocity(0)
+        #      body.set_angular_velocity(0)
+        #      body.set_active(True)
+
+        # Compute the N_shapes-by-N_events distance matrix
+        for i in range(self.n_shapes):
+            self.E[i] = self.A_ref[i] - run_simu(
+                    self.worlds[i],
+                    floor_friction=parameters[2],
+                    domino_friction=parameters[1],
+                    domino_restitution=parameters[3],
+                    domino_angular_damping=parameters[4],
+                    push_magnitude=parameters[0],
+                    push_duration=self.push_times[i],
+                    push_point=self.push_point,
+                    _visual=_visual*(i == 2))
+        if _print:
+            print(self.E)
+        out = np.sum(self.E**2)
+        ### DEBUG ###
+        #  try:
+        #      old_out = self._cache[tuple(x)]
+        #  except KeyError:
+        #      self._cache[tuple(x)] = out
+        #  else:
+        #      if out != old_out:
+        #          print("Non deterministic result!!")
+        ### DEBUG ###
+
+        return out
+
+
+def gen_data():
+    data_dicts = []
+    for base in BASES:
+        # Spline
+        with open(base + SPLINE_EXT, 'rb') as f:
+            spline = pickle.load(f)[0]
+        # Distribution
+        doms = np.load(base + DOMS_EXT)['arr_0']
+        # Times
+        table = pandas.read_csv(base + REF_TIMES_EXT)
+        pen_times = (table['pen_leaves'] - table['pen_touches']) / table['fps']
+        run_times = (
+                table['dn-1_touches_dn'] - table['d1_touches_d2']
+                ) / table['fps']
+        last_topple_times = (
+                table['dn_touches_floor'] - table['dn-1_touches_dn']
+                ) / table['fps']
+        ref_times = [pen_times.mean(),
+                     run_times.mean(),
+                     last_topple_times.mean()]
+        ref_times_std = [pen_times.std(),
+                         run_times.std(),
+                         last_topple_times.std()]
+
+        data_dicts.append({
+            'spline': spline,
+            'doms': doms,
+            'ref_times': ref_times,
+            'ref_times_std': ref_times_std,
+            'n_trials': table.shape[0]
+            })
+    n_shapes = len(data_dicts)
+
+    if MAKE_VISUALS and 0:
+        # Show statistics of ground truth times
+        fig, ax = plt.subplots(figsize=plt.figaspect(.5))
+        barwidth = .5
+        inter_plot_width = barwidth * (n_shapes + 1)
+        shapes = ("$I$", "$U$", "$\Omega$")
+        for i, dd in enumerate(data_dicts):
+            x = np.arange(n_shapes)*inter_plot_width + i*barwidth
+            y = dd['ref_times']
+            yerr = dd['ref_times_std']
+            label = "{} shape ($N_{{dom}}={}$, $N_{{trials}}={}$)".format(
+                    shapes[i], len(dd['doms']), dd['n_trials'])
+            ax.bar(x, y, barwidth, yerr=yerr, capsize=3, label=label)
+        ax.set_title("Duration of some events for each path shape (mean+std)")
+        ax.set_xticks(x-(barwidth*i/2))
+        ax.set_xticklabels(("Initial push",
+                            "From first to last collision",
+                            "Last topple"))
+        ax.set_ylabel("Time (s)")
+        ax.legend()
+
+    return data_dicts
 
 
 def run_simu(world,
              floor_friction=.5,
              domino_friction=.5,
+             domino_restitution=0.,
+             domino_angular_damping=0.,
              push_magnitude=.01,
              push_duration=.1,
              push_point=Point3(0),
@@ -42,26 +198,13 @@ def run_simu(world,
     floor.set_friction(floor_friction)
     for domino in dominoes:
         domino.set_friction(domino_friction)
+        domino.set_restitution(domino_restitution)
+        domino.set_angular_damping(domino_angular_damping)
     push_dir = Vec3(push_magnitude, 0, 0)
 
     if _visual:
-        from viewers import PhysicsViewer
-
-        class CustomViewer(PhysicsViewer):
-            def update_physics(self, task):
-                if self.play_physics and self.world_time <= push_duration:
-                    dominoes[0].apply_force(push_dir, push_point)
-                return super().update_physics(task)
-
-        app = CustomViewer()
-        app.cam_distance = 2
-        app.min_cam_distance = .2
-        app.camLens.set_near(.1)
-        app.zoom_speed = .2
-        for domino in dominoes:
-            app.models.attach_new_node(domino)
-        #  doms_np.reparent_to(app.models)
-        app.world = world
+        app = CustomViewer(
+                world, dominoes, push_duration, push_dir, push_point)
         try:
             app.run()
         except SystemExit:
@@ -107,181 +250,37 @@ def run_simu(world,
     return last_collision_time - first_collision_time, last_topple_time
 
 
-OPTIM_SOLVERS = ('scipy_L-BFGS-B', 'scipy_DE', 'scipy_BH',
-                 'skopt_GP', 'skopt_GBRT', 'skopt_forest',
-                 'stochopy_DE', 'stochopy_PSO', 'stochopy_CPSO',
-                 'stochopy_CMAES',
-                 'AMPGO'
-                 )
+def find_toppling_bounds(floor_friction=.5,
+                         domino_friction=.5,
+                         domino_restitution=0.,
+                         domino_angular_damping=0.,
+                         _visual=False):
+    distances = np.linspace(1.6*t, 1.5*h, 100)
+    last_dom_topples = np.zeros_like(distances)
+    coords = [[0, 0, 0], [0, 0, 0]]
+    for i, distance in enumerate(distances):
+        coords[1][0] = distance
+        _, world = simu.setup_dominoes(coords, _make_geom=_visual)
+        run_time, last_topple_time = run_simu(
+                world,
+                floor_friction,
+                domino_friction,
+                domino_restitution,
+                domino_angular_damping,
+                push_magnitude=0.,
+                push_duration=-1,
+                _visual=_visual)
+        last_dom_topples[i] += last_topple_time < MAX_WAIT_TIME
+    print(last_dom_topples)
+    min_dist = distances[last_dom_topples.argmax()]
+    max_dist = distances[len(distances) - last_dom_topples[::-1].argmax() - 1]
+    return min_dist, max_dist
 
 
-def run_optim(fun, bounds, x0=None, maxiter=100, solver='butt', seed=None):
-    bounds = np.asarray(bounds)
-    param_vectors = []
-
-    def cbk(x, *args, **kwargs):
-        if type(x) is np.ndarray:
-            param_vectors.append(x.copy())
-        elif type(x) is opt.OptimizeResult:
-            param_vectors.append(x.x.copy())
-
-    if solver == 'scipy_L-BFGS-B':
-        if x0 is None:
-            x0 = bounds[:, 0]
-        opt.minimize(fun, x0, bounds=bounds, method='L-BFGS-B',
-                     options={'maxiter': maxiter, 'disp': True},
-                     callback=cbk)
-    if solver == 'scipy_DE':
-        opt.differential_evolution(fun, bounds, maxiter=maxiter,
-                                   disp=True, seed=seed, callback=cbk)
-    if solver == 'scipy_BH':
-        if x0 is None:
-            x0 = bounds[:, 0]
-        opt.basinhopping(fun, x0, niter=maxiter,
-                         minimizer_kwargs={'method': 'L-BFGS-B',
-                                           'bounds': bounds},
-                         disp=True, seed=seed, callback=cbk)
-    if solver == 'skopt_GP':
-        skopt.gp_minimize(fun, bounds, n_calls=maxiter, x0=x0,
-                          verbose=True, random_state=seed,
-                          callback=cbk, n_jobs=-1)
-    if solver == 'skopt_GBRT':
-        skopt.gbrt_minimize(fun, bounds, n_calls=maxiter, x0=x0,
-                            verbose=True, random_state=seed,
-                            callback=cbk, n_jobs=-1)
-    if solver == 'skopt_forest':
-        skopt.forest_minimize(fun, bounds, n_calls=maxiter, x0=x0,
-                              verbose=True, random_state=seed,
-                              callback=cbk, n_jobs=-1)
-    if solver.startswith('stochopy'):
-        ea = stochopy.Evolutionary(fun, lower=bounds[:, 0], upper=bounds[:, 1],
-                                   max_iter=maxiter, random_state=seed,
-                                   snap=True)
-        if solver == 'stochopy_DE':
-            ea.optimize(xstart=x0, solver='de')
-        if solver == 'stochopy_PSO':
-            ea.optimize(xstart=x0, solver='pso')
-        if solver == 'stochopy_CPSO':
-            ea.optimize(xstart=x0, solver='cpso')
-        if solver == 'stochopy_CMAES':
-            ea.optimize(xstart=x0, solver='cmaes', sigma=.1)
-
-        param_vectors = [ea.models[m, :, i]
-                         for i, m in enumerate(ea.energy.argmin(axis=0))]
-    if solver == 'AMPGO':
-        if x0 is None:
-            x0 = bounds[:, 0]
-        res = go_amp.AMPGO(fun, x0, bounds=bounds, totaliter=maxiter,
-                           disp=True, seed=seed, callback=cbk)
-        if not np.allclose(param_vectors[-1], res[0]):
-            param_vectors.append(res[0])
-    if solver == 'butt':
-        print("Haha, butt.")
-
-    return param_vectors
-
-
-def main():
-    # Load all files
-    data_dicts = []
-    for base in BASES:
-        # Spline
-        with open(base + SPLINE_EXT, 'rb') as f:
-            spline = pickle.load(f)[0]
-        # Distribution
-        doms = np.load(base + DOMS_EXT)['arr_0']
-        # Times
-        table = pandas.read_csv(base + REF_TIMES_EXT)
-        pen_times = (table['pen_leaves'] - table['pen_touches']) / table['fps']
-        run_times = (
-                table['dn-1_touches_dn'] - table['d1_touches_d2']
-                ) / table['fps']
-        last_topple_times = (
-                table['dn_touches_floor'] - table['dn-1_touches_dn']
-                ) / table['fps']
-        ref_times = [pen_times.mean(),
-                     run_times.mean(),
-                     last_topple_times.mean()]
-        ref_times_std = [pen_times.std(),
-                         run_times.std(),
-                         last_topple_times.std()]
-
-        data_dicts.append({
-            'spline': spline,
-            'doms': doms,
-            'ref_times': ref_times,
-            'ref_times_std': ref_times_std,
-            'n_trials': table.shape[0]
-            })
-    n_shapes = len(data_dicts)
-
-    if MAKE_VISUALS:
-        # Show statistics of ground truth times
-        fig, ax = plt.subplots(figsize=plt.figaspect(.5))
-        barwidth = .5
-        inter_plot_width = barwidth * (n_shapes + 1)
-        shapes = ("$I$", "$U$", "$\Omega$")
-        for i, dd in enumerate(data_dicts):
-            x = np.arange(n_shapes)*inter_plot_width + i*barwidth
-            y = dd['ref_times']
-            yerr = dd['ref_times_std']
-            label = "{} shape ($N_{{dom}}={}$, $N_{{trials}}={}$)".format(
-                    shapes[i], len(dd['doms']), dd['n_trials'])
-            ax.bar(x, y, barwidth, yerr=yerr, capsize=3, label=label)
-        ax.set_title("Duration of some events for each path shape (mean+std)")
-        ax.set_xticks(x-(barwidth*i/2))
-        ax.set_xticklabels(("Initial push",
-                            "From first to last collision",
-                            "Last topple"))
-        ax.set_ylabel("Time (s)")
-        ax.legend()
-
-    # Initialize optimization
-    n_events = 2
-    push_times = [dd['ref_times'][0] for dd in data_dicts]
-    A_ref = np.array([dd['ref_times'][1:] for dd in data_dicts])
-    E = np.zeros((n_shapes, n_events))
-    push_point = Point3(-t/2, 0, h/3)
-    # TODO. Define world and objects once, reset them at each run, check
-    # that you get the same results.
-    worlds = [setup_dominoes_from_path(
-        dd['doms'], dd['spline'], tilt_first_dom=False, _make_geom=True)[1]
-        for dd in data_dicts]
-    bodies_cache = [
-            [body, body.get_transform()]
-            for world in worlds for body in world.get_rigid_bodies()
-            if not body.is_static()]
-
-    def objective(x, _visual=False):
-        #  print(x)
-        # Reset world for each shape
-        for world in worlds:
-            for man in world.get_manifolds():
-                man.clear_manifold()
-        for body, xform in bodies_cache:
-            body.set_transform(xform)
-            body.set_linear_velocity(0)
-            body.set_angular_velocity(0)
-            body.set_active(True)
-
-        # Compute the N_shapes-by-N_events distance matrix
-        for i in range(len(E)):
-            E[i] = A_ref[i] - run_simu(worlds[i],
-                                       floor_friction=x[2],
-                                       domino_friction=x[1],
-                                       push_magnitude=x[0]/100,
-                                       push_duration=push_times[i],
-                                       push_point=push_point,
-                                       _visual=_visual*(i == 2))
-        #  print(E)
-        return np.sum(E**2)
-
-    # Ensure reproducibility
-    #  objective([0.51414948, 0.47084592, 0.92685865], _visual=0)
-    assert objective([.01, .7, .5]) == objective([.01, .7, .5])
-
-    # Evaluate the objective at an arbitrary value.
-    push_magnitude = .01
+def run_bruteforce_optim(fun):
+    push_magnitude = .1
+    domino_restitution = 0.
+    domino_angular_damping = 0.
     num_points = 50
     dom_friction_rng = floor_friction_rng = np.linspace(0, 2, num_points)
     filename = "energy-wrt-friction-{}fps.npy".format(FPS)
@@ -289,21 +288,29 @@ def main():
         values = np.load(filename)
     except FileNotFoundError:
         grid_x, grid_y = np.meshgrid(dom_friction_rng, floor_friction_rng)
-        values = [objective([push_magnitude, x, y])
+        values = [fun([push_magnitude,
+                       x,
+                       y,
+                       domino_restitution,
+                       domino_angular_damping])
                   for x, y in zip(grid_x.flat, grid_y.flat)]
         values = np.reshape(values, grid_x.shape)
         np.save(filename, values)
     min_id = values.argmin()
     min_x, min_y = np.unravel_index(min_id, values.shape)
-    print("Optim result (bruteforce): {}, with energy: {}".format(
-        [push_magnitude, dom_friction_rng[min_x], floor_friction_rng[min_y]],
-        values[min_x, min_y]))
+    best_x = np.array([
+            push_magnitude,
+            dom_friction_rng[min_x],
+            floor_friction_rng[min_y],
+            domino_restitution,
+            domino_angular_damping]) * fun.denorm_factor
 
-    if MAKE_VISUALS:
+    if MAKE_VISUALS and 0:
         # Visualize energy
         fig, ax = plt.subplots()
         im = ax.imshow(values, extent=[0, 2, 0, 2], origin='lower')
         fig.colorbar(im)
+        grid_x, grid_y = np.meshgrid(dom_friction_rng, floor_friction_rng)
         cs = ax.contour(grid_x, grid_y, values, [.01, .1, 1],
                         cmap=plt.cm.gray_r, norm=LogNorm())
         ax.clabel(cs)
@@ -313,42 +320,161 @@ def main():
                      + "(Initial push force is fixed at "
                      "{}N)".format(push_magnitude))
 
+    return best_x, values[min_x, min_y]
+
+
+def run_optim(fun, bounds, solver, x0=None, maxiter=100, seed=None,
+              disp=False):
+    bounds = np.asarray(bounds)
+    param_vectors = []
+
+    def cbk(x, *args, **kwargs):
+        if type(x) is np.ndarray:
+            param_vectors.append(x.copy())
+            print("X = {}, f(X) = {}".format(
+                param_vectors[-1]*fun.denorm_factor,
+                fun(param_vectors[-1])
+                ))
+        elif type(x) is opt.OptimizeResult:
+            param_vectors.append(x.x.copy())
+
+    if solver == 'scipy_L-BFGS-B':
+        if x0 is None:
+            x0 = bounds[:, 0]
+        res = opt.minimize(fun, x0, bounds=bounds, method='L-BFGS-B',
+                           options={'maxiter': maxiter, 'disp': disp},
+                           callback=cbk)
+    if solver == 'scipy_DE':
+        res = opt.differential_evolution(fun, bounds, maxiter=maxiter,
+                                         disp=disp, seed=seed, callback=cbk)
+    if solver == 'scipy_BH':
+        if x0 is None:
+            x0 = bounds[:, 0]
+        res = opt.basinhopping(fun, x0, niter=maxiter,
+                               minimizer_kwargs={'method': 'L-BFGS-B',
+                                                 'bounds': bounds},
+                               disp=disp, seed=seed, callback=cbk)
+    if solver == 'skopt_GP':
+        res = skopt.gp_minimize(fun, bounds, n_calls=maxiter, x0=x0,
+                                verbose=disp, random_state=seed,
+                                callback=cbk, n_jobs=-1)
+    if solver == 'skopt_GBRT':
+        res = skopt.gbrt_minimize(fun, bounds, n_calls=maxiter, x0=x0,
+                                  verbose=disp, random_state=seed,
+                                  callback=cbk, n_jobs=-1)
+    if solver == 'skopt_forest':
+        res = skopt.forest_minimize(fun, bounds, n_calls=maxiter, x0=x0,
+                                    verbose=disp, random_state=seed,
+                                    callback=cbk, n_jobs=-1)
+    if solver.startswith('stochopy'):
+        ea = stochopy.Evolutionary(fun, lower=bounds[:, 0], upper=bounds[:, 1],
+                                   max_iter=maxiter, random_state=seed,
+                                   snap=True)
+        if solver == 'stochopy_DE':
+            if x0 is not None:
+                x0 = np.array([x0]*ea._popsize)
+            res = ea.optimize(xstart=x0, solver='de')
+        if solver == 'stochopy_PSO':
+            if x0 is not None:
+                x0 = np.array([x0]*ea._popsize)
+            res = ea.optimize(xstart=x0, solver='pso')
+        if solver == 'stochopy_CPSO':
+            if x0 is not None:
+                x0 = np.array([x0]*ea._popsize)
+            res = ea.optimize(xstart=x0, solver='cpso')
+        if solver == 'stochopy_CMAES':
+            res = ea.optimize(xstart=x0, solver='cmaes', sigma=.1)
+
+        param_vectors = [ea.models[m, :, i]
+                         for i, m in enumerate(ea.energy.argmin(axis=0))]
+    if solver == 'AMPGO':
+        if x0 is None:
+            x0 = bounds[:, 0]
+        res = go_amp.AMPGO(fun, x0, bounds=bounds, totaliter=maxiter,
+                           disp=disp, seed=seed, callback=cbk)
+
+    xf = res.x if type(res) is opt.OptimizeResult else res[0]
+    if param_vectors:
+        if (len(param_vectors) < maxiter
+                and not np.allclose(param_vectors[-1], xf)):
+            param_vectors.append(xf)
+    else:
+        param_vectors = [xf]
+
+    return param_vectors
+
+
+def main():
+    # Load all files
+    data_dicts = gen_data()
+
+    # Initialize optimization
+    objective = Objective(data_dicts)
+    # Ensure reproducibility
+    #  objective([0.51414948, 0.47084592, 0.92685865], _visual=0)
+    _temp1 = [.1, .7, .5, .1, .1]
+    #  _temp2 = [.0001, .6, .6, .2, .1]
+    assert objective(_temp1) == objective(_temp1)
+    #  assert objective(_temp2) == objective(_temp2)
+    #  assert objective(_temp1) == objective(_temp1)
+
+    # Find a good value with brute force.
+    best_x_brute, best_fun_val_brute = run_bruteforce_optim(objective)
+    print("Optim result (bruteforce): {}, with energy: {}".format(
+        best_x_brute, best_fun_val_brute))
+
     # Compare solvers and pick the best
-    #  x0 = [.01, .5, .5]
-    bounds = [[.1, 10.], [.1, 2.], [.1, 2.]]
-    maxiter = 2
-    filename = "param-vectors-for-each-solver.npy"
+    #  x0 = [.1, .5, .5]
+    bounds = [[.01, 1.], [.1, 1.5], [.1, 1.5], [0., 1.], [0., 1.]]
+    maxiter = 100
+    filename = "param-vectors-wrt-solver.npz"
     try:
         param_vectors = np.load(filename)
     except FileNotFoundError:
         param_vectors = {
                 solver: run_optim(objective, bounds, maxiter=maxiter,
-                                  solver=solver, seed=123)
+                                  solver=solver, seed=123, disp=True)
                 for solver in OPTIM_SOLVERS
                 }
         np.savez(filename, **param_vectors)
-    print(param_vectors)
-    for solver_name in OPTIM_SOLVERS:
-        solvers_fun_vals = [objective(x) for x in param_vectors[solver_name]]
+    filename = "fun-vals-wrt-solver.npz"
+    try:
+        solvers_fun_vals = np.load(filename)
+    except FileNotFoundError:
+        solvers_fun_vals = {
+                solver: [objective(x) for x in param_vectors[solver]]
+                for solver in OPTIM_SOLVERS
+                }
+        np.savez(filename, **solvers_fun_vals)
 
     if MAKE_VISUALS:
         fig, ax = plt.subplots()
-        xi = np.arange(1, maxiter+1)
-        for i, solver_name in enumerate(OPTIM_SOLVERS):
-            ax.plot(xi, solvers_fun_vals[i], label=solver_name)
+        for solver in OPTIM_SOLVERS:
+            ax.plot(solvers_fun_vals[solver],  label=solver)
         ax.set_xlabel("Iteration")
-        ax.set_ylabel("Objective function")
+        ax.set_ylabel("Log of objective function")
+        ax.set_yscale('log')
         ax.set_title("Convergence of each solver")
         ax.legend()
 
-    best_solver_id = np.argmin([fv[-1] for fv in solvers_fun_vals])
+    best_solver_id = np.argmin([solvers_fun_vals[solver][-1]
+                                for solver in OPTIM_SOLVERS])
     best_solver = OPTIM_SOLVERS[best_solver_id]
     best_x = param_vectors[best_solver][-1]
-    best_f = solvers_fun_vals[best_solver_id][-1]
+    best_f = solvers_fun_vals[best_solver][-1]
     print("Optim params: {}, with energy: {}, obtained with solver {}".format(
-        best_x, best_f, best_solver))
+        best_x*objective.denorm_factor, best_f, best_solver))
 
-    # TODO. Check that the fall/no-fall distances are coherent with reality.
+    # Find the fall/no-fall distances.
+    bounds = find_toppling_bounds(
+            domino_friction=best_x[1],
+            domino_restitution=best_x[3],
+            domino_angular_damping=best_x[4],
+            floor_friction=best_x[2],
+            _visual=0)
+    objective(best_x, _print=1)
+    print("Toppling bounds: {:.2f}cm -- {:.2f}cm".format(
+        bounds[0]*100, bounds[1]*100))
 
     # TODO. Produce 240FPS videos to compare to real footage.
 
