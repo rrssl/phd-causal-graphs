@@ -68,40 +68,20 @@ class Objective:
         self.A_ref = np.array([dd['ref_times'][1:] for dd in data_dicts])
         self.E = np.zeros((self.n_shapes, self.n_events))
         self.push_point = Point3(-t/2, 0, h/3)
-        #  self.worlds = [simu.setup_dominoes_from_path(
-        #      dd['doms'], dd['spline'], tilt_first_dom=False,
-        #      _make_geom=_visual)[1]
-        #      for dd in data_dicts]
-        #  self.bodies_cache = [
-        #          (body, body.get_transform())
-        #          for world in self.worlds
-        #          for body in world.get_rigid_bodies()
-        #          if not body.is_static()]
-        ### DEBUG ###
-        #  self._cache = {}
-        ### DEBUG ###
         self.denorm_factor = np.array([1/10, 1, 1, 1, 1/10])
 
     def __call__(self, x, _visual=False, _print=False):
         parameters = x * self.denorm_factor
         # Reset world for each shape
-        self.worlds = [simu.setup_dominoes_from_path(
+        worlds = [simu.setup_dominoes_from_path(
             distrib, spline, tilt_first_dom=False, _make_geom=_visual)[1]
             for distrib, spline in zip(self.distributions, self.splines)
             ]
-        #  for world in self.worlds:
-        #      for man in world.get_manifolds():
-        #          man.clear_manifold()
-        #  for body, xform in self.bodies_cache:
-        #      body.set_transform(xform)
-        #      body.set_linear_velocity(0)
-        #      body.set_angular_velocity(0)
-        #      body.set_active(True)
 
-        # Compute the N_shapes-by-N_events distance matrix
+        # Compute the N_shapes-by-N_events error matrix
         for i in range(self.n_shapes):
             self.E[i] = self.A_ref[i] - run_simu(
-                    self.worlds[i],
+                    worlds[i],
                     floor_friction=parameters[2],
                     domino_friction=parameters[1],
                     domino_restitution=parameters[3],
@@ -111,18 +91,20 @@ class Objective:
                     push_point=self.push_point,
                     _visual=_visual*(i == 2))
         if _print:
+            print("Error matrix:")
             print(self.E)
+
         out = np.sum(self.E**2)
-        ### DEBUG ###
         #  try:
         #      old_out = self._cache[tuple(x)]
+        #  except AttributeError:
+        #      self._cache = {}
+        #      self._cache[tuple(x)] = out
         #  except KeyError:
         #      self._cache[tuple(x)] = out
         #  else:
         #      if out != old_out:
         #          print("Non deterministic result!!")
-        ### DEBUG ###
-
         return out
 
 
@@ -248,33 +230,6 @@ def run_simu(world,
         world.do_physics(timestep, 2, timestep)
         time += timestep
     return last_collision_time - first_collision_time, last_topple_time
-
-
-def find_toppling_bounds(floor_friction=.5,
-                         domino_friction=.5,
-                         domino_restitution=0.,
-                         domino_angular_damping=0.,
-                         _visual=False):
-    distances = np.linspace(1.6*t, 1.5*h, 100)
-    last_dom_topples = np.zeros_like(distances)
-    coords = [[0, 0, 0], [0, 0, 0]]
-    for i, distance in enumerate(distances):
-        coords[1][0] = distance
-        _, world = simu.setup_dominoes(coords, _make_geom=_visual)
-        run_time, last_topple_time = run_simu(
-                world,
-                floor_friction,
-                domino_friction,
-                domino_restitution,
-                domino_angular_damping,
-                push_magnitude=0.,
-                push_duration=-1,
-                _visual=_visual)
-        last_dom_topples[i] += last_topple_time < MAX_WAIT_TIME
-    print(last_dom_topples)
-    min_dist = distances[last_dom_topples.argmax()]
-    max_dist = distances[len(distances) - last_dom_topples[::-1].argmax() - 1]
-    return min_dist, max_dist
 
 
 def run_bruteforce_optim(fun):
@@ -404,6 +359,75 @@ def run_optim(fun, bounds, solver, x0=None, maxiter=100, seed=None,
     return param_vectors
 
 
+def find_best_solver(fun, bounds, maxiter):
+    filename = "param-vectors-wrt-solver.npz"
+    try:
+        param_vectors = np.load(filename)
+    except FileNotFoundError:
+        param_vectors = {
+                solver: run_optim(fun, bounds, maxiter=maxiter,
+                                  solver=solver, seed=123, disp=True)
+                for solver in OPTIM_SOLVERS
+                }
+        np.savez(filename, **param_vectors)
+    filename = "fun-vals-wrt-solver.npz"
+    try:
+        solvers_fun_vals = np.load(filename)
+    except FileNotFoundError:
+        solvers_fun_vals = {
+                solver: [fun(x) for x in param_vectors[solver]]
+                for solver in OPTIM_SOLVERS
+                }
+        np.savez(filename, **solvers_fun_vals)
+
+    if MAKE_VISUALS and 0:
+        fig, ax = plt.subplots()
+        for solver in OPTIM_SOLVERS:
+            ax.plot(solvers_fun_vals[solver],  label=solver)
+        ax.set_xlabel("Iteration")
+        ax.set_ylabel("Log of objective function")
+        ax.set_yscale('log')
+        ax.set_title("Convergence of each solver")
+        ax.legend()
+
+    best_solver_id = np.argmin([solvers_fun_vals[solver][-1]
+                                for solver in OPTIM_SOLVERS])
+    best_solver = OPTIM_SOLVERS[best_solver_id]
+    best_x = param_vectors[best_solver][-1]
+    best_f = solvers_fun_vals[best_solver][-1]
+    return best_solver, best_x, best_f
+
+
+def find_toppling_bounds(floor_friction=.5,
+                         domino_friction=.5,
+                         domino_restitution=0.,
+                         domino_angular_damping=0.,
+                         timestep=1/FPS,
+                         _visual=False):
+    distances = np.linspace(1.6*t, 1.2*h, 100)
+    last_dom_topples = np.zeros_like(distances)
+    n_doms = 2
+    coords = np.zeros((n_doms, 3))
+    for i, distance in enumerate(distances):
+        coords[:, 0] = np.arange(n_doms) * distance
+        _, world = simu.setup_dominoes(coords, _make_geom=_visual)
+        run_time, last_topple_time = run_simu(
+                world,
+                floor_friction,
+                domino_friction,
+                domino_restitution,
+                domino_angular_damping,
+                push_magnitude=0.,
+                push_duration=-1,
+                timestep=timestep,
+                _visual=_visual)
+        last_dom_topples[i] += last_topple_time < MAX_WAIT_TIME
+    #  print(last_dom_topples)
+    min_dist = distances[last_dom_topples.argmax()]
+    max_dist = distances[len(distances) - last_dom_topples[::-1].argmax() - 1]
+    return min_dist, max_dist
+
+
 def main():
     # Load all files
     data_dicts = gen_data()
@@ -427,52 +451,21 @@ def main():
     #  x0 = [.1, .5, .5]
     bounds = [[.01, 1.], [.1, 1.5], [.1, 1.5], [0., 1.], [0., 1.]]
     maxiter = 100
-    filename = "param-vectors-wrt-solver.npz"
-    try:
-        param_vectors = np.load(filename)
-    except FileNotFoundError:
-        param_vectors = {
-                solver: run_optim(objective, bounds, maxiter=maxiter,
-                                  solver=solver, seed=123, disp=True)
-                for solver in OPTIM_SOLVERS
-                }
-        np.savez(filename, **param_vectors)
-    filename = "fun-vals-wrt-solver.npz"
-    try:
-        solvers_fun_vals = np.load(filename)
-    except FileNotFoundError:
-        solvers_fun_vals = {
-                solver: [objective(x) for x in param_vectors[solver]]
-                for solver in OPTIM_SOLVERS
-                }
-        np.savez(filename, **solvers_fun_vals)
-
-    if MAKE_VISUALS:
-        fig, ax = plt.subplots()
-        for solver in OPTIM_SOLVERS:
-            ax.plot(solvers_fun_vals[solver],  label=solver)
-        ax.set_xlabel("Iteration")
-        ax.set_ylabel("Log of objective function")
-        ax.set_yscale('log')
-        ax.set_title("Convergence of each solver")
-        ax.legend()
-
-    best_solver_id = np.argmin([solvers_fun_vals[solver][-1]
-                                for solver in OPTIM_SOLVERS])
-    best_solver = OPTIM_SOLVERS[best_solver_id]
-    best_x = param_vectors[best_solver][-1]
-    best_f = solvers_fun_vals[best_solver][-1]
+    best_solver, best_x, best_f = find_best_solver(objective, bounds, maxiter)
     print("Optim params: {}, with energy: {}, obtained with solver {}".format(
         best_x*objective.denorm_factor, best_f, best_solver))
+    #  objective([.0535, .5, .5, 0., 0.], _print=1, _visual=0)
+    #  objective(best_x, _print=1, _visual=0)
 
     # Find the fall/no-fall distances.
+    params = best_x * objective.denorm_factor
     bounds = find_toppling_bounds(
-            domino_friction=best_x[1],
-            domino_restitution=best_x[3],
-            domino_angular_damping=best_x[4],
-            floor_friction=best_x[2],
+            domino_friction=params[1],
+            domino_restitution=params[3],
+            domino_angular_damping=params[4],
+            floor_friction=params[2],
+            timestep=1/(2*FPS),
             _visual=0)
-    objective(best_x, _print=1)
     print("Toppling bounds: {:.2f}cm -- {:.2f}cm".format(
         bounds[0]*100, bounds[1]*100))
 
