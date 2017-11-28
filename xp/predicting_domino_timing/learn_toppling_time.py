@@ -14,13 +14,14 @@ import sys
 import timeit
 
 import numpy as np
-from sklearn import svm
-from sklearn import neural_network
-from sklearn import kernel_ridge
 from sklearn.externals import joblib
+from sklearn.kernel_ridge import KernelRidge
+from sklearn.model_selection import GridSearchCV
+from sklearn.neural_network import MLPRegressor
+from sklearn.svm import SVR
 import sklearn.metrics as metrics
 
-from config import X_MAX, Y_MAX, A_MAX, MAX_SPACING
+from config import X_MAX, Y_MAX, A_MAX, MAX_SPACING, NCORES
 
 
 # 0 = Support Vector Machine, 1 = Kernel Ridge, 2 = Neural Network
@@ -53,20 +54,36 @@ def main():
     samples /= den
     # Choose estimator
     if ESTIMATOR_TYPE == 0:
-        estimator = svm.SVR(kernel='rbf', gamma=100, C=100, cache_size=1024)
+        param_grid = {
+                'gamma': np.logspace(-3, 3, 7),
+                'C': np.logspace(-3, 3, 7),
+                }
+        estimator = SVR(kernel='rbf')
     elif ESTIMATOR_TYPE == 1:
-        estimator = kernel_ridge.KernelRidge(kernel='rbf', gamma=500, alpha=.1)
+        param_grid = {
+                'gamma': np.logspace(-3, 3, 7),
+                'alpha': np.logspace(-3, 3, 7),
+                }
+        estimator = KernelRidge(kernel='rbf')
     elif ESTIMATOR_TYPE == 2:
-        estimator = neural_network.MLPRegressor(
-                hidden_layer_sizes=(30, 30, 30),
-                solver='lbfgs', activation='relu',
-                alpha=1e-4, max_iter=3000, tol=1e-4,
-                )
+        param_grid = {
+                'hidden_layer_sizes': [(10,)*n for n in range(1,4)],
+                'alpha': np.logspace(-4, 0, 5),
+                'activation': ['logistic', 'tanh', 'relu'],
+                'solver': ['lbfgs', 'adam'],
+                }
+        estimator = MLPRegressor(
+                max_iter=1000, random_state=123)
+    grid = GridSearchCV(estimator, param_grid=param_grid, n_jobs=NCORES)
+    grid.fit(samples, times)
+    print("The best parameters are {} with a score of {}".format(
+        grid.best_params_, grid.best_score_))
+    estimator = grid.best_estimator_
     # Train the estimator
-    t = timeit.default_timer()
-    estimator.fit(samples, times)
-    t = timeit.default_timer() - t
-    print("Training time per sample: ", t / times.size)
+    #  t = timeit.default_timer()
+    #  estimator.fit(samples, times)
+    #  t = timeit.default_timer() - t
+    #  print("Training time per sample: ", t / times.size)
 
     t = timeit.default_timer()
     predicted = estimator.predict(samples)
