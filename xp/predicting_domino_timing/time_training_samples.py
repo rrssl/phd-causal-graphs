@@ -31,8 +31,7 @@ def compute_toppling_time(x, y, a, s, nprev, _visual=False):
     global_coords = np.zeros((nprev+2, 3))
     global_coords[:-1, 0] = np.linspace(-length, 0, nprev+1)
     global_coords[-1] = x, y, a
-    doms_np, world = simu.setup_dominoes(
-            np.column_stack((x, y, a)), _make_geom=_visual)
+    doms_np, world = simu.setup_dominoes(global_coords, _make_geom=_visual)
 
     if _visual:
         simu.run_simu(doms_np, world, _visual=True)
