@@ -54,8 +54,12 @@ class Floor:
             floor_gn.add_geom(floor_geom)
         # Physics
         floor_bn = bullet.BulletRigidBodyNode("floor_solid")
-#        floor_bn.add_shape(bullet.BulletPlaneShape((0, 0, 1), 0))
-        floor_bn.add_shape(bullet.BulletBoxShape((10, 10, .1)))
+        # TODO. Investigate whether PlaneShape really is the cause of the
+        # problem. Maybe it's just a matter of collision margin?
+        #  shape = bullet.BulletPlaneShape((0, 0, 1), .1)
+        shape = bullet.BulletBoxShape((10, 10, .1))
+        #  shape.set_margin(0.0001)
+        floor_bn.add_shape(shape)
         # Add to the world
         self.world.attach(floor_bn)
         floor_path = self.parent_path.attach_new_node(floor_bn)
@@ -255,7 +259,14 @@ class DominoMaker:
         dom_bn = bullet.BulletRigidBodyNode(prefix+"_solid")
         # TODO. See if using the 'xform' parameter of add_shape wouldn't
         # actually be simpler than using set_pos and set_h later.
-        dom_bn.add_shape(bullet.BulletBoxShape(extents*.5))
+        # TODO. Apparently a single collision shape can be shared among
+        # multiple objects. Would this make a significant impact in terms
+        # of performance though? To investigate.
+        # TODO. See if reducing the collision margin improves accuracy.
+        # (Currently equal to min(half_dim)/10.)
+        shape = bullet.BulletBoxShape(extents*.5)
+        #  shape.set_margin(.0001)
+        dom_bn.add_shape(shape)
         dom_bn.set_mass(mass)
         # Add it to the world
         self.world.attach(dom_bn)
