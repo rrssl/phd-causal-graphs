@@ -11,62 +11,84 @@ did : sequence of int
   Indexes of the domino runs
 
 """
+from itertools import cycle
 import os
 import pickle
 import sys
 
 from matplotlib import cm
 import numpy as np
-from panda3d.core import Vec3
+from panda3d.core import Vec4
 
-from config import t, w, h, MASS, TOPPLING_ANGLE
-from domgeom import tilt_box_forward
 sys.path.insert(0, os.path.abspath(".."))
-from primitives import DominoMaker, Floor
-from viewers import PhysicsViewer
-import spline2d as spl
+from primitives import DominoMaker, Floor  # noqa
+from viewers import PhysicsViewer  # noqa
+import spline2d as spl  # noqa
+from xp.simulate import Simulation  # noqa
 
 
-def show_dominoes(distribs, splines):
-    # Viewer
-    app = PhysicsViewer()
-    app.cam_distance = 5
-    app.min_cam_distance = 1
-    app.camLens.set_near(0.1)
-    app.zoom_speed = 1
-    app.set_frame_rate_meter(True)
-    # Floor
-    floor_path = app.models.attach_new_node("floor")
-    floor = Floor(floor_path, app.world)
-    floor.create()
-    # Domino distributions
-    toppling_angle = get_toppling_angle()
-    for i, (distrib, spline) in enumerate(zip(distribs, splines)):
-        domino_run_np = app.models.attach_new_node("domrun_{}".format(i))
-        domino_factory = DominoMaker(domino_run_np, app.world)
-        distrib = np.asarray(distrib)
-        positions = spl.splev3d(distrib, spline, .5*h)
-        headings = spl.splang(distrib, spline)
-        for j, (pos, head) in enumerate(zip(positions, headings)):
-            domino_factory.add_domino(
-                    Vec3(*pos), head, Vec3(t, w, h), mass=MASS,
-                    prefix="domino_{}".format(j))
-        # Initial state
-        d_init = domino_run_np.get_child(0)
-        tilt_box_forward(d_init, toppling_angle)
-        d_init.node().set_transform_dirty()
+class DominoViewer(PhysicsViewer):
+    def __init__(self):
+        super().__init__()
+        self.cam_distance = 5
+        self.min_cam_distance = 1
+        self.camLens.set_near(0.1)
+        self.zoom_speed = 1
+        self.set_frame_rate_meter(True)
+
+        self.colors = cycle(cm.hsv(np.linspace(0, 1, 6)))
+
+        self.simu = Simulation(visual=True)
+        self.world = self.simu.world
+        self.simu.floor_path.reparent_to(self.models)
+
+    def add_path(self, u, spline, pathcolor=None):
+        if pathcolor is None:
+            color = next(self.colors)
+        spl.show_spline2d(
+                self.render, spline, u,
+                "path_{}".format(len(self.simu.domino_runs_paths)),
+                color=pathcolor)
+
+    def add_domino_run(self, coords, tilt_first_dom=True, color=None):
+        self.simu.add_domino_run(coords, tilt_first_dom=tilt_first_dom)
+        domino_run_path = self.simu.domino_runs_paths[-1]
+        domino_run_path.reparent_to(self.models)
         # Visual indicators
-        color = cm.hsv(np.random.random())
-        for domino in domino_run_np.get_children():
-            domino.set_color(color)
-        v = np.linspace(0., 1., 100)
-        spl.show_spline2d(app.render, spline, v, "path_{}".format(i),
-                          color=color)
+        if color is None:
+            color = next(self.colors)
+        for domino in domino_run_path.get_children():
+            domino.set_color(Vec4(*color))
+        return domino_run_path
 
-    # Useful if you have to run several in a row.
+    def add_domino_run_from_spline(self, distrib, spline, **kwargs):
+        distrib = np.asarray(distrib)
+        x, y = spl.splev(distrib, spline)
+        head = spl.splang(distrib, spline)
+        domino_run_path = self.add_domino_run(
+                np.column_stack((x, y, head)), **kwargs)
+        return domino_run_path
+
+
+def show_dominoes_from_coords(coords_lists):
+    app = DominoViewer()
+    for c in coords_lists:
+        app.add_domino_run(c)
     try:
         app.run()
     except SystemExit:
+        # Useful if you have to run several in a row.
+        app.destroy()
+
+
+def show_dominoes(distribs, splines):
+    app = DominoViewer()
+    for d, s in zip(distribs, splines):
+        app.add_domino_run_from_spline(d, s)
+    try:
+        app.run()
+    except SystemExit:
+        # Useful if you have to run several in a row.
         app.destroy()
 
 
