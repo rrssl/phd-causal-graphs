@@ -18,15 +18,15 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.abspath("../.."))
-import export
-import spline2d as spl
-from xp.config import t, w
+import export  # noqa
+import spline2d as spl  # noqa
+from xp.config import t, w  # noqa
 
 
-def export_domino_run(filename, u, spline, sheetsize=(21, 29.7)):
-    xy = np.column_stack(spl.splev(u, spline)) * 100
-    a = spl.splang(u, spline, degrees=True)
-    size = np.tile((t*100, w*100), (len(u), 1))
+def export_domino_run(filename, coords, sheetsize=(21, 29.7)):
+    xy = coords[:, :2] * 100
+    a = coords[:, 2]
+    size = np.tile((t*100, w*100), (coords.shape[0], 1))
 
     extents = xy.ptp(axis=0) + w*100
     assert extents.size == 2
@@ -42,6 +42,12 @@ def export_domino_run(filename, u, spline, sheetsize=(21, 29.7)):
     cont.save()
 
 
+def export_domino_run_from_path(filename, u, spline, sheetsize=(21, 29.7)):
+    x, y = spl.splev(u, spline)
+    a = spl.splang(u, spline, degrees=True)
+    export_domino_run(filename, np.column_stack((x, y, a)), sheetsize)
+
+
 def main():
     if len(sys.argv) < 4:
         print(__doc__)
@@ -55,7 +61,7 @@ def main():
     u = np.load(dpath)['arr_{}'.format(sid)]
 
     filename = os.path.splitext(dpath)[0]
-    export_domino_run(filename, u, spline)
+    export_domino_run_from_path(filename, u, spline)
 
 
 if __name__ == "__main__":
