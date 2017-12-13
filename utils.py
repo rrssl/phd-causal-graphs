@@ -30,9 +30,13 @@ def trimesh2panda(vertices, triangles, vertex_normals=None, face_normals=None,
     else:
         fmt = GeomVertexFormat.getV3()
 
+    # For a proper rendering of flat shading, duplicate all vertices.
+    if flat_shading:
+        vertices = [vertices[i] for tri in triangles for i in tri]
+        triangles = [[3*i, 3*i+1, 3*i+2] for i in range(len(triangles))]
+
     vdata = GeomVertexData("vertices", fmt, Geom.UHStatic)
     vdata.setNumRows(len(vertices))
-#    print(len(vertices))
 
     # Add vertex position
     writer = GeomVertexWriter(vdata, "vertex") # Name is not arbitrary here!
