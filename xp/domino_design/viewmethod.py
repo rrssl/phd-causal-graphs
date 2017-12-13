@@ -1,21 +1,23 @@
 """
-Run a method on an input sketch and view its output.
+Run a method on a spline and view its output.
 
 Parameters
 ----------
-path : string
-  Path to the sketch file.
+spath : string
+  Path to the splines.
+sid : int
+  Spline id.
 mid : int
   Method id. See methods.py for the list of methods.
 
 """
 import math
 import os
+import pickle
 import sys
 
 import numpy as np
 
-from config import t, w, PATH_SIZE_RATIO, SMOOTHING_FACTOR
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
 from xp.domino_design.methods import get_methods
@@ -23,21 +25,19 @@ from xp.viewdoms import show_dominoes
 
 
 def main():
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 4:
         print(__doc__)
         return
-    fname = sys.argv[1]
-    mid = int(sys.argv[2])
+    spath = sys.argv[1]
+    sid = int(sys.argv[2])
+    mid = int(sys.argv[3])
     # Select method
     method = get_methods()[mid-1]
-    print("Using method {}: {}".format(mid, method.__name__))
-    # Load path
-    path = np.load(fname)[0]
-    # Translate, resize and smooth the path
-    path -= path.min(axis=0)
-    path *= PATH_SIZE_RATIO * math.sqrt(
-            t * w / (path[:, 0].max() * path[:, 1].max()))
-    spline = spl.get_smooth_path(path, s=SMOOTHING_FACTOR)
+    # Load spline
+    with open(spath, 'rb') as f:
+        splines = pickle.load(f)
+    spline = splines[sid]
+
 
     u = method(spline)
     show_dominoes([u], [spline])
