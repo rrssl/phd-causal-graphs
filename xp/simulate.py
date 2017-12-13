@@ -87,6 +87,95 @@ def perturbate_dominoes(coords, randfactor, maxtrials=10):
     return new_coords
 
 
+class Simulation:
+
+    def __init__(self, timestep=TIMESTEP, visual=False):
+        self.timestep = timestep
+        self._visual = visual
+        # World
+        self.world = BulletWorld()
+        self.world.set_gravity(Vec3(0, 0, -9.81))
+        # Floor
+        self.floor_path = NodePath("floor")
+        floor = Floor(self.floor_path, self.world, make_geom=False)
+        floor.create()
+        self.floor_path.find("floor_solid").node().set_friction(
+                FLOOR_MATERIAL_FRICTION)
+        # Domino runs
+        self.domino_runs_paths = []
+
+    def run(self):
+        """Run the domino run simulation.
+
+        Returns
+        -------
+        toppling_times : (n,) ndarray
+          The toppling time of each domino. A domino that doesn't topple has
+          a time equal to np.inf.
+
+        """
+        ts = self.timestep
+        dominoes = [d
+                    for drp in self.domino_runs_paths
+                    for d in drp.get_children()]
+        n = len(dominoes)
+        last_toppled_id = -1
+        toppling_times = np.full(n, np.inf)
+        time = 0.
+        while True:
+            # Use while here because close dominoes can topple at the same time
+            while (last_toppled_id < n-1
+                    and dominoes[last_toppled_id+1].get_r() >= TOPPLING_ANGLE):
+                last_toppled_id += 1
+                toppling_times[last_toppled_id] = time
+            if last_toppled_id == n-1:
+                # All dominoes toppled in order.
+                break
+            if time - toppling_times[last_toppled_id] > MAX_WAIT_TIME:
+                # The chain broke
+                break
+            time += ts
+            self.world.do_physics(ts, 2, ts)
+        return toppling_times
+
+    def add_domino_run(self, coords, randfactor=0, tilt_first_dom=True):
+        """Add a domino run to the simulation.
+
+        Parameters
+        ----------
+        coords : (n,3) array
+          Sequence of n global coordinates (x, y, heading) for each domino.
+        randfactor : float
+          If > 0, a randomization will be applied to all dominoes' coordinates.
+        tilt_first_dom : bool
+          Whether or not to tilt the first domino.
+
+        """
+        doms_np = NodePath(
+                "domino_run_{}".format(len(self.domino_runs_paths)+1))
+        self.domino_runs_paths.append(doms_np)
+        domino_factory = DominoMaker(
+                doms_np, self.world, make_geom=self._visual)
+        extents = Vec3(t, w, h)
+        for i, (x, y, a) in enumerate(coords):
+            dom = domino_factory.add_domino(
+                    Vec3(x, y, h/2), a, extents, MASS, prefix="D{}".format(i)
+                    ).node()
+            dom.set_friction(DOMINO_MATERIAL_FRICTION)
+            dom.set_restitution(DOMINO_MATERIAL_RESTITUTION)
+            dom.set_angular_damping(DOMINO_ANGULAR_DAMPING)
+
+        if tilt_first_dom:
+            # Set initial conditions for first domino
+            first_domino = doms_np.get_child(0)
+            tilt_box_forward(first_domino, TOPPLING_ANGLE+.5)
+            first_domino.node().set_transform_dirty()
+            # Alternative with initial velocity:
+            #  angvel_init = Vec3(0., 15., 0.)
+            #  angvel_init = Mat3.rotate_mat(headings[0]).xform(angvel_init)
+            #  first_domino.node().set_angular_velocity(angvel_init)
+
+
 def setup_dominoes(coords, randfactor=0, tilt_first_dom=True,
                    _make_geom=False):
     """Generate the objects used in the domino run simulation.
