@@ -240,7 +240,7 @@ class PhysicsViewer(Modeler):
 
         self.world = BulletWorld()
         self.world.set_gravity((0, 0, -9.81))
-#        self.world_time = 0.
+        self.world_time = 0.
 
         self.task_mgr.add(self.update_physics, "update_physics")
         self.accept('d', self.toggle_bullet_debug)
@@ -283,6 +283,8 @@ class PhysicsViewer(Modeler):
 
     def reset_physics(self):
         """Reset the position/velocities/forces of each dynamic object."""
+        for man in self.world.get_manifolds():
+            man.clear_manifold()
         for path in self._physics_cache.keys():
             state = self._physics_cache[path]
             path.set_transform(state[0])
@@ -291,7 +293,7 @@ class PhysicsViewer(Modeler):
             body.set_linear_velocity(state[1])
             body.set_angular_velocity(state[2])
             body.set_active(True)
-#        self.world_time = 0.
+            self.world_time = 0.
 
     def toggle_bullet_debug(self):
         try:
@@ -302,9 +304,9 @@ class PhysicsViewer(Modeler):
         except AttributeError:
             dn = BulletDebugNode("debug")
             dn.show_wireframe(True)
-#            dn.show_constraints(True)
+            #  dn.show_constraints(True)
             dn.show_bounding_boxes(True)
-#            dn.show_normals(True)
+            #  dn.show_normals(True)
             self._debug_np = self.render.attach_new_node(dn)
             self._debug_np.show()
             self.world.set_debug_node(dn)
@@ -316,11 +318,12 @@ class PhysicsViewer(Modeler):
         if self.play_physics:
             dt = self.task_mgr.globalClock.get_dt()
             # Results for small objects are much more stable with a smaller
-            # physics timestep. E.g. for a visualization at 60FPS, you want
-            # maxSubSteps = N and fixedTimeStep = 1 / (60 * N), with a greater
-            # N giving better results (to a certain extent).
-            self.world.do_physics(dt, 2, 1/120)
-#            self.world_time += dt
+            # physics timestep. Typically, for a 1cm-cube you want 300Hz.
+            # Rule: timeStep < maxSubSteps * fixedTimeStep
+            # If you run interactively at 60Hz, with a simulator frequency of
+            # 240Hz, you want maxSubSteps = 240/60+1.
+            self.world.do_physics(dt, 5, 1/240)
+            self.world_time += dt
         return task.cont
 
 
