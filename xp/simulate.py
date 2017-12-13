@@ -15,14 +15,15 @@ from panda3d.core import Vec3
 from shapely.geometry import box
 from shapely.affinity import rotate, translate
 
-from .config import t, w, h, MASS, TOPPLING_ANGLE
-from .config import X_MAX, Y_MAX, A_MAX
-from .config import TIMESTEP, MAX_WAIT_TIME
+from .config import (t, w, h, MASS, FLOOR_MATERIAL_FRICTION,
+                     DOMINO_MATERIAL_FRICTION, DOMINO_MATERIAL_RESTITUTION,
+                     DOMINO_ANGULAR_DAMPING, TOPPLING_ANGLE,
+                     X_MAX, Y_MAX, A_MAX, TIMESTEP, MAX_WAIT_TIME)
 from .domgeom import tilt_box_forward
 
 sys.path.insert(0, os.path.abspath(".."))
-from primitives import DominoMaker, Floor
-import spline2d as spl
+from primitives import DominoMaker, Floor  # noqa
+import spline2d as spl  # noqa
 
 
 # The next line avoids a "memory leak" that notably happens when
@@ -86,7 +87,8 @@ def perturbate_dominoes(coords, randfactor, maxtrials=10):
     return new_coords
 
 
-def setup_dominoes(coords, randfactor=0, _make_geom=False):
+def setup_dominoes(coords, randfactor=0, tilt_first_dom=True,
+                   _make_geom=False):
     """Generate the objects used in the domino run simulation.
 
     Parameters
@@ -94,7 +96,9 @@ def setup_dominoes(coords, randfactor=0, _make_geom=False):
     coords : (n,3) array
       Sequence of n global coordinates (x, y, heading) for each domino.
     randfactor : float
-        If > 0, a randomization will be applied to all dominoes' coordinates.
+      If > 0, a randomization will be applied to all dominoes' coordinates.
+    tilt_first_dom : bool
+      Whether or not to tilt the first domino.
 
     Returns
     -------
@@ -111,23 +115,30 @@ def setup_dominoes(coords, randfactor=0, _make_geom=False):
     world.set_gravity(Vec3(0, 0, -9.81))
     # Floor
     floor_path = NodePath("floor")
-    floor = Floor(floor_path, world)
+    floor = Floor(floor_path, world, make_geom=_make_geom)
     floor.create()
+    floor_path.find("floor_solid").node().set_friction(FLOOR_MATERIAL_FRICTION)
     # Dominoes
     doms_np = NodePath("domino_run")
     domino_factory = DominoMaker(doms_np, world, make_geom=_make_geom)
     extents = Vec3(t, w, h)
     for i, (x, y, a) in enumerate(coords):
-        domino_factory.add_domino(
-                Vec3(x, y, h/2), a, extents, MASS, prefix="D{}".format(i))
-    # Set initial conditions for first domino
-    first_domino = doms_np.get_child(0)
-    tilt_box_forward(first_domino, TOPPLING_ANGLE+1)
-    first_domino.node().set_transform_dirty()
-    # Alternative with initial velocity:
-    #  angvel_init = Vec3(0., 15., 0.)
-    #  angvel_init = Mat3.rotate_mat(headings[0]).xform(angvel_init)
-    #  first_domino.node().set_angular_velocity(angvel_init)
+        dom = domino_factory.add_domino(
+                Vec3(x, y, h/2), a, extents, MASS, prefix="D{}".format(i)
+                ).node()
+        dom.set_friction(DOMINO_MATERIAL_FRICTION)
+        dom.set_restitution(DOMINO_MATERIAL_RESTITUTION)
+        dom.set_angular_damping(DOMINO_ANGULAR_DAMPING)
+
+    if tilt_first_dom:
+        # Set initial conditions for first domino
+        first_domino = doms_np.get_child(0)
+        tilt_box_forward(first_domino, TOPPLING_ANGLE+.5)
+        first_domino.node().set_transform_dirty()
+        # Alternative with initial velocity:
+        #  angvel_init = Vec3(0., 15., 0.)
+        #  angvel_init = Mat3.rotate_mat(headings[0]).xform(angvel_init)
+        #  first_domino.node().set_angular_velocity(angvel_init)
 
     return doms_np, world
 
@@ -184,7 +195,8 @@ def run_simu(doms_np: NodePath, world: BulletWorld, timestep=TIMESTEP,
     return toppling_times
 
 
-def setup_dominoes_from_path(u, spline, randfactor=0, _make_geom=False):
+def setup_dominoes_from_path(u, spline, randfactor=0, tilt_first_dom=True,
+                             _make_geom=False):
     """Setup the world and objects to run the simulation.
 
     Parameters
@@ -194,7 +206,9 @@ def setup_dominoes_from_path(u, spline, randfactor=0, _make_geom=False):
     spline : 'spline' as defined in spline2d
         Path of the domino run.
     randfactor : float
-        If > 0, a randomization will be applied to all dominoes' coordinates.
+      If > 0, a randomization will be applied to all dominoes' coordinates.
+    tilt_first_dom : bool
+      Whether or not to tilt the first domino.
 
     Returns
     -------
@@ -208,4 +222,4 @@ def setup_dominoes_from_path(u, spline, randfactor=0, _make_geom=False):
     a = spl.splang(u, spline)
     coords = np.column_stack((x, y, a))
 
-    return setup_dominoes(coords, randfactor, _make_geom)
+    return setup_dominoes(coords, randfactor, tilt_first_dom, _make_geom)
