@@ -40,12 +40,12 @@ from shapely.affinity import rotate, translate
 from shapely.geometry import box
 from sklearn.externals.joblib import delayed, Parallel
 
-from config import NTRIALS_UNCERTAINTY
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
 from xp.config import t, w, h
 from xp.config import TOPPLING_ANGLE
 from xp.config import NCORES
+from xp.domino_design.config import NTRIALS_UNCERTAINTY
 import xp.simulate as simu
 
 
