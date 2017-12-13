@@ -16,7 +16,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.abspath("../.."))
-from xp.domino_design.methods import batch_classif_based
+from xp.domino_design.methods import batch_classif_based, equal_spacing
 from xp.viewdoms import show_dominoes
 
 
@@ -30,7 +30,8 @@ def main():
     with open(spath, 'rb') as f:
         spline = pickle.load(f)[sid]
 
-    u = batch_classif_based(spline, batchsize=2)
+    #  u = batch_classif_based(spline, batchsize=2)
+    u = equal_spacing(spline, 12)
     show_dominoes([u], [spline])
 
     filename = os.path.splitext(spath)[0] + "-doms.npz"
