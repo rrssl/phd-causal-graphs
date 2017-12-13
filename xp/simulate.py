@@ -179,14 +179,14 @@ def run_simu(doms_np: NodePath, world: BulletWorld, timestep=TIMESTEP,
     toppling_times = np.full(n, np.inf)
     time = 0.
     while True:
-        if dominoes[last_toppled_id+1].get_r() >= TOPPLING_ANGLE:
+        # Use a while here because close dominoes can topple at the same time
+        while (last_toppled_id < n-1
+                and dominoes[last_toppled_id+1].get_r() >= TOPPLING_ANGLE):
             last_toppled_id += 1
             toppling_times[last_toppled_id] = time
         if last_toppled_id == n-1:
             # All dominoes toppled in order.
             break
-        if dominoes[last_toppled_id+1].get_r() >= TOPPLING_ANGLE:
-            print("Warning: next domino had already toppled")
         if time - toppling_times[last_toppled_id] > MAX_WAIT_TIME:
             # The chain broke
             break
