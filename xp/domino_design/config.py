@@ -6,8 +6,8 @@ from xp.config import *
 
 
 # Path to the classifier.
-SVC_PATH = "../xp/data/20170927/samples-3D-classifier.pkl"
-SVC2_PATH = "../xp/data/20170913-3/samples-3D-sym-classifier.pkl"
+SVC_PATH = "/media/DATA/pro/2_Contraptions/data/xp/domino_learning/20170927/samples-3D-classifier.pkl"
+SVC2_PATH = "/media/DATA/pro/2_Contraptions/data/xp/domino_learning/20170913-3/samples-3D-sym-classifier.pkl"
 
 # Spline interpolation parameters.
 
