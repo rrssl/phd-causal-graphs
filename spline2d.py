@@ -2,8 +2,9 @@
 Utility functions for 2D splines.
 
 """
+from itertools import repeat
 import numpy as np
-from panda3d.core import LineSegs
+from panda3d.core import LineSegs, Vec4
 from scipy.integrate import romberg
 from scipy.interpolate import splev
 from scipy.interpolate import splprep
@@ -133,12 +134,21 @@ def show_spline2d(parent, tck, u, label="spline", color=(1, 1, 0, 1)):
     list of parameter values.
 
     """
-    new_vertices = splev3d(u, tck, 0)
+    if np.isscalar(color[0]):
+        color = repeat(color)
+    elif np.isscalar(color[0][0]):
+        color = iter(color)
+    new_vertices = iter(splev3d(u, tck, -.001))
     ls = LineSegs(label)
-    ls.set_thickness(4)
-    ls.set_color(color)
-    ls.move_to(*new_vertices[0])
-    for v in new_vertices[1:]:
+    ls.set_thickness(10)
+    ls.set_color(Vec4(*next(color)))
+    ls.move_to(*next(new_vertices))
+    for v, c in zip(new_vertices, color):
+        ls.set_color(Vec4(*c))
         ls.draw_to(*v)
     parent.attach_new_node(ls.create())
     return ls
+
+
+def translate(tck, xy):
+    return (tck[0].copy(), [tck[1][0]+xy[0], tck[1][1]+xy[1]], tck[2])
