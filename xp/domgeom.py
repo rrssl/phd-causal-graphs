@@ -15,7 +15,7 @@ def rotate_around(path: NodePath, pivot: Point3, hpr: Vec3):
     path : NodePath
         The NodePath to rotate.
     pivot : Point3
-        Center of rotation, in the relative to the NodePath.
+        Center of rotation, relative to the NodePath.
     hpr : Vec3
         HPR components of the rotation, relative to the NodePath.
     """
@@ -26,6 +26,10 @@ def rotate_around(path: NodePath, pivot: Point3, hpr: Vec3):
 
 
 def tilt_box_forward(box: NodePath, angle):
+    # Bullet uses a small collision margin for colligion shapes, equal to
+    # min(half_dims)/10. This margin is *substracted* from the half extents
+    # during the creation of a btBoxShape, so the "true" originally intended
+    # size is get_half_extents_with_margin(), not *_without_margin().
     extents = box.node().get_shape(0).get_half_extents_with_margin()
     ctr = Point3(extents[0], 0, -extents[2])
     rotate_around(box, ctr, Vec3(0, 0, angle))
