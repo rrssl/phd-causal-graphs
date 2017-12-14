@@ -46,8 +46,7 @@ def run_domino_toppling_xp(params, visual=False):
             return False
 
         times = simu.run_simu(doms_np, world)
-        if np.isfinite(times).all():
-            return True
+        return np.isfinite(times).all()
 
 
 def _test_domino_toppling_xp():
@@ -56,9 +55,13 @@ def _test_domino_toppling_xp():
 
 def process(samples):
     if samples.shape[1] == 2:
+        samples_ = np.empty((samples.shape[0], 3))
+        samples_[:, 0] = samples[:, 0] * np.cos(samples[:, 1] * np.pi / 180)
+        samples_[:, 1] = samples[:, 0] * np.sin(samples[:, 1] * np.pi / 180)
+        samples_[:, 2] = samples[:, 1]
         values = Parallel(n_jobs=NCORES)(
-                delayed(run_domino_toppling_xp)((d, 0, a))
-                for d, a in samples)
+                delayed(run_domino_toppling_xp)((x, y, a))
+                for x, y, a in samples_)
     else:
         values = Parallel(n_jobs=NCORES)(
                 delayed(run_domino_toppling_xp)((x, y, a))
@@ -77,7 +80,7 @@ def main():
     values = process(samples)
     #  print(values)
     root = os.path.splitext(spath)[0]
-    np.save(root + "-values.npy", values)
+    np.save(root + "-labels.npy", values)
 
 
 if __name__ == "__main__":

@@ -11,6 +11,7 @@ cpath : string
   Path to the classifier.
 
 """
+import math
 import os
 import sys
 
@@ -23,7 +24,7 @@ sys.path.insert(0, os.path.abspath("../.."))
 import xp.simulate as simu
 
 
-SHOW_DECISION_FUNCTION = 0
+SHOW_DECISION_FUNCTION = 1
 
 
 def visualize(samples, values, svc):
@@ -64,14 +65,19 @@ def visualize(samples, values, svc):
 
     # Interactive point picker
     def onpick(event):
-        idx = event.ind[0]
-        print(samples[idx])
-        d, a = samples[idx]
-        d *= X_MAX
-        a *= A_MAX
-        global_coords = [[0, 0, 0], [d, 0, a]]
-        doms_np, world = simu.setup_dominoes(global_coords, _make_geom=True)
-        simu.run_simu(doms_np, world, _visual=True)
+        if event.mouseevent.inaxes == ax:
+            idx = event.ind[0]
+            print(samples[idx])
+            r, a = samples[idx]
+            r *= X_MAX
+            a *= A_MAX
+            a_ = a * math.pi / 180
+            x = r * math.cos(a_)
+            y = r * math.sin(a_)
+            global_coords = [[0, 0, 0], [x, y, a]]
+            doms_np, world = simu.setup_dominoes(
+                    global_coords, _make_geom=True)
+            simu.run_simu(doms_np, world, _visual=True)
     fig.canvas.mpl_connect('pick_event', onpick)
 
     plt.show()
