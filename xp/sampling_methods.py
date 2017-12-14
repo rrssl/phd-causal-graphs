@@ -23,9 +23,10 @@ from .domgeom import make_collision_box, has_contact, tilt_box_forward
 
 
 class Scenario(Enum):
-    2_DOMS_LAST_RADIAL = 1
-    2_DOMS_LAST_FREE = 2
+    TWO_DOMS_LAST_RADIAL = 1,
+    TWO_DOMS_LAST_FREE = 2
     N_DOMS_STRAIGHT_LAST_FREE = 3
+    THREE_DOMS_TWO_LAST_FREE = 4
 
 
 def sample(n, scenario, generator_rule='H', filter_rules=None):
@@ -45,12 +46,14 @@ def sample(n, scenario, generator_rule='H', filter_rules=None):
 
     """
     cp.seed(n)
-    if scenario is Scenario.2_DOMS_LAST_RADIAL:
+    if scenario is Scenario.TWO_DOMS_LAST_RADIAL:
         return sample_2_doms_last_radial(n, **filter_rules)
-    elif scenario is Scenario.2_DOMS_LAST_FREE:
+    elif scenario is Scenario.TWO_DOMS_LAST_FREE:
         return sample_2_doms_last_free(n, **filter_rules)
     elif scenario is Scenario.N_DOMS_STRAIGHT_LAST_FREE:
         return sample_n_doms_straight_last_free(n, **filter_rules)
+    elif scenario is Scenario.THREE_DOMS_TWO_LAST_FREE:
+        return sample_3_doms_2_last_free(n, **filter_rules)
 
 
 def sample_2_doms_last_radial(
@@ -146,4 +149,20 @@ def sample_n_doms_straight_last_free(
     else:
         samples = dist.sample(n, rule=rule).T
 
+    return samples
+
+
+def sample_3_doms_2_last_free(
+        n, rule='H', filter_overlap=True, tilt_first_domino=True):
+    """Sample a domino-triplet parameter values with 6 DoFs (relative
+    transforms of domino 2 vs 1 and 3 vs 2.)
+
+    """
+    n_pair = math.ceil(math.sqrt(n))
+    samples_pair = sample_2_doms_last_free(
+            n_pair, rule, filter_overlap, tilt_first_domino)
+    samples = np.concatenate(
+            (np.repeat(samples_pair, n_pair, axis=0),
+             np.tile(samples_pair, (n_pair, 1))),
+            axis=1)[:n]
     return samples
