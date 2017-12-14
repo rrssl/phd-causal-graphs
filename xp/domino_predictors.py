@@ -11,7 +11,7 @@ from config import X_MAX, Y_MAX, A_MAX, MIN_SPACING, MAX_SPACING
 
 ROB_ESTIMATOR_PATH = os.path.join(
         os.path.dirname(__file__),
-        "predicting_domino_toppling/data/latest/samples-3D-1k-classifier.pkl")
+        "learning_robustness/data/20171127/samples-3D-1k-classifier.pkl")
 TIME_ESTIMATOR_PATH = os.path.join(
         os.path.dirname(__file__),
         "predicting_domino_timing/data/latest/samples-4D-1k-times-10-estimator.pkl")
