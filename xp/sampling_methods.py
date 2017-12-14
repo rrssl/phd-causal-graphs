@@ -2,9 +2,19 @@
 Methods to generate the samples used to train the estimators. Each
 n-dimensional sample represents the parameters of a domino distribution.
 
+Scenarios
+1. 2 dominoes; the second one is orthogonal to the line joining the centers.
+    (2 DoFs: distance between centers and polar angle of the second center.)
+2. 2 dominoes; the second one is free.
+    (3 DoFs: center coordinates and relative angle of the second domino.)
+3. n dominoes; the n-1 first are equidistant on a straight line and the last
+    one is free.
+    (4 DoFs: 3 from scenario (2) + distance between the n-1 first dominoes.)
 """
-from random import uniform
+from enum import Enum
+import math
 
+import chaospy as cp
 import numpy as np
 
 from .config import t, w, h, TOPPLING_ANGLE
@@ -12,7 +22,39 @@ from .config import X_MIN, X_MAX, Y_MAX, A_MIN, A_MAX, MIN_SPACING, MAX_SPACING
 from .domgeom import make_collision_box, has_contact, tilt_box_forward
 
 
-def sample2D(n, filter_overlap=True, tilt_domino=True):
+class Scenario(Enum):
+    2_DOMS_LAST_RADIAL = 1
+    2_DOMS_LAST_FREE = 2
+    N_DOMS_STRAIGHT_LAST_FREE = 3
+
+
+def sample(n, scenario, generator_rule='H', filter_rules=None):
+    """Generate training samples describing domino distributions.
+
+    Parameters
+    ----------
+    n : int
+      Number of samples.
+    scenario : Scenario
+      Domino run scenario.
+    generator_rule : string, optional
+      'rule' parameter used by chaospy's sampler.
+    filter_rules : dict, optional
+      Additional rules given to the scenario (e.g. 'filter_overlap,
+      'tilt_first_domino').
+
+    """
+    cp.seed(n)
+    if scenario is Scenario.2_DOMS_LAST_RADIAL:
+        return sample_2_doms_last_radial(n, **filter_rules)
+    elif scenario is Scenario.2_DOMS_LAST_FREE:
+        return sample_2_doms_last_free(n, **filter_rules)
+    elif scenario is Scenario.N_DOMS_STRAIGHT_LAST_FREE:
+        return sample_n_doms_straight_last_free(n, **filter_rules)
+
+
+def sample_2_doms_last_radial(
+        n, rule='H', filter_overlap=True, tilt_first_domino=True):
     """Sample the domino-pair parameter values with 2 DoFs (distance
     between centers and relative heading angle).
 
@@ -20,47 +62,52 @@ def sample2D(n, filter_overlap=True, tilt_domino=True):
     going through D1's center.
 
     """
-    samples = np.empty((n, 2))
+    dist = cp.J(cp.Uniform(X_MIN, X_MAX), cp.Uniform(0, A_MAX))
+    cos = math.cos
+    sin = math.sin
+    pi = math.pi
 
     if filter_overlap:
+        samples = np.empty((n, 2))
         i = 0
         while i < n:
-            d = uniform(X_MIN, X_MAX)
-            a = uniform(0, A_MAX)  # Symmetry
-
+            r, a = dist.sample(1, rule=rule).reshape(2)
+            a_ = a * pi / 180
+            x = r * cos(a_)
+            y = r * sin(a_)
             d1 = make_collision_box((t, w, h), (0, 0, h/2), (0, 0, 0))
-            d2 = make_collision_box((t, w, h), (d, 0, h/2), (a, 0, 0))
-            if tilt_domino:
+            d2 = make_collision_box((t, w, h), (x, y, h/2), (a, 0, 0))
+            if tilt_first_domino:
                 tilt_box_forward(d1, TOPPLING_ANGLE+1)
             if has_contact(d1, d2):
                 pass
             else:
-                samples[i] = d, a
+                samples[i] = r, a
                 i += 1
     else:
-        samples[:, 0] = np.random.uniform(X_MIN, X_MAX, n)
-        samples[:, 1] = np.random.uniform(0, A_MAX, n)  # Symmetry
+        samples = dist.sample(n, rule=rule).T
 
     return samples
 
 
-def sample3D(n, filter_overlap=True, tilt_domino=True):
+def sample_2_doms_last_free(
+        n, rule='H', filter_overlap=True, tilt_first_domino=True):
     """Sample the domino-pair parameter values with 3 DoFs (relative position
     in the XY plane + relative heading angle).
 
     """
-    samples = np.empty((n, 3))
+    dist = cp.J(cp.Uniform(X_MIN, X_MAX),
+                cp.Uniform(0, Y_MAX),  # Symmetry
+                cp.Uniform(A_MIN, A_MAX))
 
     if filter_overlap:
+        samples = np.empty((n, 3))
         i = 0
         while i < n:
-            x = uniform(X_MIN, X_MAX)
-            y = uniform(0, Y_MAX)  # Symmetry
-            a = uniform(A_MIN, A_MAX)
-
+            x, y, a = dist.sample(1, rule=rule).reshape(3)
             d1 = make_collision_box((t, w, h), (0, 0, h/2), (0, 0, 0))
             d2 = make_collision_box((t, w, h), (x, y, h/2), (a, 0, 0))
-            if tilt_domino:
+            if tilt_first_domino:
                 tilt_box_forward(d1, TOPPLING_ANGLE+1)
             if has_contact(d1, d2):
                 pass
@@ -68,39 +115,35 @@ def sample3D(n, filter_overlap=True, tilt_domino=True):
                 samples[i] = x, y, a
                 i += 1
     else:
-        samples[:, 0] = np.random.uniform(X_MIN, X_MAX, n)
-        samples[:, 1] = np.random.uniform(0, Y_MAX, n)  # Symmetry
-        samples[:, 2] = np.random.uniform(A_MIN, A_MAX, n)
+        samples = dist.sample(n, rule=rule).T
 
     return samples
 
 
-def sample4D(n, filter_overlap=True, tilt_domino=True):
+def sample_n_doms_straight_last_free(
+        n, rule='H', filter_overlap=True, tilt_first_domino=True):
     """Sample the domino-pair parameter values with 4 DoFs (relative position
     in the XY plane + relative heading angle + spacing between previous doms).
 
     """
-    samples = np.empty((n, 4))
+    dist = cp.J(cp.Uniform(X_MIN, X_MAX),
+                cp.Uniform(0, Y_MAX),  # Symmetry
+                cp.Uniform(A_MIN, A_MAX),
+                cp.Uniform(MIN_SPACING, MAX_SPACING))
 
     if filter_overlap:
+        samples = np.empty((n, 4))
         i = 0
         while i < n:
-            x = uniform(X_MIN, X_MAX)
-            y = uniform(0, Y_MAX)  # Symmetry
-            a = uniform(A_MIN, A_MAX)
-            s = uniform(MIN_SPACING, MAX_SPACING)
-
+            x, y, a, s = dist.sample(1, rule=rule).reshape(4)
             d1 = make_collision_box((t, w, h), (0, 0, h/2), (0, 0, 0))
             d2 = make_collision_box((t, w, h), (x, y, h/2), (a, 0, 0))
-            if tilt_domino:
+            if tilt_first_domino:
                 tilt_box_forward(d1, TOPPLING_ANGLE+1)
             if not has_contact(d1, d2):
                 samples[i] = x, y, a, s
                 i += 1
     else:
-        samples[:, 0] = np.random.uniform(X_MIN, X_MAX, n)
-        samples[:, 1] = np.random.uniform(0, Y_MAX, n)  # Symmetry
-        samples[:, 2] = np.random.uniform(A_MIN, A_MAX, n)
-        samples[:, 3] = np.random.uniform(MIN_SPACING, MAX_SPACING, n)
+        samples = dist.sample(n, rule=rule).T
 
     return samples

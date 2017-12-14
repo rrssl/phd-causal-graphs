@@ -1,12 +1,12 @@
 """
-Sampling the parameter space.
+Sample the parameter space for robustness learning.
 
 Parameters
 ----------
+scenario : int
+  Sampling scenario. See sampling_methods.py for a description.
 nsam : int
   Number of samples.
-ndof : int, optional
-  Number of degrees of freedom. Defaults to 3 (relative x, y, and angle).
 
 """
 import os
@@ -15,25 +15,20 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.abspath("../.."))
-from xp.sampling_methods import sample2D, sample3D
+from xp.sampling_methods import sample, Scenario
 
 
 def main():
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 3:
         print(__doc__)
         return
-    nsam = int(sys.argv[1])
-    ndim = int(sys.argv[2]) if len(sys.argv) > 2 else 3
+    scenario = int(sys.argv[1])
+    n = int(sys.argv[2])
 
-    if ndim == 2:
-        samples = sample2D(nsam, filter_overlap=True, tilt_domino=True)
-    elif ndim == 3:
-        samples = sample3D(nsam, filter_overlap=True, tilt_domino=True)
-    else:
-        print("No method implemented for this number of dimensions.")
-        return
-
-    name = "samples-{}D.npy".format(ndim)
+    filter_rules = dict(filter_overlap=True, tilt_first_domino=True)
+    samples = sample(n, scenario=Scenario(scenario), generator_rule='R',
+                     filter_rules=filter_rules)
+    name = "S{}-{}samples.npy".format(scenario, n)
     np.save(name, samples)
 
 
