@@ -13,10 +13,11 @@ import os
 import sys
 
 import numpy as np
-from sklearn import svm
 from sklearn.externals import joblib
+from sklearn.model_selection import GridSearchCV
+from sklearn.svm import SVC
 
-from config import X_MAX, Y_MAX, A_MAX
+from config import X_MAX, Y_MAX, A_MAX, NCORES
 
 
 def main():
@@ -36,14 +37,28 @@ def main():
         return
     samples /= den
     values = np.load(vpath)
-    svc = svm.SVC(
-            kernel='rbf', gamma=1, C=1, cache_size=1024,
-            #  class_weight='balanced',
-            ).fit(samples, values)
 
-    print("Score: ", svc.score(samples, values))
+    C_range = np.logspace(-3, 3, 7)
+    gamma_range = np.logspace(-3, 3, 7)
+    class_weight_options = [None, 'balanced']
+    param_grid = {
+            'gamma': gamma_range,
+            'C': C_range,
+            'class_weight': class_weight_options
+            }
+    grid = GridSearchCV(SVC(kernel='rbf', random_state=123),
+                        param_grid=param_grid,
+                        n_jobs=NCORES)
+    grid.fit(samples, values)
+    print("The best parameters are {} with a score of {}".format(
+        grid.best_params_, grid.best_score_))
+    #  svc = svm.SVC(
+    #          kernel='rbf', gamma=1, C=1, cache_size=1024,
+    #          #  class_weight='balanced',
+    #          ).fit(samples, values)
+    #  print("Score: ", svc.score(samples, values))
     root, _ = os.path.splitext(spath)
-    joblib.dump(svc, root + "-classifier.pkl")
+    joblib.dump(grid.best_estimator_, root + "-classifier.pkl")
 
 
 if __name__ == "__main__":
