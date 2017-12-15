@@ -247,6 +247,7 @@ class PhysicsViewer(Modeler):
         self.accept('d', self.toggle_bullet_debug)
         self.accept('r', self.reset_physics)
         self.accept('space', self.toggle_physics)
+        self.accept('n', self.do_physics, [1/60])
         self.play_physics = False
         # Initialize cache after __init__ is done.
         self._physics_cache = {}
@@ -315,16 +316,19 @@ class PhysicsViewer(Modeler):
     def toggle_physics(self):
         self.play_physics = not self.play_physics
 
+    def do_physics(self, dt):
+        # Results for small objects are much more stable with a smaller
+        # physics timestep. Typically, for a 1cm-cube you want 300Hz.
+        # Rule: timeStep < maxSubSteps * fixedTimeStep
+        # If you run interactively at 60Hz, with a simulator frequency of
+        # 240Hz, you want maxSubSteps = 240/60+1.
+        self.world.do_physics(dt, 5, 1/240)
+        self.world_time += dt
+
     def update_physics(self, task):
         if self.play_physics:
             dt = self.task_mgr.globalClock.get_dt()
-            # Results for small objects are much more stable with a smaller
-            # physics timestep. Typically, for a 1cm-cube you want 300Hz.
-            # Rule: timeStep < maxSubSteps * fixedTimeStep
-            # If you run interactively at 60Hz, with a simulator frequency of
-            # 240Hz, you want maxSubSteps = 240/60+1.
-            self.world.do_physics(dt, 5, 1/240)
-            self.world_time += dt
+            self.do_physics(dt)
         return task.cont
 
 
