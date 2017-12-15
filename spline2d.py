@@ -140,7 +140,7 @@ def show_spline2d(parent, tck, u, label="spline", color=(1, 1, 0, 1)):
         color = iter(color)
     new_vertices = iter(splev3d(u, tck, -.001))
     ls = LineSegs(label)
-    ls.set_thickness(10)
+    ls.set_thickness(5)
     ls.set_color(Vec4(*next(color)))
     ls.move_to(*next(new_vertices))
     for v, c in zip(new_vertices, color):
