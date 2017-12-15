@@ -14,6 +14,7 @@ from panda3d.bullet import BulletWorld, BulletDebugNode
 
 from coord_grid import ThreeAxisGrid
 
+
 class TurntableViewer(ShowBase):
     """Provides a Blender-like 'turntable' viewer, more convenient than
     Panda3D's default trackball viewer.
@@ -339,8 +340,8 @@ class FutureViewer(PhysicsViewer):
     def __init__(self):
         super().__init__()
 
-        self.future_vision_horizon = 20. #seconds
-        self.future_vision_resol = 1 / 10. # hertz
+        self.future_vision_horizon = 20.  # seconds
+        self.future_vision_resol = 1 / 10.  # hertz
         self._future_cache = {}
         self.future_vision = self.visual.attach_new_node("future")
         self.future_vision.hide()
@@ -351,7 +352,8 @@ class FutureViewer(PhysicsViewer):
 
     def redraw_future(self):
         path = self.future_vision.find("trajectories")
-        if not path.is_empty(): path.remove_node()
+        if not path.is_empty():
+            path.remove_node()
         # Less subtle method:
         # self.future_vision.node().removeAllChildren()
 
