@@ -60,18 +60,20 @@ class CustomViewer(DominoViewer):
         self.zoom_speed = .1
 
 
-def get_robustness_colors(u, spline, rob):
-    """Compute colors showing the evolution of robustness along a path.
+def get_robustness_colored_path(u, spline, rob):
+    """Create a colored path showing robustness evolving smoothly along it.
 
-    This is for visual purposes only. There is no "per domino" robustness,
-    so the values are interpolated from the pairwise robustness.
+    This is for visual purposes only. There is no such thing as "pathwise
+    robustness". The values are interpolated from the pairwise robustness.
+
     """
     s = spl.arclength(spline, u)
     s_ = (s[:-1]+s[1:])/2
-    approx = spl.splprep([rob], u=s_, s=0.)[0]
-    int_rob = spl.splev(s, approx)[0]
-    rob_colors = cm.viridis(int_rob)
-    return rob_colors
+    approx_rob = spl.splprep([rob], u=s_, s=0.)[0]
+    dense_u = np.linspace(0, 1, 10*len(s))
+    dense_rob = spl.splev(spl.arclength(spline, dense_u), approx_rob)[0]
+    dense_rob_colors = cm.viridis(dense_rob)
+    return dense_u, spline, dense_rob_colors
 
 
 class OptimModel:
@@ -218,16 +220,16 @@ def main():
     base_rob = rob_predictor(get_predictor_params(base_doms.coords))
     print("Base robustness: ", base_rob, base_rob.sum())
     max_rob = abs(base_rob).max()
-    base_rob_colors = get_robustness_colors(base_u, spline, base_rob/max_rob)
     viewer.add_domino_run_from_spline(base_u, spline)
-    viewer.add_path(base_u, spline, base_rob_colors)
+    viewer.add_path(
+            *get_robustness_colored_path(base_u, spline, base_rob/max_rob))
     # Optimized
     best_rob = rob_predictor(get_predictor_params(best_doms.coords))
     print("Best robustness: ", best_rob, best_rob.sum())
-    best_rob_colors = get_robustness_colors(best_u, spline_shifted,
-                                            best_rob/max_rob)
-    viewer.add_domino_run(best_coords)
-    viewer.add_path(best_u, spline_shifted, best_rob_colors)
+    viewer.add_domino_run(best_doms.coords)
+    viewer.add_path(
+            *get_robustness_colored_path(
+                best_doms.u, spline_shifted2, best_rob/max_rob))
     try:
         viewer.run()
     except SystemExit:
