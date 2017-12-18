@@ -203,18 +203,23 @@ def main():
     n_doms = int(sys.argv[2])
     with open(spath, 'rb') as f:
         spline = pickle.load(f)[0]
+    spline_shifted = spl.translate(spline, (0, .1))
+    spline_shifted2 = spl.translate(spline, (0, .2))
 
     # Distribute dominoes linearly along this path.
     base_u = equal_spacing(spline, n_doms)
     base_doms = DominoPath(base_u, spline)
 
+    # Distribute dominoes manually along this path.
+    manu_u = [0., 0.09, 0.28, 0.36, 0.46, 0.59, 0.69, 0.8, 0.92, 1.]
+    manu_doms = DominoPath(manu_u, spline_shifted)
+
     # Set up and run optimization.
     rob_predictor = DominoRobustness()
-    spline_shifted = spl.translate(spline, (0, .1))
     init_doms = DominoPath(base_u, spline_shifted2)
     best_doms = run_optim(init_doms, rob_predictor, method='minimize')
 
-    # Show simulation of non-optimized vs. optimized distribution.
+    # Show simulation in the different cases.
     viewer = CustomViewer()
     # Base
     base_rob = rob_predictor(get_predictor_params(base_doms.coords))
@@ -223,6 +228,13 @@ def main():
     viewer.add_domino_run_from_spline(base_u, spline)
     viewer.add_path(
             *get_robustness_colored_path(base_u, spline, base_rob/max_rob))
+    # Manual
+    manu_rob = rob_predictor(get_predictor_params(manu_doms.coords))
+    print("Manu robustness: ", manu_rob, manu_rob.sum())
+    viewer.add_domino_run(manu_doms.coords)
+    viewer.add_path(
+            *get_robustness_colored_path(
+                manu_u, spline_shifted, manu_rob/max_rob))
     # Optimized
     best_rob = rob_predictor(get_predictor_params(best_doms.coords))
     print("Best robustness: ", best_rob, best_rob.sum())
@@ -240,8 +252,10 @@ def main():
     sheetsize = (21, 29.7)
     export_domino_run(basename + "-base_layout", base_doms.coords, sheetsize)
     export_domino_run(basename + "-best_layout", best_doms.coords, sheetsize)
+    export_domino_run(basename + "-manu_layout", manu_doms.coords, sheetsize)
     np.save(basename + "-base_layout", base_doms.coords)
     np.save(basename + "-best_layout", best_doms.coords)
+    np.save(basename + "-manu_layout", manu_doms.coords)
 
 
 if __name__ == "__main__":
