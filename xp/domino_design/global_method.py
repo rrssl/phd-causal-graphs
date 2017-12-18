@@ -30,6 +30,27 @@ from xp.viewdoms import DominoViewer  # noqa
 FREE_ANGLE = 0
 
 
+class DominoSequence:
+    def __init__(self, coords):
+        self.coords = coords
+
+    def __len__(self):
+        return len(self.coords)
+
+    def __getitem__(self, key):
+        return self.coords[key]
+
+
+class DominoPath(DominoSequence):
+    def __init__(self, u, spline):
+        self.u = u
+        self.spline = spline
+        coords = np.zeros((len(u), 3))
+        coords[:, 0], coords[:, 1] = spl.splev(u, spline)
+        coords[:, 2] = spl.splang(u, spline)
+        super().__init__(coords)
+
+
 class CustomViewer(DominoViewer):
     def __init__(self):
         super().__init__()
@@ -142,8 +163,12 @@ class ValidityConstraint:
         return r1
 
 
-def run_optim(n_doms, x0, spline, rob_predictor):
-    model = OptimModel(n_doms, spline)
+def run_optim(init_doms, rob_predictor, method='minimize'):
+    if FREE_ANGLE:
+        x0 = np.concatenate((init_doms.u[1:-1], init_doms.coords[1:-1, 2]))
+    else:
+        x0 = init_doms.u[1:-1]
+    model = OptimModel(len(init_doms), init_doms.spline)
     objective = Objective(model, rob_predictor)
     seq_cons = SequenceConstraint(model)
     nonpen_cons = NonPenetrationConstraint(model)
@@ -164,7 +189,7 @@ def run_optim(n_doms, x0, spline, rob_predictor):
     print(seq_cons(res.x))
     print(nonpen_cons(res.x))
     model.update(res.x)
-    return model
+    return DominoPath(model.u1, model.s1)
 
 
 def main():
@@ -179,33 +204,26 @@ def main():
 
     # Distribute dominoes linearly along this path.
     base_u = equal_spacing(spline, n_doms)
-    base_coords = np.zeros((len(base_u), 3))
-    base_coords[:, 0], base_coords[:, 1] = spl.splev(base_u, spline)
-    base_coords[:, 2] = spl.splang(base_u, spline)
+    base_doms = DominoPath(base_u, spline)
 
     # Set up and run optimization.
     rob_predictor = DominoRobustness()
-    if FREE_ANGLE:
-        x0 = np.concatenate((base_u[1:-1], base_coords[1:-1, 2]))
-    else:
-        x0 = base_u[1:-1]
     spline_shifted = spl.translate(spline, (0, .1))
-    best_model = run_optim(n_doms, x0, spline_shifted, rob_predictor)
-    best_coords = best_model.c1
-    best_u = best_model.u1
+    init_doms = DominoPath(base_u, spline_shifted2)
+    best_doms = run_optim(init_doms, rob_predictor, method='minimize')
 
     # Show simulation of non-optimized vs. optimized distribution.
     viewer = CustomViewer()
     # Base
-    base_rob = rob_predictor(get_predictor_params(base_coords))
-    print(base_rob)
+    base_rob = rob_predictor(get_predictor_params(base_doms.coords))
+    print("Base robustness: ", base_rob, base_rob.sum())
     max_rob = abs(base_rob).max()
     base_rob_colors = get_robustness_colors(base_u, spline, base_rob/max_rob)
     viewer.add_domino_run_from_spline(base_u, spline)
     viewer.add_path(base_u, spline, base_rob_colors)
     # Optimized
-    best_rob = rob_predictor(get_predictor_params(best_coords))
-    print(best_rob)
+    best_rob = rob_predictor(get_predictor_params(best_doms.coords))
+    print("Best robustness: ", best_rob, best_rob.sum())
     best_rob_colors = get_robustness_colors(best_u, spline_shifted,
                                             best_rob/max_rob)
     viewer.add_domino_run(best_coords)
@@ -218,10 +236,10 @@ def main():
     # Export the result for printing.
     basename = os.path.splitext(spath)[0]
     sheetsize = (21, 29.7)
-    export_domino_run(basename + "-base_layout", base_coords, sheetsize)
-    export_domino_run(basename + "-best_layout", best_coords, sheetsize)
-    np.save(basename + "-base_layout", base_coords)
-    np.save(basename + "-best_layout", best_coords)
+    export_domino_run(basename + "-base_layout", base_doms.coords, sheetsize)
+    export_domino_run(basename + "-best_layout", best_doms.coords, sheetsize)
+    np.save(basename + "-base_layout", base_doms.coords)
+    np.save(basename + "-best_layout", best_doms.coords)
 
 
 if __name__ == "__main__":
