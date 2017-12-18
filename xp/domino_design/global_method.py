@@ -98,6 +98,9 @@ class OptimModel:
     def update(self, x):
         if np.array_equal(x, self._last_x):
             return
+        if not np.isfinite(x).all():
+            print("Invalid x = ", x)
+            return
         n1_ = self.n1-2  # first and last domino are fixed
         c1 = self.c1
 
@@ -113,7 +116,7 @@ class OptimModel:
     @property
     def u1(self):
         n1_ = self.n1-2  # first and last domino are fixed
-        return np.hstack((0, self._last_x[:n1_], 1))
+        return np.concatenate(([0], self._last_x[:n1_], [1]))
 
 
 class Objective:
@@ -128,6 +131,14 @@ class Objective:
         return r1
 
 
+class BoundsConstraint:
+    def __init__(self, bounds):
+        self.bounds = np.asarray(bounds).T
+
+    def __call__(self, x):
+        return np.concatenate((x - self.bounds[0], self.bounds[1] - x))
+
+
 class SequenceConstraint:
     def __init__(self, model):
         self.model = model
@@ -135,6 +146,13 @@ class SequenceConstraint:
     def __call__(self, x):
         self.model.update(x)
         return np.diff(self.model.u1)
+
+
+class SequenceConstraintBinary(SequenceConstraint):
+    def __call__(self, x):
+        self.model.update(x)
+        u1 = self.model.u1
+        return (u1[1:] > u1[:-1]).all()
 
 
 class NonPenetrationConstraint:
@@ -153,6 +171,14 @@ class NonPenetrationConstraint:
         return self._get_penetrations(self.model.c1)
 
 
+class NonPenetrationConstraintBinary(NonPenetrationConstraint):
+    def _get_penetrations(self, coords):
+        base = self.base
+        b1 = [translate(rotate(base, a), x, y) for x, y, a in coords]
+        return not any(
+                b1j.intersects(b1k) for b1j, b1k in zip(b1[:-1], b1[1:]))
+
+
 class ValidityConstraint:
     def __init__(self, model, rob_estimator):
         self.model = model
@@ -165,6 +191,56 @@ class ValidityConstraint:
         return r1
 
 
+class BasinHoppingStepTaker:
+    def __init__(self, model, stepsize=0.1, seed=None):
+        self.spline = model.s1
+        if seed is not None:
+            np.random.seed(seed)
+        self.stepsize = stepsize
+        self.base = box(-t/2, -w/2, t/2,  w/2)
+
+    def __call__(self, x):
+        s = self.stepsize
+        spline = self.spline
+        base = self.base
+        #  b = self.bounds
+        #  x += np.random.uniform(-s, s, x.shape)
+        #  np.clip(x, b[0], b[1], out=x)
+        for i in range(len(x)):
+            if i == 0:
+                prev_x = 0
+            else:
+                prev_x = x[i-1]
+            if i == len(x) - 1:
+                next_x = 1
+            else:
+                next_x = x[i+1]
+
+            mini = x[i] - s*(x[i] - prev_x)
+            maxi = x[i] + s*(next_x - x[i])
+
+            while True:
+                cand_x = np.random.uniform(mini, maxi, 1)
+                u = np.array([prev_x, cand_x, next_x])
+                coords = np.column_stack(
+                        spl.splev(u, spline)+[spl.splang(u, spline)])
+                b = [translate(rotate(base, ai), xi, yi)
+                     for xi, yi, ai in coords]
+                if not (b[0].intersects(b[1]) and b[1].intersects(b[2])):
+                    x[i] = cand_x
+                    break
+        return x
+
+
+class BasinHoppingStepTester:
+    def __init__(self, tests):
+        self.tests = tests
+
+    def __call__(self, **kwargs):
+        x = kwargs['x_new']
+        return all(test(x) for test in self.tests)
+
+
 def run_optim(init_doms, rob_predictor, method='minimize'):
     if FREE_ANGLE:
         x0 = np.concatenate((init_doms.u[1:-1], init_doms.coords[1:-1, 2]))
@@ -175,21 +251,33 @@ def run_optim(init_doms, rob_predictor, method='minimize'):
     seq_cons = SequenceConstraint(model)
     nonpen_cons = NonPenetrationConstraint(model)
     #  val_cons = ValidityConstraint(model, rob_predictor)
-    bounds = [(0., 1.)] * len(x0)
-    cons = [
-            {'type': 'ineq', 'fun': seq_cons},
-            {'type': 'ineq', 'fun': nonpen_cons},
-            #  {'type': 'ineq', 'fun': val_cons},
-            ]
-    options = {'disp': True}
-    res = opt.minimize(objective, x0, bounds=bounds, constraints=cons,
-                       options=options)
-    #  res = opt.basinhopping(
-    #          objective, x0, niter=10,
-    #          minimizer_kwargs={'bounds': bounds, 'constraints':cons},
-    #          disp=True, seed=123)
-    print(seq_cons(res.x))
-    print(nonpen_cons(res.x))
+    minimizer_kwargs = {
+            'bounds': [(0., 1.)] * len(x0),
+            'constraints': [
+                    {'type': 'ineq', 'fun': seq_cons},
+                    {'type': 'ineq', 'fun': nonpen_cons},
+                    #  {'type': 'ineq', 'fun': val_cons},
+                    ],
+            'options': {'disp': True},
+        }
+    if method == 'minimize':
+        res = opt.minimize(objective, x0, **minimizer_kwargs)
+    elif method == 'basinhopping':
+        accept_test = BasinHoppingStepTester((
+            SequenceConstraintBinary(model),
+            NonPenetrationConstraintBinary(model)
+            ))
+        take_step = BasinHoppingStepTaker(model, seed=123)
+        res = opt.basinhopping(
+                objective, x0, niter=10, T=10.0, stepsize=0.1,
+                minimizer_kwargs=minimizer_kwargs,
+                take_step=take_step, accept_test=accept_test,
+                disp=True, seed=123)
+    else:
+        print("Invalid method name")
+        return
+    print("Sequence constraint: ", seq_cons(res.x))
+    print("Non-penetration constraint: ", nonpen_cons(res.x))
     model.update(res.x)
     return DominoPath(model.u1, model.s1)
 
@@ -217,7 +305,7 @@ def main():
     # Set up and run optimization.
     rob_predictor = DominoRobustness()
     init_doms = DominoPath(base_u, spline_shifted2)
-    best_doms = run_optim(init_doms, rob_predictor, method='minimize')
+    best_doms = run_optim(init_doms, rob_predictor, method='basinhopping')
 
     # Show simulation in the different cases.
     viewer = CustomViewer()
