@@ -11,18 +11,17 @@ from config import X_MAX, Y_MAX, A_MAX, MIN_SPACING, MAX_SPACING
 
 ROB_ESTIMATOR_PATH = os.path.join(
         os.path.dirname(__file__),
-        "learning_robustness/data/20171214/S2H-1000samples-classifier.pkl")
+        "learning_robustness/data/20171220/S2H-1000samples-classifier.pkl")
 TIME_ESTIMATOR_PATH = os.path.join(
         os.path.dirname(__file__),
         "predicting_domino_timing/data/latest/samples-4D-1k-times-10-estimator.pkl")
 
 
-def get_predictor_params(coords):
+def get_local_coords(coords):
     coords = np.asarray(coords)
-    params = np.zeros((coords.shape[0]-1, 4))
+    local_coords = np.zeros((coords.shape[0]-1, 3))
     # Change origin
-    params[:, 0] = np.diff(coords[:, 0])
-    params[:, 1] = np.diff(coords[:, 1])
+    local_coords[:, :2] = np.diff(coords[:, :2], axis=0)
     # Rotate by -a_i-1
     # In case you scratch your head on this one, this is equivalent to
     # a = -head_rad[:-1]; c = cos(a); s = sin(a); rot = [[c, -s], [s, c]]
@@ -39,31 +38,47 @@ def get_predictor_params(coords):
     #             total += X[i,j,k] * Y[k,j]
     #         Z[k,i] = total
     # Note how the indices follow the einsum string.
-    params[:, :2] = np.einsum('ijk,kj->ki', rot, params[:, :2])
+    local_coords[:, :2] = np.einsum('ijk,kj->ki', rot, local_coords[:, :2])
     # Get relative angles in [-180, 180)
-    params[:, 2] = (np.diff(coords[:, 2]) + 180) % 360 - 180
-    # Symmetrize
-    params[:, 2] = np.copysign(params[:, 2], params[:, 1])
-    params[:, 1] = np.abs(params[:, 1])
-    # Compute 4th parameter
-    params[0, 3] = (MIN_SPACING + MAX_SPACING)/2  # arbitrary value
-    params[1:, 3] = np.sqrt(params[:-1, 0]**2 + params[:-1, 1]**2)
-    # Normalize
-    params /= (X_MAX, Y_MAX, A_MAX, MAX_SPACING)
-    return params
+    local_coords[:, 2] = (np.diff(coords[:, 2]) + 180) % 360 - 180
+    return local_coords
 
 
 class DominoRobustness:
     def __init__(self):
         self.predictor = joblib.load(ROB_ESTIMATOR_PATH)
 
+    @staticmethod
+    def _transform(coords):
+        """Convert global coordinates to valid parameters for the estimator."""
+        params = get_local_coords(coords)
+        # Symmetrize
+        params[:, 2] = np.copysign(params[:, 2], params[:, 1])
+        params[:, 1] = np.abs(params[:, 1])
+        return params
+
     def __call__(self, coords):
-        return self.predictor.decision_function(coords[:, :3])
+        return self.predictor.decision_function(self._transform(coords))
 
 
 class DominoTime:
     def __init__(self):
         self.predictor = joblib.load(TIME_ESTIMATOR_PATH)
 
+    @staticmethod
+    def _transform(coords):
+        """Convert global coordinates to valid parameters for the estimator."""
+        params = np.empty((coords.shape[0]-1, 4))
+        params[:, :3] = get_local_coords(coords)
+        # Symmetrize
+        params[:, 2] = np.copysign(params[:, 2], params[:, 1])
+        params[:, 1] = np.abs(params[:, 1])
+        # Compute 4th parameter
+        params[0, 3] = (MIN_SPACING + MAX_SPACING)/2  # arbitrary value
+        params[1:, 3] = np.sqrt(params[:-1, 0]**2 + params[:-1, 1]**2)
+        # Normalize
+        params /= (X_MAX, Y_MAX, A_MAX, MAX_SPACING)
+        return params
+
     def __call__(self, coords):
-        return self.predictor.predict(coords)
+        return self.predictor.predict(self._transform(coords))

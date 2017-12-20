@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl  # noqa
 from xp.calibration.doms2pdf import export_domino_run  # noqa
 from xp.domino_design.methods import equal_spacing  # noqa
-from xp.domino_predictors import get_predictor_params, DominoRobustness  # noqa
+from xp.domino_predictors import DominoRobustness  # noqa
 from xp.viewdoms import DominoViewer  # noqa
 
 
@@ -126,9 +126,19 @@ class Objective:
 
     def __call__(self, x):
         self.model.update(x)
-        p1 = get_predictor_params(self.model.c1)
-        r1 = -self.rob_estimator(p1).mean()
+        r1 = -self.rob_estimator(self.model.c1).sum()
         return r1
+
+
+class Objective2:
+    def __init__(self, model, rob_estimator):
+        self.model = model
+        self.rob_estimator = rob_estimator
+
+    def __call__(self, x):
+        self.model.update(x)
+        p1 = self.rob_estimator._transform(self.model.c1)
+        return -np.sum(p1**2)
 
 
 class BoundsConstraint:
@@ -145,7 +155,8 @@ class SequenceConstraint:
 
     def __call__(self, x):
         self.model.update(x)
-        return np.diff(self.model.u1)
+        diff = np.diff(self.model.u1)
+        return diff
 
 
 class SequenceConstraintBinary(SequenceConstraint):
@@ -168,7 +179,8 @@ class NonPenetrationConstraint:
 
     def __call__(self, x):
         self.model.update(x)
-        return self._get_penetrations(self.model.c1)
+        pen = self._get_penetrations(self.model.c1)
+        return pen
 
 
 class NonPenetrationConstraintBinary(NonPenetrationConstraint):
@@ -186,8 +198,7 @@ class ValidityConstraint:
 
     def __call__(self, x):
         self.model.update(x)
-        p1 = get_predictor_params(self.model.c1)
-        r1 = self.rob_estimator(p1)
+        r1 = self.rob_estimator(self.model.c1)
         return r1
 
 
@@ -310,21 +321,21 @@ def main():
     # Show simulation in the different cases.
     viewer = CustomViewer()
     # Base
-    base_rob = rob_predictor(get_predictor_params(base_doms.coords))
+    base_rob = rob_predictor(base_doms.coords)
     print("Base robustness: ", base_rob, base_rob.sum())
     max_rob = abs(base_rob).max()
     viewer.add_domino_run_from_spline(base_u, spline)
     viewer.add_path(
             *get_robustness_colored_path(base_u, spline, base_rob/max_rob))
     # Manual
-    manu_rob = rob_predictor(get_predictor_params(manu_doms.coords))
+    manu_rob = rob_predictor(manu_doms.coords)
     print("Manu robustness: ", manu_rob, manu_rob.sum())
     viewer.add_domino_run(manu_doms.coords)
     viewer.add_path(
             *get_robustness_colored_path(
                 manu_u, spline_shifted, manu_rob/max_rob))
     # Optimized
-    best_rob = rob_predictor(get_predictor_params(best_doms.coords))
+    best_rob = rob_predictor(best_doms.coords)
     print("Best robustness: ", best_rob, best_rob.sum())
     viewer.add_domino_run(best_doms.coords)
     viewer.add_path(
