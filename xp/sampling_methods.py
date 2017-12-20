@@ -10,6 +10,9 @@ Scenarios
 3. n dominoes; the n-1 first are equidistant on a straight line and the last
     one is free.
     (4 DoFs: 3 from scenario (2) + distance between the n-1 first dominoes.)
+4. 3 dominoes; the 2 last are free.
+    (6 DoFs: 2x3 deom scenario (2).)
+
 """
 from enum import Enum
 import math
@@ -172,11 +175,27 @@ def sample_3_doms_2_last_free(
     transforms of domino 2 vs 1 and 3 vs 2.)
 
     """
-    n_pair = math.ceil(math.sqrt(n))
-    samples_pair = sample_2_doms_last_free(
-            n_pair, rule, filter_overlap, tilt_first_domino)
-    samples = np.concatenate(
-            (np.repeat(samples_pair, n_pair, axis=0),
-             np.tile(samples_pair, (n_pair, 1))),
-            axis=1)[:n]
+    samples_1 = sample_2_doms_last_free(
+            n, rule, filter_overlap, tilt_first_domino)
+    samples_2 = sample_2_doms_last_free(
+            n, rule, filter_overlap, tilt_first_domino=False)
+    # Put samples_2 in the referential of the first domino
+    angles = np.radians(samples_1[:, 2])  # N
+    cos = np.cos(angles)  # N
+    sin = np.sin(angles)  # N
+    rot = np.array([[cos, -sin], [sin, cos]])  # 2x2xN
+    samples_2[:, :2] = samples_1[:, :2] + np.einsum(
+            'ijk,kj->ki', rot, samples_2[:, :2])  # Nx2
+    samples_2[:, 2] += samples_1[:, 2]
+
+    samples = np.concatenate((samples_1, samples_2), axis=1)
     return samples
+    # This is a previous version that I keep for the last bit (how to get
+    # all combinations with numpy operations)
+    #  n_pair = math.ceil(math.sqrt(n))
+    #  samples_pair = sample_2_doms_last_free(
+    #          n_pair, rule, filter_overlap, tilt_first_domino)
+    #  samples = np.concatenate(
+    #          (np.repeat(samples_pair, n_pair, axis=0),
+    #           np.tile(samples_pair, (n_pair, 1))),
+    #          axis=1)[:n]
