@@ -23,7 +23,7 @@ from .domgeom import make_collision_box, has_contact, tilt_box_forward
 
 
 class Scenario(Enum):
-    TWO_DOMS_LAST_RADIAL = 1,
+    TWO_DOMS_LAST_RADIAL = 1
     TWO_DOMS_LAST_FREE = 2
     N_DOMS_STRAIGHT_LAST_FREE = 3
     THREE_DOMS_TWO_LAST_FREE = 4
@@ -45,15 +45,18 @@ def sample(n, scenario, generator_rule='H', filter_rules=None):
       'tilt_first_domino').
 
     """
-    cp.seed(n)
+    if generator_rule == 'R':
+        cp.seed(n)
+
     if scenario is Scenario.TWO_DOMS_LAST_RADIAL:
-        return sample_2_doms_last_radial(n, **filter_rules)
+        return sample_2_doms_last_radial(n, generator_rule, **filter_rules)
     elif scenario is Scenario.TWO_DOMS_LAST_FREE:
-        return sample_2_doms_last_free(n, **filter_rules)
+        return sample_2_doms_last_free(n, generator_rule, **filter_rules)
     elif scenario is Scenario.N_DOMS_STRAIGHT_LAST_FREE:
-        return sample_n_doms_straight_last_free(n, **filter_rules)
+        return sample_n_doms_straight_last_free(
+                n, generator_rule, **filter_rules)
     elif scenario is Scenario.THREE_DOMS_TWO_LAST_FREE:
-        return sample_3_doms_2_last_free(n, **filter_rules)
+        return sample_3_doms_2_last_free(n, generator_rule, **filter_rules)
 
 
 def sample_2_doms_last_radial(
@@ -65,16 +68,17 @@ def sample_2_doms_last_radial(
     going through D1's center.
 
     """
+    max_trials = 2 * n
     dist = cp.J(cp.Uniform(X_MIN, X_MAX), cp.Uniform(0, A_MAX))
     cos = math.cos
     sin = math.sin
     pi = math.pi
 
     if filter_overlap:
+        cand_samples = dist.sample(max_trials, rule=rule)
         samples = np.empty((n, 2))
-        i = 0
-        while i < n:
-            r, a = dist.sample(1, rule=rule).reshape(2)
+        n_valid = 0
+        for r, a in cand_samples.T:
             a_ = a * pi / 180
             x = r * cos(a_)
             y = r * sin(a_)
@@ -82,11 +86,13 @@ def sample_2_doms_last_radial(
             d2 = make_collision_box((t, w, h), (x, y, h/2), (a, 0, 0))
             if tilt_first_domino:
                 tilt_box_forward(d1, TOPPLING_ANGLE+1)
-            if has_contact(d1, d2):
-                pass
-            else:
-                samples[i] = r, a
-                i += 1
+            if not has_contact(d1, d2):
+                samples[n_valid] = r, a
+                n_valid += 1
+                if n_valid == n:
+                    break
+        else:
+            print("Ran out of trials")
     else:
         samples = dist.sample(n, rule=rule).T
 
@@ -99,24 +105,27 @@ def sample_2_doms_last_free(
     in the XY plane + relative heading angle).
 
     """
+    max_trials = 2 * n
     dist = cp.J(cp.Uniform(X_MIN, X_MAX),
                 cp.Uniform(0, Y_MAX),  # Symmetry
                 cp.Uniform(A_MIN, A_MAX))
 
     if filter_overlap:
+        cand_samples = dist.sample(max_trials, rule=rule)
         samples = np.empty((n, 3))
-        i = 0
-        while i < n:
-            x, y, a = dist.sample(1, rule=rule).reshape(3)
+        n_valid = 0
+        for x, y, a in cand_samples.T:
             d1 = make_collision_box((t, w, h), (0, 0, h/2), (0, 0, 0))
             d2 = make_collision_box((t, w, h), (x, y, h/2), (a, 0, 0))
             if tilt_first_domino:
                 tilt_box_forward(d1, TOPPLING_ANGLE+1)
-            if has_contact(d1, d2):
-                pass
-            else:
-                samples[i] = x, y, a
-                i += 1
+            if not has_contact(d1, d2):
+                samples[n_valid] = x, y, a
+                n_valid += 1
+                if n_valid == n:
+                    break
+        else:
+            print("Ran out of trials")
     else:
         samples = dist.sample(n, rule=rule).T
 
@@ -129,23 +138,28 @@ def sample_n_doms_straight_last_free(
     in the XY plane + relative heading angle + spacing between previous doms).
 
     """
+    max_trials = 2 * n
     dist = cp.J(cp.Uniform(X_MIN, X_MAX),
                 cp.Uniform(0, Y_MAX),  # Symmetry
                 cp.Uniform(A_MIN, A_MAX),
                 cp.Uniform(MIN_SPACING, MAX_SPACING))
 
     if filter_overlap:
+        cand_samples = dist.sample(max_trials, rule=rule)
         samples = np.empty((n, 4))
-        i = 0
-        while i < n:
-            x, y, a, s = dist.sample(1, rule=rule).reshape(4)
+        n_valid = 0
+        for x, y, a, s in cand_samples.T:
             d1 = make_collision_box((t, w, h), (0, 0, h/2), (0, 0, 0))
             d2 = make_collision_box((t, w, h), (x, y, h/2), (a, 0, 0))
             if tilt_first_domino:
                 tilt_box_forward(d1, TOPPLING_ANGLE+1)
             if not has_contact(d1, d2):
-                samples[i] = x, y, a, s
-                i += 1
+                samples[n_valid] = x, y, a, s
+                n_valid += 1
+                if n_valid == n:
+                    break
+        else:
+            print("Ran out of trials")
     else:
         samples = dist.sample(n, rule=rule).T
 
