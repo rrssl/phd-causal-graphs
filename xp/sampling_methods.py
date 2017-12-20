@@ -64,7 +64,8 @@ def sample(n, scenario, generator_rule='H', filter_rules=None):
 
 
 def sample_2_doms_last_radial(
-        n, rule='H', filter_overlap=True, tilt_first_domino=True):
+        n, rule='H', filter_overlap=True, tilt_first_domino=True,
+        reduce_symmetry=True):
     """Sample the domino-pair parameter values with 2 DoFs (distance
     between centers and relative heading angle).
 
@@ -73,7 +74,9 @@ def sample_2_doms_last_radial(
 
     """
     max_trials = 2 * n
-    dist = cp.J(cp.Uniform(X_MIN, X_MAX), cp.Uniform(0, A_MAX))
+    dist = cp.J(
+            cp.Uniform(X_MIN, X_MAX),
+            cp.Uniform((0 if reduce_symmetry else A_MIN), A_MAX))
     cos = math.cos
     sin = math.sin
     pi = math.pi
@@ -104,27 +107,29 @@ def sample_2_doms_last_radial(
 
 
 def sample_2_doms_last_free(
-        n, rule='H', filter_overlap=True, tilt_first_domino=True):
+        n, rule='H', filter_overlap=True, tilt_first_domino=True,
+        reduce_symmetry=True):
     """Sample the domino-pair parameter values with 3 DoFs (relative position
     in the XY plane + relative heading angle).
 
     """
     max_trials = 2 * n
     dist = cp.J(cp.Normal((X_MIN+X_MAX)/2, (X_MAX-X_MIN)/4),
-                #  cp.Foldnormal(0, Y_MAX/2),  # Doesn't work?
                 cp.Normal((Y_MIN+Y_MAX)/2, (Y_MAX-Y_MIN)/4),
                 cp.Normal((A_MIN+A_MAX)/2, (A_MAX-A_MIN)/4))
     #  dist = cp.J(cp.Uniform(X_MIN, X_MAX),
-    #              cp.Uniform(0, Y_MAX),  # Symmetry
+    #              cp.Uniform((0 if reduce_symmetry else Y_MIN), Y_MAX),
     #              cp.Uniform(A_MIN, A_MAX))
 
     if filter_overlap:
         cand_samples = dist.sample(max_trials, rule=rule)
+        if reduce_symmetry:
+            cand_samples[1] = abs(cand_samples[1])
         samples = np.empty((n, 3))
         n_valid = 0
         for x, y, a in cand_samples.T:
             d1 = make_collision_box((t, w, h), (0, 0, h/2), (0, 0, 0))
-            d2 = make_collision_box((t, w, h), (x, abs(y), h/2), (a, 0, 0))
+            d2 = make_collision_box((t, w, h), (x, y, h/2), (a, 0, 0))
             if tilt_first_domino:
                 tilt_box_forward(d1, TOPPLING_ANGLE+1)
             if not has_contact(d1, d2):
@@ -141,14 +146,15 @@ def sample_2_doms_last_free(
 
 
 def sample_n_doms_straight_last_free(
-        n, rule='H', filter_overlap=True, tilt_first_domino=True):
+        n, rule='H', filter_overlap=True, tilt_first_domino=True,
+        reduce_symmetry=True):
     """Sample the domino-pair parameter values with 4 DoFs (relative position
     in the XY plane + relative heading angle + spacing between previous doms).
 
     """
     max_trials = 2 * n
     dist = cp.J(cp.Uniform(X_MIN, X_MAX),
-                cp.Uniform(0, Y_MAX),  # Symmetry
+                cp.Uniform((0 if reduce_symmetry else Y_MIN), Y_MAX),
                 cp.Uniform(A_MIN, A_MAX),
                 cp.Uniform(MIN_SPACING, MAX_SPACING))
 
@@ -175,15 +181,17 @@ def sample_n_doms_straight_last_free(
 
 
 def sample_3_doms_2_last_free(
-        n, rule='H', filter_overlap=True, tilt_first_domino=True):
+        n, rule='H', filter_overlap=True, tilt_first_domino=True,
+        reduce_symmetry=True):
     """Sample a domino-triplet parameter values with 6 DoFs (relative
     transforms of domino 2 vs 1 and 3 vs 2.)
 
     """
     samples_1 = sample_2_doms_last_free(
-            n, rule, filter_overlap, tilt_first_domino)
+            n, rule, filter_overlap, tilt_first_domino, reduce_symmetry)
     samples_2 = sample_2_doms_last_free(
-            n, rule, filter_overlap, tilt_first_domino=False)
+            n, rule, filter_overlap, tilt_first_domino=False,
+            reduce_symmetry=False)
     # Put samples_2 in the referential of the first domino
     angles = np.radians(samples_1[:, 2])  # N
     cos = np.cos(angles)  # N
