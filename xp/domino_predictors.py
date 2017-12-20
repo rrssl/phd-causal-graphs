@@ -12,6 +12,9 @@ from config import X_MAX, Y_MAX, A_MAX, MIN_SPACING, MAX_SPACING
 ROB_ESTIMATOR_PATH = os.path.join(
         os.path.dirname(__file__),
         "learning_robustness/data/20171220/S2H-1000samples-classifier.pkl")
+ROB_ESTIMATOR2_PATH = os.path.join(
+        os.path.dirname(__file__),
+        "learning_robustness/data/20171220/S4H-1000samples-classifier.pkl")
 TIME_ESTIMATOR_PATH = os.path.join(
         os.path.dirname(__file__),
         "predicting_domino_timing/data/latest/samples-4D-1k-times-10-estimator.pkl")
@@ -56,6 +59,23 @@ class DominoRobustness:
         params[:, 2] = np.copysign(params[:, 2], params[:, 1])
         params[:, 1] = np.abs(params[:, 1])
         return params
+
+    def __call__(self, coords):
+        return self.predictor.decision_function(self._transform(coords))
+
+
+class DominoRobustness2:
+    def __init__(self):
+        self.predictor = joblib.load(ROB_ESTIMATOR2_PATH)
+
+    @staticmethod
+    def _transform(coords):
+        """Convert global coordinates to valid parameters for the estimator."""
+        params = get_local_coords(coords)
+        params = np.concatenate((params[:-1], params[1:]), axis=1)
+        # Symmetrize
+        neg = np.where(params[:, 1] < 0)[0][:, np.newaxis]  # N_negx1
+        params[neg, [1, 2, 4, 5]] *= -1
 
     def __call__(self, coords):
         return self.predictor.decision_function(self._transform(coords))
