@@ -21,7 +21,8 @@ import chaospy as cp
 import numpy as np
 
 from .config import t, w, h, TOPPLING_ANGLE
-from .config import X_MIN, X_MAX, Y_MAX, A_MIN, A_MAX, MIN_SPACING, MAX_SPACING
+from .config import (
+        X_MIN, X_MAX, Y_MIN, Y_MAX, A_MIN, A_MAX, MIN_SPACING, MAX_SPACING)
 from .domgeom import make_collision_box, has_contact, tilt_box_forward
 
 
@@ -109,9 +110,13 @@ def sample_2_doms_last_free(
 
     """
     max_trials = 2 * n
-    dist = cp.J(cp.Uniform(X_MIN, X_MAX),
-                cp.Uniform(0, Y_MAX),  # Symmetry
-                cp.Uniform(A_MIN, A_MAX))
+    dist = cp.J(cp.Normal((X_MIN+X_MAX)/2, (X_MAX-X_MIN)/4),
+                #  cp.Foldnormal(0, Y_MAX/2),  # Doesn't work?
+                cp.Normal((Y_MIN+Y_MAX)/2, (Y_MAX-Y_MIN)/4),
+                cp.Normal((A_MIN+A_MAX)/2, (A_MAX-A_MIN)/4))
+    #  dist = cp.J(cp.Uniform(X_MIN, X_MAX),
+    #              cp.Uniform(0, Y_MAX),  # Symmetry
+    #              cp.Uniform(A_MIN, A_MAX))
 
     if filter_overlap:
         cand_samples = dist.sample(max_trials, rule=rule)
@@ -119,7 +124,7 @@ def sample_2_doms_last_free(
         n_valid = 0
         for x, y, a in cand_samples.T:
             d1 = make_collision_box((t, w, h), (0, 0, h/2), (0, 0, 0))
-            d2 = make_collision_box((t, w, h), (x, y, h/2), (a, 0, 0))
+            d2 = make_collision_box((t, w, h), (x, abs(y), h/2), (a, 0, 0))
             if tilt_first_domino:
                 tilt_box_forward(d1, TOPPLING_ANGLE+1)
             if not has_contact(d1, d2):
