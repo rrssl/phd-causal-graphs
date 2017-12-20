@@ -183,8 +183,8 @@ def sample_n_doms_straight_last_free(
 def sample_3_doms_2_last_free(
         n, rule='H', filter_overlap=True, tilt_first_domino=True,
         reduce_symmetry=True):
-    """Sample a domino-triplet parameter values with 6 DoFs (relative
-    transforms of domino 2 vs 1 and 3 vs 2.)
+    """Sample domino-triplet parameter values with 6 DoFs (relative transforms
+    of domino 2 vs 1 and 3 vs 2.)
 
     """
     samples_1 = sample_2_doms_last_free(
@@ -192,14 +192,6 @@ def sample_3_doms_2_last_free(
     samples_2 = sample_2_doms_last_free(
             n, rule, filter_overlap, tilt_first_domino=False,
             reduce_symmetry=False)
-    # Put samples_2 in the referential of the first domino
-    angles = np.radians(samples_1[:, 2])  # N
-    cos = np.cos(angles)  # N
-    sin = np.sin(angles)  # N
-    rot = np.array([[cos, -sin], [sin, cos]])  # 2x2xN
-    samples_2[:, :2] = samples_1[:, :2] + np.einsum(
-            'ijk,kj->ki', rot, samples_2[:, :2])  # Nx2
-    samples_2[:, 2] += samples_1[:, 2]
 
     samples = np.concatenate((samples_1, samples_2), axis=1)
     return samples
@@ -249,5 +241,12 @@ def sample2coords(samples, scenario, **method_params):
     elif scenario is Scenario.THREE_DOMS_TWO_LAST_FREE:
         coords = np.zeros((samples.shape[0], 3,  3))
         coords[:, 1] = samples[:, :3]
-        coords[:, 2] = samples[:, 3:]
+        # Put third domino in the referential of the first domino
+        angles = np.radians(samples[:, 2])  # N
+        cos = np.cos(angles)  # N
+        sin = np.sin(angles)  # N
+        rot = np.array([[cos, -sin], [sin, cos]])  # 2x2xN
+        coords[:, 2, :2] = samples[:, :2] + np.einsum(
+                'ijk,kj->ki', rot, samples[:, 3:5])  # Nx2
+        coords[:, 2, 2] = samples[:, 2] + samples[:, 5]
     return coords
