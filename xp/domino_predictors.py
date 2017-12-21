@@ -3,7 +3,9 @@ Robustness and time predictors for dominoes.
 
 """
 import os
+
 import numpy as np
+from sklearn.base import BaseEstimator
 from sklearn.externals import joblib
 
 from config import X_MAX, Y_MAX, A_MAX, MIN_SPACING, MAX_SPACING
@@ -48,8 +50,14 @@ def get_local_coords(coords):
 
 
 class DominoRobustness:
-    def __init__(self):
-        self.predictor = joblib.load(ROB_ESTIMATOR_PATH)
+    def __init__(self, estimator='default'):
+        if isinstance(estimator, str):
+            if estimator == 'default':
+                self.estimator = joblib.load(ROB_ESTIMATOR_PATH)
+            else:
+                self.estimator = joblib.load(estimator)
+        elif isinstance(estimator, BaseEstimator):
+            self.estimator = estimator
 
     @staticmethod
     def _transform(coords):
@@ -61,12 +69,18 @@ class DominoRobustness:
         return params
 
     def __call__(self, coords):
-        return self.predictor.decision_function(self._transform(coords))
+        return self.estimator.decision_function(self._transform(coords))
 
 
 class DominoRobustness2:
-    def __init__(self):
-        self.predictor = joblib.load(ROB_ESTIMATOR2_PATH)
+    def __init__(self, estimator='default'):
+        if isinstance(estimator, str):
+            if estimator == 'default':
+                self.estimator = joblib.load(ROB_ESTIMATOR2_PATH)
+            else:
+                self.estimator = joblib.load(estimator)
+        elif isinstance(estimator, BaseEstimator):
+            self.estimator = estimator
 
     @staticmethod
     def _transform(coords):
@@ -79,12 +93,18 @@ class DominoRobustness2:
         return params
 
     def __call__(self, coords):
-        return self.predictor.decision_function(self._transform(coords))
+        return self.estimator.decision_function(self._transform(coords))
 
 
 class DominoTime:
-    def __init__(self):
-        self.predictor = joblib.load(TIME_ESTIMATOR_PATH)
+    def __init__(self, estimator='default'):
+        if isinstance(estimator, str):
+            if estimator == 'default':
+                self.estimator = joblib.load(TIME_ESTIMATOR_PATH)
+            else:
+                self.estimator = joblib.load(estimator)
+        elif isinstance(estimator, BaseEstimator):
+            self.estimator = estimator
 
     @staticmethod
     def _transform(coords):
@@ -102,4 +122,4 @@ class DominoTime:
         return params
 
     def __call__(self, coords):
-        return self.predictor.predict(self._transform(coords))
+        return self.estimator.predict(self._transform(coords))
