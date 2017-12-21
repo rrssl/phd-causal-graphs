@@ -76,6 +76,7 @@ class DominoRobustness2:
         # Symmetrize
         neg = np.where(params[:, 1] < 0)[0][:, np.newaxis]  # N_negx1
         params[neg, [1, 2, 4, 5]] *= -1
+        return params
 
     def __call__(self, coords):
         return self.predictor.decision_function(self._transform(coords))
