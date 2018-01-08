@@ -1,287 +1,582 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Basic primitives for the RGMs.
 
-@author: Robin Roussel
 """
+from functools import partial, partialmethod
+import math
+
 import numpy as np
-from panda3d.core import GeomNode
-import panda3d.bullet as bullet
-import solid
-#import trimesh
+from panda3d.core import GeomNode, NodePath, Point3, TransformState, Vec3
+import panda3d.bullet as bt
+import solid as sl
+import solid.utils as slu
 
-from utils import trimesh2panda, solid2panda
-
-
-class Floor:
-    """Create an infinite floor.
-
-    Parameters
-    ----------
-    path : NodePath
-        Path of the node in the scene tree where where objects are added.
-    world : BulletWorld
-        Physical world where the bullet nodes are added.
-    make_geom : bool
-        True if a visible geometry should be added to the scene.
-    """
-
-    def __init__(self, path, world, make_geom=False):
-        self.parent_path = path
-        self.world = world
-        self.make_geom = make_geom
-
-    def create(self):
-        """Initialize all the objects in the block."""
-        # Geometry
-        if self.make_geom:
-            vertices = np.array(
-                    [0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0],
-                    dtype=np.float64
-                    ).reshape(-1, 3)
-            vertices = (vertices - [.5, .5, 0.]) * 100.
-            faces = np.array(
-                    [0, 1, 3, 1, 2, 3],
-                    dtype=np.int64
-                    ).reshape(-1, 3)
-            vertex_normals = np.array(
-                    [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
-                    dtype=np.float64
-                    ).reshape(-1, 3)
-            floor_geom = trimesh2panda(vertices, faces, vertex_normals)
-            floor_gn = GeomNode("floor_geom")
-            floor_gn.add_geom(floor_geom)
-        # Physics
-        floor_bn = bullet.BulletRigidBodyNode("floor_solid")
-        # TODO. Investigate whether PlaneShape really is the cause of the
-        # problem. Maybe it's just a matter of collision margin?
-        #  shape = bullet.BulletPlaneShape((0, 0, 1), .1)
-        shape = bullet.BulletBoxShape((10, 10, .1))
-        #  shape.set_margin(0.0001)
-        floor_bn.add_shape(shape)
-        # Add to the world
-        self.world.attach(floor_bn)
-        floor_path = self.parent_path.attach_new_node(floor_bn)
-        floor_path.set_pos((0,0,-.1))
-        if self.make_geom:
-            floor_path.attach_new_node(floor_gn)
+from utils import solid2panda, trimesh2panda
 
 
-class BallRun:
-    """Create a ball rolling on a track.
+class BulletRootNodePath(NodePath):
+    """Special NodePath, parent to bt nodes, that propagates transforms."""
 
-    Parameters
-    ----------
-    path : NodePath
-        Path of the node in the scene tree where where objects are added.
-    world : BulletWorld
-        Physical world where the bullet nodes are added.
-    ball_pos : (3,) floats
-        Center of the ball.
-    ball_rad : float
-        Radius of the ball.
-    ball_mass : float
-        Mass of the ball.
-    block_pos : (3,) floats
-        Center of the support block.
-    block_hpr : (3,) floats
-        Heading-pitch-roll of the block.
-    block_ext : (3,) floats
-        Spatial half-extents of the block.
-    """
+    def __init__(self, *args):
+        super().__init__(*args)
 
-    def __init__(self, path, world,
-                 ball_pos, ball_rad, ball_mass,
-                 block_pos, block_hpr, block_ext):
+        xforms = ['set_pos', 'set_hpr', 'set_pos_hpr',
+                  'set_x', 'set_y', 'set_z', 'set_h', 'set_p', 'set_r']
 
-        self.parent_path = path
-        self.world = world
+        for xform in xforms:
+            setattr(self, xform,
+                    partial(self.propagate_xform, xform=xform))
 
-        self.ball_pos = ball_pos
-        self.ball_rad = ball_rad
-        self.ball_mass = ball_mass
-
-        self.block_pos = block_pos
-        self.block_hpr = block_hpr
-        self.block_ext = block_ext
+    def propagate_xform(self, *args, xform=''):
+        getattr(super(), xform)(*args)
+        for child in self.get_children():
+            if isinstance(child.node(), bt.BulletBodyNode):
+                child.node().set_transform_dirty()
 
 
-    def create(self):
-        """Initialize all the objects in the block."""
-        # Ball
-#        ball = trimesh.creation.uv_sphere(self.ball_rad, count=[12, 12])
-        ball = solid.sphere(self.ball_rad, segments=2**4)
-#        ball.visual.vertex_colors = (255, 0, 0)
-        ball_geom = solid2panda(ball)
-#        ball_geom = trimesh2panda(ball.vertices, ball.faces,
-#                                  face_normals=ball.face_normals,
-#                                  flat_shading=True)
-#                                  colors=ball.visual.vertex_colors)
-        ball_gn = GeomNode("ball_geom")
-        ball_gn.add_geom(ball_geom)
-        # Create physical model
-        ball_shape = bullet.BulletSphereShape(self.ball_rad)
-        ball_bn = bullet.BulletRigidBodyNode("ball_solid")
-        ball_bn.set_mass(self.ball_mass)
-        ball_bn.add_shape(ball_shape)
-        # Add it to the world
-        self.world.attach(ball_bn)
-        ball_np = self.parent_path.attach_new_node(ball_bn)
-        ball_np.attach_new_node(ball_gn)
-        ball_np.set_pos(self.ball_pos)
+class PrimitiveBase:
+    """Base class for all primitives.
 
-        # Track
-#        trans = trimesh.transformations.compose_matrix(angles=block_hpr,
-#                                                    translate=block_pos)
-#        block = trimesh.creation.box(block_ext, trans)
-#        block = trimesh.creation.box(self.block_ext)
-        block = solid.cube(tuple(self.block_ext), center=True)
-        block_geom = solid2panda(block)
-#        block.visual.vertex_colors = (255, 0, 0)
-#        block_geom = trimesh2panda(block.vertices, block.faces,
-#                                   face_normals=block.face_normals,
-#                                   flat_shading=True)
-#                                   colors=block.visual.vertex_colors)
-        block_gn = GeomNode("block_geom")
-        block_gn.add_geom(block_geom)
-        # Create physical model
-        block_shape = bullet.BulletBoxShape(self.block_ext*.5)
-        block_bn = bullet.BulletRigidBodyNode("block_solid")
-        block_bn.add_shape(block_shape)
-        # Add it to the world
-        self.world.attach(block_bn)
-        block_np = self.parent_path.attach_new_node(block_bn)
-        block_np.attach_new_node(block_gn)
-        block_np.set_pos(self.block_pos)
-        block_np.set_hpr(self.block_hpr)
-
-
-class DominoMaker:
-    """Factory class to create dominoes and add them to the scene.
-
-    Parameters
-    ----------
-    path : NodePath
-        Path of the node in the scene tree where where objects are added.
-    world : BulletWorld
-        Physical world where the bullet nodes are added.
-    make_geom : bool
-        Whether to give each domino a Geom or not.
-    reuse_geom : bool
-        If True, generated Geoms will be cached and reused if extents are
-        the same.
+     Parameters
+     ----------
+     name : string
+       Name of the primitive.
+     geom : bool
+       Whether to generate a geometry for visualization.
+     bt_props : dict
+       Dictionary of Bullet properties (mass, restitution, etc.). Basically
+       the method set_key is called for the Bullet body, where "key" is each
+       key of the dictionary.
 
     """
 
-    def __init__(self, path, world, make_geom=True, reuse_geom=True):
-        self.parent_path = path
-        self.world = world
-        self.make_geom = make_geom
-        if make_geom:
-            self.reuse_geom = reuse_geom
-            if reuse_geom:
-                self._geom_cache = {}
-#        self.pos = np.array([])
-#        self.head = np.array([])
-#        self.extents = np.array([])
-#        self.masses = np.array([])
-#
-#    def setup(self, pos, head, extents, masses):
-#        """Setup the domino run.
-#
-#        Parameters
-#        ----------
-#        pos : (n,3) float array
-#            Coordinates of the center of each domino.
-#        head : (n,) float array
-#            Heading of each domino.
-#        extents : (n,3) array of floats or (3,) sequence of floats
-#            Spatial extents, per domino or global.
-#        masses : (n,) sequence of floats, or float
-#            Masses, per domino or extrapolated from first domino.
-#
-#        """
-#        self.pos = pos
-#        self.head = head
-#
-#        extents = np.asarray(extents)
-#        if extents.shape == (3,):
-#            extents = np.tile(extents, (len(pos), 1))
-#        self.extents = extents
-#
-#        # TODO. Extrapolate from extents.
-#        masses = np.asarray(masses)
-#        if masses.shape == ():
-#            masses = np.tile(masses, (len(pos), 1))
-#        self.masses = masses
-#
-#    def create(self):
-#        """Initialize all the objects in the block."""
-#        # Note: if all blocks were identical we could create a single geom and
-#        # then call instance_to on the node.
-#        add_domino = self.add_domino
-#        for i, (p, h, e, m) in enumerate(
-#                zip(self.pos, self.head, self.extents, self.masses)):
-#            add_domino(p, h, e, m, "domino_{}".format(i))
+    def __init__(self, name, geom=False, **bt_props):
+        self.name = name
+        self.bt_props = bt_props
+        self.geom = geom
 
-    @staticmethod
-    def make_domino(extents, prefix):
-        block = solid.cube(tuple(extents), center=True)
-        block_geom = solid2panda(block)
-        block_gn = GeomNode(prefix+"_geom")
-        block_gn.add_geom(block_geom)
-        return block_gn
+        self.path = None
+        self.bodies = []
+        self.constraints = []
 
-    def add_domino(self, pos, head, extents, mass, prefix):
-        """Add a new domino to the scene.
+    def attach_to(self, path: NodePath, world: bt.BulletWorld):
+        """Attach the object to the scene.
 
         Parameters
         ----------
-        pos : Vec3
-            Coordinates of the center of the domino.
-        head : float
-            Heading of the domino.
-        extents : Vec3
-            Spatial extents of the domino.
-        mass : float
-            Mass of the domino.
-        prefix : string
-            Prefix name of the domino.
-
-        Returns
-        -------
-        dom_np : NodePath
-            Path to the BulletRigidBodyNode.
+        path : NodePath
+            Path of the node in the scene tree where where objects are added.
+        world : BulletWorld
+            Physical world where the Bullet nodes are added.
 
         """
+        self.path.reparent_to(path)
+        for body in self.bodies:
+            world.attach(body)
+        for cs in self.constraints:
+            world.attach_constraint(cs, linked_collision=True)
+
+    def create(self):
+        raise NotImplementedError
+
+    def _set_properties(self, bullet_object):
+        for key, value in self.bt_props.items():
+            getattr(bullet_object, "set_" + key)(value)
+
+
+class Empty(PrimitiveBase):
+    """Create an empty primitive (useful for constraints).
+
+     Parameters
+     ----------
+     name : string
+       Name of the primitive.
+
+    """
+
+    def __init__(self, name):
+        super().__init__(name=name)
+
+    def create(self):
+        body = bt.BulletRigidBodyNode(self.name)
+        self.bodies.append(body)
+        self.path = NodePath(body)
+        return self.path
+
+    @staticmethod
+    def make_geom(name):
+        pass
+
+
+class Plane(PrimitiveBase):
+    """Create a plane.
+
+    Parameters
+    ----------
+    name : string
+      Name of the plane.
+    normal : (3,) sequence
+      Normal to the plane.
+    distance : float
+      Distance of the plane along the normal.
+    geom : bool
+      Whether to generate a geometry for visualization.
+    bt_props : dict
+      Dictionary of Bullet properties (mass, restitution, etc.). Basically
+      the method set_key is called for the Bullet body, where "key" is each
+      key of the dictionary.
+
+    """
+
+    def __init__(self, name, normal=(0, 0, 1), distance=0, geom=False,
+                 **bt_props):
+        super().__init__(name=name, geom=geom, **bt_props)
+        self.normal = normal
+        self.distance = distance
+
+    def create(self):
         # Physics
-        dom_bn = bullet.BulletRigidBodyNode(prefix+"_solid")
-        # TODO. See if using the 'xform' parameter of add_shape wouldn't
-        # actually be simpler than using set_pos and set_h later.
-        # TODO. Apparently a single collision shape can be shared among
-        # multiple objects. Would this make a significant impact in terms
-        # of performance though? To investigate.
-        # TODO. See if reducing the collision margin improves accuracy.
-        # (Currently equal to min(half_dim)/10.)
-        shape = bullet.BulletBoxShape(extents*.5)
-        #  shape.set_margin(.0001)
-        dom_bn.add_shape(shape)
-        dom_bn.set_mass(mass)
-        # Add it to the world
-        self.world.attach(dom_bn)
-        dom_np = self.parent_path.attach_new_node(dom_bn)
-        dom_np.set_pos(pos)
-        dom_np.set_h(head)
+        body = bt.BulletRigidBodyNode(self.name + "_solid")
+        self.bodies.append(body)
+        self._set_properties(body)
+        # TODO. Investigate whether PlaneShape really is the cause
+        # of the problem. Maybe it's just a matter of collision margin?
+        # shape = bt.BulletBoxShape(
+        #     (10, 10, .1), TransformState.make_pos(Point3(0, 0, -.1)))
+        shape = bt.BulletPlaneShape(Vec3(*self.normal), self.distance)
+        body.add_shape(shape)
+        # Scene graph
+        self.path = NodePath(body)
         # Geometry
-        if self.make_geom:
-            if self.reuse_geom:
-                try:
-                    self._geom_cache[extents].instance_to(dom_np)
-                except KeyError:
-                    dom_gn = self.make_domino(extents, prefix)
-                    self._geom_cache[extents] = dom_np.attach_new_node(dom_gn)
-            else:
-                dom_gn = self.make_domino(extents, prefix)
-                dom_np.attach_new_node(dom_gn)
-        return dom_np
+        if self.geom:
+            self.path.attach_new_node(self.make_geom(
+                self.name + "_geom",
+                self.normal,
+                self.distance
+            ))
+        return self.path
+
+    @staticmethod
+    def make_geom(name, normal, distance, scale=100):
+        # Compute basis
+        normal = np.asarray(normal)
+        normal /= np.linalg.norm(normal)
+        tangent = np.ones(3, dtype=np.float64)
+        tangent -= tangent.dot(normal) * normal
+        tangent /= np.linalg.norm(tangent)
+        bitangent = np.cross(normal, tangent)
+        # Compute vertices
+        vertices = np.array(
+            [-tangent - bitangent,
+             -tangent + bitangent,
+             tangent + bitangent,
+             tangent - bitangent]
+        ) * scale + distance * normal
+        faces = np.array(
+            [0, 1, 3, 1, 2, 3],
+            dtype=np.int64
+        ).reshape(-1, 3)
+        vertex_normals = np.array(
+            [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
+            dtype=np.float64
+        ).reshape(-1, 3)
+        geom = trimesh2panda(vertices, faces, vertex_normals)
+        geom_node = GeomNode(name)
+        geom_node.add_geom(geom)
+        return geom_node
+
+
+class Ball(PrimitiveBase):
+    """Create a ball.
+
+    Parameters
+    ----------
+    name : string
+      Name of the ball.
+    radius : float
+      Radius of the ball.
+    geom : bool
+       Whether to generate a geometry for visualization.
+    bt_props : dict
+      Dictionary of Bullet properties (mass, restitution, etc.). Basically
+      the method set_key is called for the Bullet body, where "key" is each
+      key of the dictionary.
+
+    """
+
+    def __init__(self, name, radius, geom=False, **bt_props):
+        super().__init__(name=name, geom=geom, **bt_props)
+        self.radius = radius
+
+    def create(self):
+        # Physics
+        body = bt.BulletRigidBodyNode(self.name + "_solid")
+        self.bodies.append(body)
+        self._set_properties(body)
+        shape = bt.BulletSphereShape(self.radius)
+        body.add_shape(shape)
+        # Scene graph
+        self.path = NodePath(body)
+        # Geometry
+        if self.geom:
+            self.path.attach_new_node(
+                self.make_geom(self.name + "_geom", self.radius))
+        return self.path
+
+    @staticmethod
+    def make_geom(name, radius, n_seg=2 ** 4):
+        script = sl.sphere(radius, segments=n_seg)
+        geom = solid2panda(script)
+        geom_node = GeomNode(name)
+        geom_node.add_geom(geom)
+        return geom_node
+
+
+class Box(PrimitiveBase):
+    """Create a box.
+
+    Parameters
+    ----------
+    name : string
+      Name of the box.
+    extents : float sequence
+      Extents of the box.
+    geom : bool
+      Whether to generate a geometry for visualization.
+    bt_props : dict
+      Dictionary of Bullet properties (mass, restitution, etc.). Basically
+      the method set_key is called for the Bullet body, where "key" is each
+      key of the dictionary.
+
+    """
+
+    def __init__(self, name, extents, geom=False, **bt_props):
+        super().__init__(name=name, geom=geom, **bt_props)
+        self.extents = extents
+
+    def create(self):
+        # Physics
+        body = bt.BulletRigidBodyNode(self.name + "_solid")
+        self.bodies.append(body)
+        self._set_properties(body)
+        shape = bt.BulletBoxShape(Vec3(self.extents) / 2)
+        #  shape.set_margin(.0001)
+        body.add_shape(shape)
+        # Scene graph
+        self.path = NodePath(body)
+        # Geometry
+        if self.geom:
+            self.path.attach_new_node(
+                self.make_geom(self.name + "_geom", self.extents))
+        return self.path
+
+    @staticmethod
+    def make_geom(name, extents):
+        box = sl.cube(tuple(extents), center=True)
+        geom = solid2panda(box)
+        geom_node = GeomNode(name)
+        geom_node.add_geom(geom)
+        return geom_node
+
+
+class Cylinder(PrimitiveBase):
+    """Create a cylinder.
+
+    Parameters
+    ----------
+    name : string
+      Name of the cylinder.
+    extents : float sequence
+      Extents of the cylinder: radius, height.
+    geom : bool
+      Whether to generate a geometry for visualization.
+    bt_props : dict
+      Dictionary of Bullet properties (mass, restitution, etc.). Basically
+      the method set_key is called for the Bullet body, where "key" is each
+      key of the dictionary.
+
+    """
+
+    def __init__(self, name, extents, geom=False, **bt_props):
+        super().__init__(name=name, geom=geom, **bt_props)
+        self.extents = extents
+
+    def create(self):
+        # Physics
+        body = bt.BulletRigidBodyNode(self.name)
+        self.bodies.append(body)
+        self._set_properties(body)
+        r, h = self.extents
+        shape = bt.BulletCylinderShape(r, h)
+        body.add_shape(shape)
+        # Scene graph
+        self.path = NodePath(body)
+        # Geometry
+        if self.geom:
+            self.path.attach_new_node(
+                self.make_geom(self.name + "_geom", self.extents))
+        return self.path
+
+    @staticmethod
+    def make_geom(name, extents, n_seg=2 ** 4):
+        r, h = extents
+        script = sl.cylinder(r=r, h=h, center=True, segments=n_seg)
+        geom = solid2panda(script)
+        geom_node = GeomNode(name)
+        geom_node.add_geom(geom)
+        return geom_node
+
+
+class Capsule(PrimitiveBase):
+    """Create a capsule.
+
+    Parameters
+    ----------
+    name : string
+      Name of the capsule.
+    extents : float sequence
+      Extents of the capsule: radius, height.
+    geom : bool
+      Whether to generate a geometry for visualization.
+    bt_props : dict
+      Dictionary of Bullet properties (mass, restitution, etc.). Basically
+      the method set_key is called for the Bullet body, where "key" is each
+      key of the dictionary.
+
+    """
+
+    def __init__(self, name, extents, geom=False, **bt_props):
+        super().__init__(name=name, geom=geom, **bt_props)
+        self.extents = extents
+
+    def create(self):
+        # Physics
+        body = bt.BulletRigidBodyNode(self.name)
+        self.bodies.append(body)
+        self._set_properties(body)
+        r, h = self.extents
+        shape = bt.BulletCapsuleShape(r, h)
+        body.add_shape(shape)
+        # Scene graph
+        self.path = NodePath(body)
+        # Geometry
+        if self.geom:
+            self.path.attach_new_node(
+                self.make_geom(self.name + "_geom", self.extents))
+        return self.path
+
+    @staticmethod
+    def make_geom(name, extents, n_seg=2 ** 4):
+        r, h = extents
+        ball = sl.sphere(r=r, segments=n_seg)
+        script = (sl.cylinder(r=r, h=h, center=True, segments=n_seg)
+                  + sl.translate(slu.up(h / 2))(ball)
+                  + sl.translate(slu.down(h / 2))(ball)
+                  )
+        geom = solid2panda(script)
+        geom_node = GeomNode(name)
+        geom_node.add_geom(geom)
+        return geom_node
+
+
+class Lever(PrimitiveBase):
+    """Create a lever.
+
+    Parameters
+    ----------
+    name : string
+      Name of the lever.
+    extents : float sequence
+      Extents of the lever (same as Box).
+    geom : bool
+      Whether to generate a geometry for visualization.
+    bt_props : dict
+      Dictionary of Bullet properties (mass, restitution, etc.). Basically
+      the method set_key is called for the Bullet body, where "key" is each
+      key of the dictionary.
+
+    """
+
+    def __init__(self, name, extents, geom=False, **bt_props):
+        super().__init__(name=name, geom=geom, **bt_props)
+        self.extents = extents
+
+    def create(self):
+        # Physics
+        box = Box(name=self.name, extents=self.extents, geom=self.geom,
+                  **self.bt_props)
+        box.create()
+        self.bodies += box.bodies
+        pivot = Empty(name=self.name + "_pivot")
+        pivot.create()
+        self.bodies += pivot.bodies
+        frame = TransformState.make_hpr(Vec3(0, 0, 90))
+        cs = bt.BulletHingeConstraint(
+                box.bodies[0], pivot.bodies[0], frame, frame)
+        self.constraints.append(cs)
+        # Scene graph
+        self.path = BulletRootNodePath(pivot.bodies[0])
+        box.path.reparent_to(self.path)
+        return self.path
+
+
+class Pulley(PrimitiveBase):
+    """Create a pulley.
+
+    Parameters
+    ----------
+    name : string
+      Name of the lever.
+    extents : float sequence
+      Extents of the pulley (same as Cylinder).
+    geom : bool
+      Whether to generate a geometry for visualization.
+    bt_props : dict
+      Dictionary of Bullet properties (mass, restitution, etc.). Basically
+      the method set_key is called for the Bullet body, where "key" is each
+      key of the dictionary.
+
+    """
+
+    def __init__(self, name, extents, geom=False, **bt_props):
+        super().__init__(name=name, geom=geom, **bt_props)
+        self.extents = extents
+
+    def create(self):
+        # Physics
+        cyl = Cylinder(name=self.name, extents=self.extents, geom=self.geom,
+                       **self.bt_props)
+        cyl.create()
+        self.bodies += cyl.bodies
+        pivot = Empty(name=self.name+"_pivot")
+        pivot.create()
+        self.bodies += pivot.bodies
+        frame = TransformState.make_hpr(Vec3(0, 0, 90))
+        cs = bt.BulletHingeConstraint(
+                cyl.bodies[0], pivot.bodies[0], frame, frame)
+        self.constraints.append(cs)
+        # Scene graph
+        self.path = BulletRootNodePath(pivot.bodies[0])
+        cyl.path.reparent_to(self.path)
+        return self.path
+
+
+class Goblet(PrimitiveBase):
+    """Create a goblet.
+
+    Parameters
+    ----------
+    name : string
+      Name.
+    extents : float sequence
+      Extents of the goblet / truncated cone (h, r1, r2), as defined in
+      solidpython (r1 = radius at the bottom of the cone).
+    geom : bool
+      Whether to generate a geometry for visualization.
+    bt_props : dict
+      Dictionary of Bullet properties (mass, restitution, etc.). Basically
+      the method set_key is called for the Bullet body, where "key" is each
+      key of the dictionary.
+
+    """
+
+    def __init__(self, name, extents, geom=False, **bt_props):
+        super().__init__(name=name, geom=geom, **bt_props)
+        self.extents = extents
+
+    def create(self):
+        h, r1, r2 = self.extents
+        alpha = math.atan2(r1 - r2, h)
+        length = math.sqrt((r1 - r2) ** 2 + h ** 2)
+        eps = 1e-3
+        n_seg = 2 ** 4
+        # Physics
+        body = bt.BulletRigidBodyNode(self.name + "_solid")
+        self.bodies.append(body)
+        self._set_properties(body)
+        # Add bottom
+        bottom = bt.BulletCylinderShape(r2, eps)
+        bottom.set_margin(eps)
+        body.add_shape(bottom, TransformState.make_pos(Point3(0, 0, eps / 2)))
+        # Add sides
+        side = bt.BulletBoxShape(
+            Vec3(eps, 2 * math.pi * r1 / n_seg, length) / 2)
+        cz = eps + h/2 - math.cos(alpha) * eps / 2
+        cr = (r1 + r2) / 2 + math.sin(alpha) * eps / 2
+        for i in range(n_seg):
+            ai = (i + .5) * 2 * math.pi / n_seg  # .5 to match the geometry
+            pos = Point3(cr * math.cos(ai), cr * math.sin(ai), cz)
+            hpr = Vec3(math.degrees(ai), 0, math.degrees(alpha))
+            body.add_shape(side, TransformState.make_pos_hpr(pos, hpr))
+        # Scene graph
+        self.path = NodePath(body)
+        # Geometry
+        if self.geom:
+            self.path.attach_new_node(
+                    self.make_geom(self.name+"_geom", self.extents, n_seg))
+        return self.path
+
+    @staticmethod
+    def make_geom(name, extents, n_seg=2**4):
+        h, r1, r2 = extents
+        cos_alpha_inv = math.sqrt(1 + ((r1 - r2) / h)**2)
+        eps = 1e-3
+        h_ext = h + eps
+        r1_ext = r1 + eps * cos_alpha_inv
+        r2_ext = r1_ext - (r1 - r2) * h_ext / h
+        print(h_ext, r1_ext, r2_ext)
+        print(h, r1, r2)
+        script = (sl.cylinder(r1=r1_ext, r2=r2_ext, h=h_ext, segments=n_seg)
+                  - sl.cylinder(r1=r1, r2=r2, h=h, segments=n_seg))
+        script = sl.translate([0, 0, h + eps])(sl.rotate([180, 0, 0])(script))
+        geom = solid2panda(script)
+        geom_node = GeomNode(name)
+        geom_node.add_geom(geom)
+        return geom_node
+
+
+class DominoRun(PrimitiveBase):
+    """Create a domino run.
+
+    Parameters
+    ----------
+    name : string
+      Name of the box.
+    extents : float sequence
+      Extents of each domino.
+    coords : (n,3) ndarray
+      (x,y,heading) of each domino.
+    geom : bool
+      True if a visible geometry should be added to the scene.
+
+    """
+
+    def __init__(self, name, extents, coords, geom=False, **bt_props):
+        super().__init__(name=name, geom=geom, **bt_props)
+        self.extents = extents
+        self.coords = coords
+
+    def create(self):
+        # Physics
+        shape = bt.BulletBoxShape(Vec3(*self.extents) / 2)
+        # Scene graph
+        self.path = NodePath(self.name)
+        # Geometry
+        if self.geom:
+            geom_path = NodePath(
+                    Box.make_geom(self.name+"_geom", self.extents))
+
+        for i, (x, y, head) in enumerate(self.coords):
+            # Physics
+            body = bt.BulletRigidBodyNode(self.name + "{}_solid".format(i))
+            self.bodies.append(body)
+            body.add_shape(shape)
+            self._set_properties(body)
+            # Scene graph + local coords
+            dom_path = self.path.attach_new_node(body)
+            dom_path.set_pos(Point3(x, y, self.extents[2] / 2))
+            dom_path.set_h(head)
+            # Geometry
+            if self.geom:
+                geom_path.instance_to(dom_path)
+        return self.path
