@@ -82,5 +82,5 @@ def trimesh2panda(vertices, triangles, vertex_normals=None, face_normals=None,
 def solid2panda(model):
     scad = solid.scad_render(model).replace('$', '$$')
     data = trimesh.interfaces.scad.interface_scad([], scad)
-    return trimesh2panda(data['vertices'], data['faces'],
-                         face_normals=data['face_normals'], flat_shading=True)
+    return trimesh2panda(data.vertices, data.faces,
+                         face_normals=data.face_normals, flat_shading=True)
