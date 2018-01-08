@@ -1,4 +1,7 @@
 __pycache__/
 *.np[yz]
 *.pkl
+.vim_session
+.envrc
+.idea/
 assets/
