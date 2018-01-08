@@ -22,7 +22,7 @@ def arclength(tck, t1=1, t0=0):
     else:
         t0 = np.atleast_1d(t0)
     return np.array([
-        romberg(lambda u: arclength_der(tck, u), t0i, t1i, tol=1e-4,
+        romberg(lambda u: arclength_der(tck, u), t0i, t1i, tol=1e-6,
                 vec_func=True)
         for t0i, t1i in zip(t0, t1)])
 
