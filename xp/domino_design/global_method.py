@@ -28,6 +28,7 @@ from xp.viewdoms import DominoViewer  # noqa
 
 
 FREE_ANGLE = 0
+SHOW_MANU = False
 
 
 class DominoSequence:
@@ -309,9 +310,10 @@ def main():
     base_u = equal_spacing(spline, n_doms)
     base_doms = DominoPath(base_u, spline)
 
-    # Distribute dominoes manually along this path.
-    manu_u = [0., 0.09, 0.28, 0.36, 0.46, 0.59, 0.69, 0.8, 0.92, 1.]
-    manu_doms = DominoPath(manu_u, spline_shifted)
+    if SHOW_MANU:
+        # Distribute dominoes manually along this path.
+        manu_u = [0., 0.09, 0.28, 0.36, 0.46, 0.59, 0.69, 0.8, 0.92, 1.]
+        manu_doms = DominoPath(manu_u, spline_shifted)
 
     # Set up and run optimization.
     rob_predictor = DominoRobustness()
@@ -328,12 +330,13 @@ def main():
     viewer.add_path(
             *get_robustness_colored_path(base_u, spline, base_rob/max_rob))
     # Manual
-    manu_rob = rob_predictor(manu_doms.coords)
-    print("Manu robustness: ", manu_rob, manu_rob.sum())
-    viewer.add_domino_run(manu_doms.coords)
-    viewer.add_path(
-            *get_robustness_colored_path(
-                manu_u, spline_shifted, manu_rob/max_rob))
+    if SHOW_MANU:
+        manu_rob = rob_predictor(manu_doms.coords)
+        print("Manu robustness: ", manu_rob, min(manu_rob))
+        viewer.add_domino_run(manu_doms.coords)
+        viewer.add_path(
+                *get_robustness_colored_path(
+                    manu_u, spline_shifted, manu_rob/max_rob))
     # Optimized
     best_rob = rob_predictor(best_doms.coords)
     print("Best robustness: ", best_rob, best_rob.sum())
@@ -351,10 +354,12 @@ def main():
     sheetsize = (21, 29.7)
     export_domino_run(basename + "-base_layout", base_doms.coords, sheetsize)
     export_domino_run(basename + "-best_layout", best_doms.coords, sheetsize)
-    export_domino_run(basename + "-manu_layout", manu_doms.coords, sheetsize)
     np.save(basename + "-base_layout", base_doms.coords)
     np.save(basename + "-best_layout", best_doms.coords)
-    np.save(basename + "-manu_layout", manu_doms.coords)
+    if SHOW_MANU:
+        export_domino_run(
+                basename + "-manu_layout", manu_doms.coords, sheetsize)
+        np.save(basename + "-manu_layout", manu_doms.coords)
 
 
 if __name__ == "__main__":
