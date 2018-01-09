@@ -28,6 +28,7 @@ from xp.viewdoms import DominoViewer  # noqa
 
 
 FREE_ANGLE = 32
+SOFTMIN_COEFF = 1
 SHOW_MANU = False
 
 
@@ -121,6 +122,11 @@ class OptimModel:
         return np.concatenate(([0], self._last_x[:n1_], [1]))
 
 
+def smooth_min(x, alpha=SOFTMIN_COEFF):
+    exps = np.exp(-alpha*x)
+    return (x*exps).sum() / exps.sum()
+
+
 class Objective:
     def __init__(self, model, rob_estimator):
         self.model = model
@@ -128,7 +134,8 @@ class Objective:
 
     def __call__(self, x):
         self.model.update(x)
-        r1 = -self.rob_estimator(self.model.c1).sum()
+        #  r1 = -self.rob_estimator(self.model.c1).sum()
+        r1 = -smooth_min(self.rob_estimator(self.model.c1))
         return r1
 
 
@@ -282,7 +289,7 @@ def run_optim(init_doms, rob_predictor, method='minimize'):
             ))
         take_step = BasinHoppingStepTaker(model, seed=123)
         res = opt.basinhopping(
-                objective, x0, niter=10, T=10.0, stepsize=0.1,
+                objective, x0, niter=10, T=1.0, stepsize=1/len(init_doms),
                 minimizer_kwargs=minimizer_kwargs,
                 take_step=take_step, accept_test=accept_test,
                 disp=True, seed=123)
@@ -328,7 +335,7 @@ def main():
     viewer = CustomViewer()
     # Base
     base_rob = rob_predictor(base_doms.coords)
-    print("Base robustness: ", base_rob, base_rob.sum())
+    print("Base robustness: ", base_rob, min(base_rob))
     max_rob = abs(base_rob).max()
     viewer.add_domino_run_from_spline(base_u, spline)
     viewer.add_path(
@@ -343,7 +350,7 @@ def main():
                     manu_u, spline_shifted, manu_rob/max_rob))
     # Optimized
     best_rob = rob_predictor(best_doms.coords)
-    print("Best robustness: ", best_rob, best_rob.sum())
+    print("Best robustness: ", best_rob, min(best_rob))
     viewer.add_domino_run(best_doms.coords)
     viewer.add_path(
             *get_robustness_colored_path(
