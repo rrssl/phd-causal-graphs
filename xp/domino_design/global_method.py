@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl  # noqa
 from xp.calibration.doms2pdf import export_domino_run  # noqa
 from xp.domino_design.methods import equal_spacing  # noqa
-from xp.domino_predictors import DominoRobustness  # noqa
+from xp.domino_predictors import DominoRobustness, DominoRobustness2  # noqa
 from xp.viewdoms import DominoViewer  # noqa
 
 
@@ -71,7 +71,10 @@ def get_robustness_colored_path(u, spline, rob):
 
     """
     s = spl.arclength(spline, u)
-    s_ = (s[:-1]+s[1:])/2
+    if len(rob) == len(u)-1:
+        s_ = (s[:-1]+s[1:])/2
+    elif len(rob) == len(u)-2:
+        s_ = s[1:-1]
     approx_rob = spl.splprep([rob], u=s_, s=0.)[0]
     dense_u = np.linspace(0, 1, 10*len(s))
     dense_rob = spl.splev(spl.arclength(spline, dense_u), approx_rob)[0]
@@ -328,7 +331,7 @@ def main():
         manu_doms = DominoPath(manu_u, spline_shifted)
 
     # Set up and run optimization.
-    rob_predictor = DominoRobustness()
+    rob_predictor = DominoRobustness2()
     init_doms = DominoPath(base_u, spline_shifted2)
     best_doms = run_optim(init_doms, rob_predictor, method=OPTIM_METHOD)
 
