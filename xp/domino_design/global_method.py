@@ -222,6 +222,7 @@ class BasinHoppingStepTaker:
             np.random.seed(seed)
         self.stepsize = stepsize
         self.base = box(-t/2, -w/2, t/2,  w/2)
+        self.max_trials = 10
 
     def __call__(self, x):
         s = self.stepsize
@@ -243,7 +244,8 @@ class BasinHoppingStepTaker:
             mini = x[i] - s*(x[i] - prev_x)
             maxi = x[i] + s*(next_x - x[i])
 
-            while True:
+            n_trials = 0
+            while n_trials < self.max_trials:
                 cand_x = np.random.uniform(mini, maxi, 1)
                 u = np.array([prev_x, cand_x, next_x])
                 coords = np.column_stack(
@@ -253,6 +255,7 @@ class BasinHoppingStepTaker:
                 if not (b[0].intersects(b[1]) and b[1].intersects(b[2])):
                     x[i] = cand_x
                     break
+                n_trials += 1
         return x
 
 
