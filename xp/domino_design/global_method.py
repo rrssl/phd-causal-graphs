@@ -27,6 +27,7 @@ from xp.domino_predictors import DominoRobustness  # noqa
 from xp.viewdoms import DominoViewer  # noqa
 
 
+OPTIM_METHOD = 'minimize'
 FREE_ANGLE = 32
 SOFTMIN_COEFF = 1
 SHOW_MANU = False
@@ -329,7 +330,7 @@ def main():
     # Set up and run optimization.
     rob_predictor = DominoRobustness()
     init_doms = DominoPath(base_u, spline_shifted2)
-    best_doms = run_optim(init_doms, rob_predictor, method='basinhopping')
+    best_doms = run_optim(init_doms, rob_predictor, method=OPTIM_METHOD)
 
     # Show simulation in the different cases.
     viewer = CustomViewer()
