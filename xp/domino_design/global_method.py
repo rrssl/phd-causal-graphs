@@ -27,7 +27,7 @@ from xp.domino_predictors import DominoRobustness  # noqa
 from xp.viewdoms import DominoViewer  # noqa
 
 
-FREE_ANGLE = 0
+FREE_ANGLE = 32
 SHOW_MANU = False
 
 
@@ -107,7 +107,8 @@ class OptimModel:
 
         if FREE_ANGLE:
             c1[1:-1, 0], c1[1:-1, 1] = spl.splev(x[:n1_], self.s1)
-            c1[1:-1, 2] = x[n1_:] * 360 - 180
+            c1[1:-1, 2] = spl.splang(x[:n1_], self.s1) + (
+                    x[n1_:]*2*FREE_ANGLE - FREE_ANGLE)
         else:
             c1[1:-1, 0], c1[1:-1, 1] = spl.splev(x, self.s1)
             c1[1:-1, 2] = spl.splang(x, self.s1)
@@ -291,7 +292,10 @@ def run_optim(init_doms, rob_predictor, method='minimize'):
     print("Sequence constraint: ", seq_cons(res.x))
     print("Non-penetration constraint: ", nonpen_cons(res.x))
     model.update(res.x)
-    return DominoPath(model.u1, model.s1)
+    doms = DominoPath(model.u1, model.s1)
+    if FREE_ANGLE:
+        doms.coords[:, 2] = model.c1[:, 2]
+    return doms
 
 
 def main():
