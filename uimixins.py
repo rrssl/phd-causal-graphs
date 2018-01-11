@@ -12,6 +12,7 @@ from direct.interval.IntervalGlobal import Func, LerpFunc, Parallel, Sequence
 from panda3d.core import CardMaker
 from panda3d.core import LineSegs
 from panda3d.core import Plane
+from panda3d.core import Point2
 from panda3d.core import Point3
 from panda3d.core import Vec3
 
@@ -126,26 +127,35 @@ class Tileable:
             self.task_mgr.remove("highlight_tile")
         self.move_highlight = show
 
-    def mouse_to_ground(self, mouse_pos, target_point):
+    def mouse_to_ground(self, mouse_pos):
         """Get the 3D point where a mouse ray hits the ground plane. If it does
-        hit the ground, return True; False otherwise.
+        hit the ground, a Point3; None otherwise.
 
-        Source: http://www.panda3d.org/forums/viewtopic.php?t=5409
+        Parameters
+        ----------
+        mouse_pos : (2,) float sequence
+          Cartesian coordinates of the mouse in screen space.
+
         """
         near_point = Point3()
         far_point = Point3()
-        self.camLens.extrude(mouse_pos, near_point, far_point)
-        return self.plane.intersects_line(
+        self.camLens.extrude(Point2(*mouse_pos), near_point, far_point)
+        target_point = Point3()
+        do_intersect = self.plane.intersects_line(
                 target_point,
                 self.render.get_relative_point(self.camera, near_point),
                 self.render.get_relative_point(self.camera, far_point)
                 )
+        if do_intersect:
+            return target_point
+        else:
+            return None
 
     def highlight_tile(self, task):
         if self.move_highlight and self.mouseWatcherNode.has_mouse():
             mpos = self.mouseWatcherNode.get_mouse()
-            pos3d = Point3()
-            if self.mouse_to_ground(mpos, pos3d):
+            pos3d = self.mouse_to_ground(mpos)
+            if pos3d is not None:
                 pos3d = np.asarray(pos3d).clip(-self.tlims, self.tlims).round()
                 self.tile.set_pos(self.render, *pos3d)
         return task.cont
@@ -160,7 +170,7 @@ class Drawable:
         self.pencil = LineSegs("pencil")
         self.pencil.set_color(color)
         self.pencil.set_thickness(thickness)
-        self.sketch_np = None
+        self.sketch_np = self.render2d.attach_new_node("sketches")
 
     def set_draw(self, draw):
         if draw:
@@ -175,31 +185,24 @@ class Drawable:
     def update_drawing(self, task):
         if self.mouseWatcherNode.has_mouse():
             pos = self.mouseWatcherNode.get_mouse()
+            stroke = self.strokes[-1]
             # /!\ get_mouse returns a shallow copy
-            self.strokes[-1].append(list(pos))
+            stroke.append(list(pos))
 
             # Update the drawing
             pencil = self.pencil
-            for stroke in self.strokes:
-                pencil.move_to(stroke[0][0], 0, stroke[0][1])
-
-                for pos in stroke[1:]:
-                    pencil.draw_to(pos[0], 0, pos[1])
-            try:
-                # I don't know if this is more efficient than calling
-                # geom.replace_node(self.sketch_np.node())
-                self.sketch_np.remove_node()
-            except AttributeError:
-                pass
-            self.sketch_np = self.render2d.attach_new_node(pencil.create())
+            pencil.move_to(stroke[0][0], 0, stroke[0][1])
+            for pos in stroke[1:]:
+                pencil.draw_to(pos[0], 0, pos[1])
+            if self.sketch_np.get_num_children() == len(self.strokes):
+                self.sketch_np.get_children()[-1].remove_node()
+            self.sketch_np.attach_new_node(pencil.create())
 
         return task.cont
 
     def clear_drawing(self):
-        try:
-            self.sketch_np.remove_node()
-        except AttributeError:
-            pass
+        for child in self.sketch_np.get_children():
+            child.remove_node()
         #  self.pencil.reset()
         self.strokes = []
 
