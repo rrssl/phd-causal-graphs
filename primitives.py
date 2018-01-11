@@ -159,9 +159,9 @@ class Plane(PrimitiveBase):
     @staticmethod
     def make_geom(name, normal, distance, scale=100):
         # Compute basis
-        normal = np.asarray(normal)
+        normal = np.array(normal, dtype=np.float64)
         normal /= np.linalg.norm(normal)
-        tangent = np.ones(3, dtype=np.float64)
+        tangent = np.ones(3)
         tangent -= tangent.dot(normal) * normal
         tangent /= np.linalg.norm(tangent)
         bitangent = np.cross(normal, tangent)
@@ -259,7 +259,7 @@ class Box(PrimitiveBase):
         body = bt.BulletRigidBodyNode(self.name + "_solid")
         self.bodies.append(body)
         self._set_properties(body)
-        shape = bt.BulletBoxShape(Vec3(self.extents) / 2)
+        shape = bt.BulletBoxShape(Vec3(*self.extents) / 2)
         #  shape.set_margin(.0001)
         body.add_shape(shape)
         # Scene graph
@@ -524,8 +524,6 @@ class Goblet(PrimitiveBase):
         h_ext = h + eps
         r1_ext = r1 + eps * cos_alpha_inv
         r2_ext = r1_ext - (r1 - r2) * h_ext / h
-        print(h_ext, r1_ext, r2_ext)
-        print(h, r1, r2)
         script = (sl.cylinder(r1=r1_ext, r2=r2_ext, h=h_ext, segments=n_seg)
                   - sl.cylinder(r1=r1, r2=r2, h=h, segments=n_seg))
         script = sl.translate([0, 0, h + eps])(sl.rotate([180, 0, 0])(script))
