@@ -5,27 +5,28 @@ Playing with Panda3D and Bullet
 
 @author: Robin Roussel
 """
-from panda3d.core import load_prc_file_data
-from panda3d.core import NodePath
-from panda3d.core import Vec3
-from panda3d.core import Vec4
+import numpy as np
+from panda3d.core import load_prc_file_data, NodePath, Vec3, Vec4
 
 from geom2d import make_rectangle
-from primitives import DominoMaker
-from primitives import Floor
-from uimixins import Tileable
-from uimixins import Focusable
-from uiwidgets import DropdownMenu
-from uiwidgets import ButtonMenu
+from primitives import Plane, DominoRun
+import spline2d as spl
+from uimixins import Tileable, Focusable, Drawable
+from uiwidgets import ButtonMenu, DropdownMenu
 from viewers import PhysicsViewer
+from xp.config import t, w, h, MASS
 
 
-class MyApp(Tileable, Focusable, PhysicsViewer):
+SMOOTHING_FACTOR = .01
+
+
+class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
 
     def __init__(self):
         PhysicsViewer.__init__(self)
         Tileable.__init__(self)
         Focusable.__init__(self)
+        Drawable.__init__(self)
 
         # Initial camera position
         self.min_cam_distance = .2
@@ -35,15 +36,14 @@ class MyApp(Tileable, Focusable, PhysicsViewer):
 
         # Controls
         self.accept("q", self.userExit)
-        self.accept("a", self.click_add_menu)
 
         # TODO.
         # Slide in (out) menu when getting in (out of) focus
 
         # RGM primitives
-        floor_path = self.models.attach_new_node("floor")
-        floor = Floor(floor_path, self.world)
+        floor = Plane("floor", geom=True)
         floor.create()
+        floor.attach_to(self.models, self.world)
 
 #        self.gui = self.render.attach_new_node("gui")
         self.menus = {}
@@ -69,8 +69,8 @@ class MyApp(Tileable, Focusable, PhysicsViewer):
                 )
 
         self.menus['domino_run'] = ButtonMenu(
-                command=lambda option: print(option),
-                items=("DRAW", "+1"),
+                command=self.click_domino_menu,
+                items=("DRAW", "GENERATE", "CLEAR"),
                 text_scale=1,
                 text_font=font,
                 pad=(.2, 0),
@@ -84,8 +84,8 @@ class MyApp(Tileable, Focusable, PhysicsViewer):
         if option == "TODO":
             return
         self.set_show_tile(True)
-        self.acceptOnce("mouse1", self.focus_on_tile)
-        self.acceptOnce("escape", self.cancel_add_primitive)
+        self.accept_once("mouse1", self.focus_on_tile)
+        self.accept_once("escape", self.cancel_add_primitive)
 
     def focus_on_tile(self):
         self.focus_view(self.tile)
@@ -96,6 +96,40 @@ class MyApp(Tileable, Focusable, PhysicsViewer):
         self.set_show_tile(False)
         self.menus['domino_run'].hide()
         self.unfocus_view()
+
+    def click_domino_menu(self, option):
+        if option == "DRAW":
+            self.accept("mouse1", self.set_draw, [True])
+            # The nested call allows to ignore the first "mouse-up"
+            # when the menu button is released.
+            self.accept_once(
+                    "mouse1-up",
+                    lambda: self.accept(
+                        "mouse1-up", self.set_draw, [False]))
+        elif option == "CLEAR":
+            self.clear_drawing()
+        elif option == "GENERATE":
+            for i, stroke in enumerate(self.strokes):
+                # Clean up the points
+                stroke = np.array(stroke)
+                _, idx = np.unique(
+                        stroke.round(decimals=6), return_index=True, axis=0)
+                stroke = stroke[np.sort(idx)]  # To get unsorted unique
+                # Project onto plane
+                for j in range(len(stroke)):
+                    stroke[j] = list(self.mouse_to_ground(stroke[j]))[:2]
+                # Compute spline
+                spline = spl.splprep(np.array(stroke).T, s=SMOOTHING_FACTOR)[0]
+                # Sample positions
+                length = spl.arclength(spline)
+                ndom = int(np.floor(length / (h / 3)))
+                u = spl.linspace(spline, ndom)
+                coords = np.column_stack(
+                        spl.splev(u, spline) + [spl.splang(u, spline)])
+                run = DominoRun("domrun_{}".format(i), (t, w, h), coords,
+                                geom=True, mass=MASS)
+                run.create()
+                run.attach_to(self.models, self.world)
 
 
 def main():
