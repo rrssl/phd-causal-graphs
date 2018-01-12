@@ -3,6 +3,7 @@ Playing with Panda3D and Bullet
 
 @author: Robin Roussel
 """
+from functools import partial
 import numpy as np
 from panda3d.core import NodePath, Vec3, Vec4, load_prc_file_data
 
@@ -78,6 +79,11 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
                 )
         self.menus['domino_run'].hide()
 
+        self.smoothing = SMOOTHING_FACTOR
+        self.n_runs = 0
+        self.dom_paths = []
+        self.visual_paths = self.visual.attach_new_node("paths")
+
     def click_add_menu(self, option):
         if option == "TODO":
             return
@@ -90,42 +96,56 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
         self.menus['domino_run'].show()
 
     def stop_domino_design(self):
+        self.clear_drawing()
         self.menus['domino_run'].hide()
         self.unfocus_view()
         self.set_show_tile(False)
         self.reset_default_mouse_controls()
 
+    def stop_drawing(self):
+        self.set_draw(False)
+        stroke = self.strokes.pop()
+        self.clear_drawing()
+        if len(stroke) < 2:
+            return
+        # Project drawing
+        for point in stroke:
+            point[0], point[1], _ = self.mouse_to_ground(point)
+        # Smooth the path
+        s = self.smoothing
+        k = min(3, len(stroke)-1)
+        spline = spl.splprep(list(zip(*stroke)), k=k, s=s)[0]
+        self.dom_paths.append(spline)
+        # Update visualization
+        pencil = self.pencil
+        x, y = spl.splev(np.linspace(0, 1, int(1/s)), spline)
+        pencil.move_to(x[0], y[0], 0)
+        for xi, yi in zip(x, y):
+            pencil.draw_to(xi, yi, 0)
+        self.visual_paths.attach_new_node(pencil.create())
+
     def click_domino_menu(self, option):
         if option == "DRAW":
             self.accept_once("mouse1", self.set_draw, [True])
-            # The nested call allows to ignore the first "mouse-up"
+            # Delaying allows to ignore the first "mouse-up"
             # when the menu button is released.
-            self.accept_once(
-                    "mouse1-up",
-                    lambda: self.accept_once(
-                        "mouse1-up", self.set_draw, [False]))
+            delayed = partial(self.accept_once, "mouse1-up", self.stop_drawing)
+            self.accept_once("mouse1-up", delayed)
         elif option == "GENERATE":
-            for i, stroke in enumerate(self.strokes):
-                # Clean up the points
-                stroke = np.array(stroke)
-                _, idx = np.unique(
-                        stroke.round(decimals=6), return_index=True, axis=0)
-                stroke = stroke[np.sort(idx)]  # To get unsorted unique
-                # Project onto plane
-                for j in range(len(stroke)):
-                    stroke[j] = list(self.mouse_to_ground(stroke[j]))[:2]
-                # Compute spline
-                spline = spl.splprep(np.array(stroke).T, s=SMOOTHING_FACTOR)[0]
-                # Sample positions
-                length = spl.arclength(spline)
-                ndom = int(np.floor(length / (h / 3)))
-                u = spl.linspace(spline, ndom)
-                coords = np.column_stack(
-                        spl.splev(u, spline) + [spl.splang(u, spline)])
-                run = DominoRun("domrun_{}".format(i), (t, w, h), coords,
-                                geom=True, mass=MASS)
-                run.create()
-                run.attach_to(self.models, self.world)
+            spline = self.dom_paths[-1]
+            # Sample positions
+            length = spl.arclength(spline)
+            n_doms = int(np.floor(length / (h / 3)))
+            u = spl.linspace(spline, n_doms)
+            coords = np.column_stack(
+                    spl.splev(u, spline) + [spl.splang(u, spline)])
+            # Generate run
+            run = DominoRun("domrun_{}".format(self.n_runs), (t, w, h), coords,
+                            geom=True, mass=MASS)
+            run.create()
+            run.attach_to(self.models, self.world)
+            # Increment run counter
+            self.n_runs += 1
         elif option == "CLEAR":
             self.clear_drawing()
 
