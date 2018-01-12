@@ -49,21 +49,13 @@ class TurntableViewer(ShowBase):
         self.mouse_pos = None
         self.start_camera_movement = False
         self.move_pivot = False
-#        self.accept("mouse1", self.set_move_camera, [True])
-#        self.accept("mouse1-up", self.set_move_camera, [False])
-        self.accept("mouse2", self.set_move_camera, [True])
-        self.accept("mouse2-up", self.set_move_camera, [False])
-        self.accept("mouse3", self.set_move_pivot_and_camera, [True])
-        self.accept("mouse3-up", self.set_move_pivot_and_camera, [False])
-#        self.accept("shift", self.set_move_pivot, [True])
-#        self.accept("shift-up", self.set_move_pivot, [False])
-#        self.accept("shift-mouse2", self.set_move_camera, [True])
-#        self.accept("shift-mouse2-up", self.set_move_camera, [False])
+        self.reset_default_mouse_controls()
+
         # Zoom
         self.accept("wheel_up", self.zoom, [True])
         self.accept("wheel_down", self.zoom, [False])
-        self.acceptOnce("+", self.zoom, [True])
-        self.acceptOnce("-", self.zoom, [False])
+        self.accept_once("+", self.zoom, [True])
+        self.accept_once("-", self.zoom, [False])
 
         # Control parameters
         self.cam_distance = 30.
@@ -79,6 +71,18 @@ class TurntableViewer(ShowBase):
 
         # TODO check why the priority value is -4
         self.task_mgr.add(self.update_cam, "update_cam", priority=-4)
+
+    def reset_default_mouse_controls(self):
+        self.accept("mouse1", self.set_move_camera, [True])
+        self.accept("mouse1-up", self.set_move_camera, [False])
+        #  self.accept("mouse2", self.set_move_camera, [True])
+        #  self.accept("mouse2-up", self.set_move_camera, [False])
+        self.accept("mouse3", self.set_move_pivot_and_camera, [True])
+        self.accept("mouse3-up", self.set_move_pivot_and_camera, [False])
+        #  self.accept("shift", self.set_move_pivot, [True])
+        #  self.accept("shift-up", self.set_move_pivot, [False])
+        #  self.accept("shift-mouse2", self.set_move_camera, [True])
+        #  self.accept("shift-mouse2-up", self.set_move_camera, [False])
 
     def set_move_camera(self, move_camera):
         if self.mouseWatcherNode.has_mouse():
@@ -211,7 +215,7 @@ class Modeler(TurntableViewer):
         self.axes = axes
         self.task_mgr.add(self.update_axes, "update_axes", priority=-4)
         # Ground plane
-        grid_maker = ThreeAxisGrid(xsize=10, ysize=10, zsize=0)
+        grid_maker = ThreeAxisGrid(xsize=1, ysize=1, zsize=0, gridstep=1)
         grid_maker.gridColor = grid_maker.subdivColor = .35
         grid_maker.create().reparent_to(self.visual)
 
