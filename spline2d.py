@@ -152,3 +152,7 @@ def show_spline2d(parent, tck, u, label="spline", color=(1, 1, 0, 1)):
 
 def translate(tck, xy):
     return (tck[0].copy(), [tck[1][0]+xy[0], tck[1][1]+xy[1]], tck[2])
+
+
+def copy(tck):
+    return (tck[0].copy(), [tck[1][0].copy(), tck[1][1].copy()], tck[2])
