@@ -15,6 +15,7 @@ from panda3d.core import Plane
 from panda3d.core import Point2
 from panda3d.core import Point3
 from panda3d.core import Vec3
+from panda3d.core import Vec4
 
 
 class Focusable:
@@ -37,11 +38,11 @@ class Focusable:
         lens = self.camLens
         fov = min(lens.get_fov()) * math.pi / 180  # min between X and Z axes
         distance = radius / math.tan(fov * .5)
-#        idealFarPlane = distance + radius * 1.5
-#        lens.setFar(max(lens.getDefaultFar(), idealFarPlane))
-#        idealNearPlane = distance - radius
-#        lens.setNear(min(lens.getDefaultNear(), idealNearPlane))
-#
+        #  idealFarPlane = distance + radius * 1.5
+        #  lens.setFar(max(lens.getDefaultFar(), idealFarPlane))
+        #  idealNearPlane = distance - radius
+        #  lens.setNear(min(lens.getDefaultNear(), idealNearPlane))
+
         # Save original state
         self._unfocus_state = {
                 'pos': self.pivot.get_pos(),
@@ -51,7 +52,7 @@ class Focusable:
         # Launch animation
         time = 1.
         # Note: using the Quat version ensures that the rotation takes the
-        # shortest path. We cam still give it an HPR argument, which is
+        # shortest path. We can still give it an HPR argument, which is
         # (I think) easier to visualize than
         # "Quat(0, 0, 1/sqrt(2), 1/sqrt(2))".
         change_rigid = self.pivot.posQuatInterval(
@@ -63,7 +64,7 @@ class Focusable:
                 lambda x: setattr(self, "cam_distance", x),
                 duration=time,
                 fromData=self.cam_distance,
-                toData=self.min_cam_distance,
+                toData=distance,
                 blendType='easeOut')
         self._focus_anim = Sequence(
                 Func(lambda: setattr(self, "move_highlight", False)),
@@ -100,20 +101,21 @@ class Tileable:
     """Mixin adding a visual tile selector to a Modeler.
 
     """
-    def __init__(self):
+    def __init__(self, tile_size=1):
         self.plane = Plane(Vec3(0, 0, 1), Point3(0, 0, 0))
+        self.tile_size = tile_size
         self.tlims = 9
 
         cm = CardMaker("tile")
-        cm.set_frame(-1, 1, -1, 1)
-        cm.set_color(0, 1, 0, .4)
+        cm.set_frame(Vec4(-1, 1, -1, 1) * tile_size)
+        cm.set_color(Vec4(0, 1, 0, .4))
         self.tile = self.visual.attach_new_node(cm.generate())
-        self.tile.look_at(0, 0, -1)
+        self.tile.look_at(Point3(0, 0, -1))
         self.tile.set_two_sided(True)
         self.tile.set_transparency(True)
-#        filters = CommonFilters(self.win, self.cam)
-#        filters.setBloom()
-#        self.tile.setShaderAuto()
+        #  filters = CommonFilters(self.win, self.cam)
+        #  filters.setBloom()
+        #  self.tile.setShaderAuto()
         self.tile.hide()
 
         self.move_highlight = False
@@ -156,7 +158,8 @@ class Tileable:
             mpos = self.mouseWatcherNode.get_mouse()
             pos3d = self.mouse_to_ground(mpos)
             if pos3d is not None:
-                pos3d = np.asarray(pos3d).clip(-self.tlims, self.tlims).round()
+                pos3d = (np.asarray(pos3d) / self.tile_size).clip(
+                        -self.tlims, self.tlims).round() * self.tile_size
                 self.tile.set_pos(self.render, *pos3d)
         return task.cont
 
