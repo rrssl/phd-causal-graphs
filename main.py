@@ -21,14 +21,15 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
 
     def __init__(self):
         PhysicsViewer.__init__(self)
-        Tileable.__init__(self)
+        Tileable.__init__(self, tile_size=.1)
         Focusable.__init__(self)
         Drawable.__init__(self)
 
         # Initial camera position
         self.min_cam_distance = .2
-        self.zoom_speed = 1.
-        self.cam_distance = 30.
+        self.zoom_speed = .1
+        self.cam_distance = 4.
+        self.camLens.set_near(.1)
         self.pivot.set_hpr(Vec3(135, 30, 0))
 
         # Controls
@@ -72,7 +73,7 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
                 text_font=font,
                 pad=(.2, 0),
                 parent=self.a2dpTopCenter,
-                pos=Vec3(-.15, 0, -.2*9/16),
+                pos=Vec3(-.9*16/9, 0, -.2*9/16),
                 scale=.05,
                 )
         self.menus['domino_run'].hide()
@@ -81,30 +82,28 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
         if option == "TODO":
             return
         self.set_show_tile(True)
-        self.accept_once("mouse1", self.focus_on_tile)
-        self.accept_once("escape", self.cancel_add_primitive)
+        self.accept_once("mouse1", self.start_domino_design)
+        self.accept_once("escape", self.stop_domino_design)
 
-    def focus_on_tile(self):
+    def start_domino_design(self):
         self.focus_view(self.tile)
         self.menus['domino_run'].show()
 
-    def cancel_add_primitive(self):
-        self.ignore("mouse1")
-        self.set_show_tile(False)
+    def stop_domino_design(self):
         self.menus['domino_run'].hide()
         self.unfocus_view()
+        self.set_show_tile(False)
+        self.reset_default_mouse_controls()
 
     def click_domino_menu(self, option):
         if option == "DRAW":
-            self.accept("mouse1", self.set_draw, [True])
+            self.accept_once("mouse1", self.set_draw, [True])
             # The nested call allows to ignore the first "mouse-up"
             # when the menu button is released.
             self.accept_once(
                     "mouse1-up",
-                    lambda: self.accept(
+                    lambda: self.accept_once(
                         "mouse1-up", self.set_draw, [False]))
-        elif option == "CLEAR":
-            self.clear_drawing()
         elif option == "GENERATE":
             for i, stroke in enumerate(self.strokes):
                 # Clean up the points
@@ -127,11 +126,13 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
                                 geom=True, mass=MASS)
                 run.create()
                 run.attach_to(self.models, self.world)
+        elif option == "CLEAR":
+            self.clear_drawing()
 
 
 def main():
     load_prc_file_data("", "win-size 1600 900")
-    load_prc_file_data("", "window-title RGM Designer")
+    load_prc_file_data("", "window-title Domino Designer")
     load_prc_file_data("", "framebuffer-multisample 1")
     load_prc_file_data("", "multisamples 2")
 
