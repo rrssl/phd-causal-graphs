@@ -1,21 +1,18 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Playing with Panda3D and Bullet
 
 @author: Robin Roussel
 """
 import numpy as np
-from panda3d.core import load_prc_file_data, NodePath, Vec3, Vec4
+from panda3d.core import NodePath, Vec3, Vec4, load_prc_file_data
 
-from geom2d import make_rectangle
-from primitives import Plane, DominoRun
 import spline2d as spl
-from uimixins import Tileable, Focusable, Drawable
+from geom2d import make_rectangle
+from primitives import DominoRun, Plane
+from uimixins import Drawable, Focusable, Tileable
 from uiwidgets import ButtonMenu, DropdownMenu
 from viewers import PhysicsViewer
-from xp.config import t, w, h, MASS
-
+from xp.config import MASS, h, t, w
 
 SMOOTHING_FACTOR = .01
 
