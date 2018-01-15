@@ -8,7 +8,7 @@ import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.externals import joblib
 
-from config import X_MAX, Y_MAX, A_MAX, MIN_SPACING, MAX_SPACING
+from .config import X_MAX, Y_MAX, A_MAX, MIN_SPACING, MAX_SPACING
 
 
 ROB_ESTIMATOR_PATH = os.path.join(
@@ -19,7 +19,8 @@ ROB_ESTIMATOR2_PATH = os.path.join(
         "learning_robustness/data/20171220/S4H-1000samples-classifier.pkl")
 TIME_ESTIMATOR_PATH = os.path.join(
         os.path.dirname(__file__),
-        "predicting_domino_timing/data/latest/samples-4D-1k-times-10-estimator.pkl")
+        "predicting_domino_timing/data/latest/"
+        "samples-4D-1k-times-10-estimator.pkl")
 
 
 def get_local_coords(coords):
