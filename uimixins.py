@@ -108,7 +108,7 @@ class Tileable:
 
         cm = CardMaker("tile")
         cm.set_frame(Vec4(-1, 1, -1, 1) * tile_size)
-        cm.set_color(Vec4(0, 1, 0, .4))
+        cm.set_color(Vec4(1, 1, 1, .5))
         self.tile = self.visual.attach_new_node(cm.generate())
         self.tile.look_at(Point3(0, 0, -1))
         self.tile.set_two_sided(True)
