@@ -15,7 +15,113 @@ from uiwidgets import ButtonMenu, DropdownMenu
 from viewers import PhysicsViewer
 from xp.config import MASS, h, t, w
 
-SMOOTHING_FACTOR = .01
+SMOOTHING_FACTOR = .001
+
+
+class DominoRunMode:
+    def __init__(self, parent):
+        self.parent = parent
+
+        self.menu = ButtonMenu(
+                command=self.click_menu,
+                items=("DRAW", "GENERATE", "CLEAR"),
+                text_scale=1,
+                text_font=parent.font,
+                pad=(.2, 0),
+                parent=parent.a2dpTopCenter,
+                pos=Vec3(-.9*16/9, 0, -.2*9/16),
+                scale=.05,
+                )
+        self.menu.hide()
+
+        self.smoothing = SMOOTHING_FACTOR
+
+        self.domrun = None
+        self.dompath = None
+        self.visual_dompath = None
+
+    def click_menu(self, option):
+        if option == "DRAW":
+            # Clean up the previous orphan drawing if there's one.
+            if self.visual_dompath is not None:
+                self.visual_dompath.remove_node()
+                self.visual_dompath = None
+            self.parent.accept_once("mouse1", self.parent.set_draw, [True])
+            # Delaying allows to ignore the first "mouse-up"
+            # when the menu button is released.
+            delayed = partial(
+                    self.parent.accept_once, "mouse1-up", self.stop_drawing)
+            self.parent.accept_once("mouse1-up", delayed)
+        elif option == "GENERATE":
+            spline = self.dompath
+            # Sample positions
+            length = spl.arclength(spline)
+            n_doms = int(np.floor(length / (h / 3)))
+            u = spl.linspace(spline, n_doms)
+            coords = np.column_stack(
+                    spl.splev(u, spline) + [spl.splang(u, spline)])
+            # Generate run
+            run = DominoRun("domrun_segment", (t, w, h), coords,
+                            geom=True, mass=MASS)
+            run.create()
+            # Add to the scene
+            run.attach_to(self.domrun, self.parent.world)
+            run.path.set_python_tag('u', u)
+            run.path.set_python_tag('spline', spline)
+            run.path.set_python_tag('visual_path', self.visual_dompath)
+            self.visual_dompath = None
+        elif option == "CLEAR":
+            if self.domrun.get_num_children():
+                for domrun_seg in self.domrun.get_children():
+                    for domino in domrun_seg.get_children():
+                        self.parent.world.remove(domino.node())
+                    domrun_seg.get_python_tag('visual_path').remove_node()
+                    domrun_seg.remove_node()
+            # Clean up the orphan drawing if there's one.
+            if self.visual_dompath is not None:
+                self.visual_dompath.remove_node()
+                self.visual_dompath = None
+
+    def start(self):
+        self.parent.enter_design_mode()
+        self.menu.show()
+        self.domrun = self.parent.models.attach_new_node("domrun")
+        self.visual_dompath = None
+
+    def stop(self):
+        if self.domrun.get_num_children() == 0:
+            self.domrun.remove_node()
+        self.domrun = None
+        self.dompath = None
+        if self.visual_dompath is not None:
+            self.visual_dompath.remove_node()
+            self.visual_dompath = None
+        self.menu.hide()
+        self.parent.exit_design_mode()
+
+    def stop_drawing(self):
+        self.parent.set_draw(False)
+        stroke = self.parent.strokes.pop()
+        self.parent.clear_drawing()
+        if len(stroke) < 2:
+            return
+        # Project the drawing
+        for point in stroke:
+            point[0], point[1], _ = self.parent.mouse_to_ground(point)
+        # Smooth the path
+        s = self.smoothing
+        k = min(3, len(stroke)-1)
+        spline = spl.splprep(list(zip(*stroke)), k=k, s=s)[0]
+        self.dompath = spline
+        # Update visualization
+        pencil = self.parent.pencil
+        x, y = spl.splev(np.linspace(0, 1, int(1/s)), spline)
+        pencil.move_to(x[0], y[0], 0)
+        for xi, yi in zip(x, y):
+            pencil.draw_to(xi, yi, 0)
+        node = pencil.create()
+        node.set_name("visual_dompath")
+        self.visual_dompath = self.parent.visual.attach_new_node(node)
 
 
 class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
@@ -46,12 +152,11 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
         floor.attach_to(self.models, self.world)
 
 #        self.gui = self.render.attach_new_node("gui")
-        self.menus = {}
-        font = self.loader.load_font("assets/Roboto_regular.ttf")
+        self.font = self.loader.load_font("assets/Roboto_regular.ttf")
         bt_shape = NodePath(make_rectangle(4, 2, 0.2, 4))
         bt_shape.set_color(Vec4(65, 105, 225, 255)/255)
         self.add_modes = ("DOMINO RUN", "TODO")
-        self.menus['add'] = DropdownMenu(
+        self.menu = DropdownMenu(
                 command=self.click_add_menu,
                 items=self.add_modes,
                 # Button shape
@@ -60,7 +165,7 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
                 # Text
                 text="+ ADD",
                 text_scale=1,
-                text_font=font,
+                text_font=self.font,
                 text_fg=Vec4(1, 1, 1, 1),
                 # Position and scale
                 parent=self.a2dBottomRight,
@@ -68,110 +173,23 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
                 scale=.04
                 )
 
-        self.menus['domino_run'] = ButtonMenu(
-                command=self.click_domino_menu,
-                items=("DRAW", "GENERATE", "CLEAR"),
-                text_scale=1,
-                text_font=font,
-                pad=(.2, 0),
-                parent=self.a2dpTopCenter,
-                pos=Vec3(-.9*16/9, 0, -.2*9/16),
-                scale=.05,
-                )
-        self.menus['domino_run'].hide()
-
-        self.smoothing = SMOOTHING_FACTOR
+        self.domrun_mode = DominoRunMode(self)
 
     def click_add_menu(self, option):
         if option == "TODO":
             return
         if option == "DOMINO RUN":
             self.set_show_tile(True)
-            self.accept_once("mouse1", self.start_domino_design)
-            self.accept_once("escape", self.stop_domino_design)
+            self.accept_once("mouse1", self.domrun_mode.start)
+            self.accept_once("escape", self.domrun_mode.stop)
 
-    def start_domino_design(self):
+    def enter_design_mode(self):
         self.focus_view(self.tile)
-        self.menus['domino_run'].show()
-        self._tmp_domrun = self.models.attach_new_node("domrun")
-        self._tmp_visual_dompath = None
 
-    def stop_domino_design(self):
-        if self._tmp_domrun.get_num_children() == 0:
-            self._tmp_domrun.remove_node()
-        self._tmp_domrun = None
-        if self._tmp_visual_dompath is not None:
-            self._tmp_visual_dompath.remove_node()
-            self._tmp_visual_dompath = None
-        self.menus['domino_run'].hide()
+    def exit_design_mode(self):
         self.unfocus_view()
         self.set_show_tile(False)
         self.reset_default_mouse_controls()
-
-    def stop_drawing(self):
-        self.set_draw(False)
-        stroke = self.strokes.pop()
-        self.clear_drawing()
-        if len(stroke) < 2:
-            return
-        # Project the drawing
-        for point in stroke:
-            point[0], point[1], _ = self.mouse_to_ground(point)
-        # Smooth the path
-        s = self.smoothing
-        k = min(3, len(stroke)-1)
-        spline = spl.splprep(list(zip(*stroke)), k=k, s=s)[0]
-        self._tmp_dompath = spline
-        # Update visualization
-        pencil = self.pencil
-        x, y = spl.splev(np.linspace(0, 1, int(1/s)), spline)
-        pencil.move_to(x[0], y[0], 0)
-        for xi, yi in zip(x, y):
-            pencil.draw_to(xi, yi, 0)
-        node = pencil.create()
-        node.set_name("visual_dompath")
-        self._tmp_visual_dompath = self.visual.attach_new_node(node)
-
-    def click_domino_menu(self, option):
-        if option == "DRAW":
-            # Clean up the previous orphan drawing if there's one.
-            if self._tmp_visual_dompath is not None:
-                self._tmp_visual_dompath.remove_node()
-                self._tmp_visual_dompath = None
-            self.accept_once("mouse1", self.set_draw, [True])
-            # Delaying allows to ignore the first "mouse-up"
-            # when the menu button is released.
-            delayed = partial(self.accept_once, "mouse1-up", self.stop_drawing)
-            self.accept_once("mouse1-up", delayed)
-        elif option == "GENERATE":
-            spline = self._tmp_dompath
-            # Sample positions
-            length = spl.arclength(spline)
-            n_doms = int(np.floor(length / (h / 3)))
-            u = spl.linspace(spline, n_doms)
-            coords = np.column_stack(
-                    spl.splev(u, spline) + [spl.splang(u, spline)])
-            # Generate run
-            run = DominoRun("domrun_segment", (t, w, h), coords,
-                            geom=True, mass=MASS)
-            run.create()
-            # Add to the scene
-            run.attach_to(self._tmp_domrun, self.world)
-            run.path.set_python_tag('u', u)
-            run.path.set_python_tag('spline', spline)
-            run.path.set_python_tag('visual_path', self._tmp_visual_dompath)
-            self._tmp_visual_dompath = None
-        elif option == "CLEAR":
-            if self._tmp_domrun.get_num_children():
-                for domrun_seg in self._tmp_domrun.get_children():
-                    for domino in domrun_seg.get_children():
-                        self.world.remove(domino.node())
-                    domrun_seg.get_python_tag('visual_path').remove_node()
-                    domrun_seg.remove_node()
-            # Clean up the orphan drawing if there's one.
-            if self._tmp_visual_dompath is not None:
-                self._tmp_visual_dompath.remove_node()
-                self._tmp_visual_dompath = None
 
 
 def main():
