@@ -7,7 +7,7 @@ from functools import partial
 from matplotlib import cm
 from matplotlib import colors as mcol
 import numpy as np
-from panda3d.core import NodePath, Vec3, Vec4, load_prc_file_data
+from panda3d.core import NodePath, Point3, Vec3, Vec4, load_prc_file_data
 
 import spline2d as spl
 from geom2d import make_rectangle
@@ -25,6 +25,7 @@ class DominoRunMode:
     def __init__(self, parent):
         self.parent = parent
 
+        self.hide_menu_xform = Vec3(0, 0, .2)
         self.menu = ButtonMenu(
                 command=self.click_menu,
                 items=("DRAW", "GENERATE", "CLEAR"),
@@ -32,10 +33,9 @@ class DominoRunMode:
                 text_font=parent.font,
                 pad=(.2, 0),
                 parent=parent.a2dpTopCenter,
-                pos=Vec3(-.9*16/9, 0, -.2*9/16),
+                pos=Vec3(-.9*16/9, 0, -.2*9/16) + self.hide_menu_xform,
                 scale=.05,
                 )
-        self.menu.hide()
 
         self.smoothing = SMOOTHING_FACTOR
 
@@ -91,7 +91,7 @@ class DominoRunMode:
 
     def start(self):
         self.parent.enter_design_mode()
-        self.menu.show()
+        self.show_menu()
         self.domrun = self.parent.models.attach_new_node("domrun")
         self.visual_dompath = None
 
@@ -103,7 +103,7 @@ class DominoRunMode:
         if self.visual_dompath is not None:
             self.visual_dompath.remove_node()
             self.visual_dompath = None
-        self.menu.hide()
+        self.hide_menu()
         self.parent.exit_design_mode()
 
     def stop_drawing(self):
@@ -151,6 +151,20 @@ class DominoRunMode:
         for color, domino in zip(colors, domrun_np.get_children()):
             domino.set_color(Vec4(*color))
 
+    def hide_menu(self):
+        self.menu.posInterval(
+                duration=self.parent.menu_anim_time,
+                pos=self.menu.get_pos() + self.hide_menu_xform,
+                blendType='easeOut'
+                ).start()
+
+    def show_menu(self):
+        self.menu.posInterval(
+                duration=self.parent.menu_anim_time,
+                pos=self.menu.get_pos() - self.hide_menu_xform,
+                blendType='easeOut'
+                ).start()
+
 
 class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
 
@@ -170,9 +184,6 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
         # Controls
         self.accept("q", self.userExit)
         self.accept("l", self.render.ls)
-
-        # TODO.
-        # Slide in (out) menu when getting in (out of) focus
 
         # RGM primitives
         floor = Plane("floor", geom=True)
@@ -196,9 +207,12 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
                 text_fg=Vec4(1, 1, 1, 1),
                 # Position and scale
                 parent=self.a2dBottomRight,
-                pos=Vec3(-.3, 0, .25*9/16),
+                pos=Point3(-.3, 0, .25*9/16),
                 scale=.04
                 )
+
+        self.menu_anim_time = .3
+        self.hide_menu_xform = Vec3(.36, 0, 0)
 
         self.domrun_mode = DominoRunMode(self)
 
@@ -211,12 +225,28 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
             self.accept_once("escape", self.domrun_mode.stop)
 
     def enter_design_mode(self):
+        self.hide_menu()
         self.focus_view(self.tile)
 
     def exit_design_mode(self):
+        self.show_menu()
         self.unfocus_view()
         self.set_show_tile(False)
         self.reset_default_mouse_controls()
+
+    def hide_menu(self):
+        self.menu.posInterval(
+                duration=self.menu_anim_time,
+                pos=self.menu.get_pos() + self.hide_menu_xform,
+                blendType='easeOut'
+                ).start()
+
+    def show_menu(self):
+        self.menu.posInterval(
+                duration=self.menu_anim_time,
+                pos=self.menu.get_pos() - self.hide_menu_xform,
+                blendType='easeOut'
+                ).start()
 
 
 def main():
