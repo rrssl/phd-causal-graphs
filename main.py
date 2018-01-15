@@ -35,6 +35,7 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
 
         # Controls
         self.accept("q", self.userExit)
+        self.accept("l", self.render.ls)
 
         # TODO.
         # Slide in (out) menu when getting in (out of) focus
@@ -80,23 +81,28 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
         self.menus['domino_run'].hide()
 
         self.smoothing = SMOOTHING_FACTOR
-        self.n_runs = 0
-        self.dom_paths = []
-        self.visual_paths = self.visual.attach_new_node("paths")
 
     def click_add_menu(self, option):
         if option == "TODO":
             return
-        self.set_show_tile(True)
-        self.accept_once("mouse1", self.start_domino_design)
-        self.accept_once("escape", self.stop_domino_design)
+        if option == "DOMINO RUN":
+            self.set_show_tile(True)
+            self.accept_once("mouse1", self.start_domino_design)
+            self.accept_once("escape", self.stop_domino_design)
 
     def start_domino_design(self):
         self.focus_view(self.tile)
         self.menus['domino_run'].show()
+        self._tmp_domrun = self.models.attach_new_node("domrun")
+        self._tmp_visual_dompath = None
 
     def stop_domino_design(self):
-        self.clear_drawing()
+        if self._tmp_domrun.get_num_children() == 0:
+            self._tmp_domrun.remove_node()
+        self._tmp_domrun = None
+        if self._tmp_visual_dompath is not None:
+            self._tmp_visual_dompath.remove_node()
+            self._tmp_visual_dompath = None
         self.menus['domino_run'].hide()
         self.unfocus_view()
         self.set_show_tile(False)
@@ -108,31 +114,37 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
         self.clear_drawing()
         if len(stroke) < 2:
             return
-        # Project drawing
+        # Project the drawing
         for point in stroke:
             point[0], point[1], _ = self.mouse_to_ground(point)
         # Smooth the path
         s = self.smoothing
         k = min(3, len(stroke)-1)
         spline = spl.splprep(list(zip(*stroke)), k=k, s=s)[0]
-        self.dom_paths.append(spline)
+        self._tmp_dompath = spline
         # Update visualization
         pencil = self.pencil
         x, y = spl.splev(np.linspace(0, 1, int(1/s)), spline)
         pencil.move_to(x[0], y[0], 0)
         for xi, yi in zip(x, y):
             pencil.draw_to(xi, yi, 0)
-        self.visual_paths.attach_new_node(pencil.create())
+        node = pencil.create()
+        node.set_name("visual_dompath")
+        self._tmp_visual_dompath = self.visual.attach_new_node(node)
 
     def click_domino_menu(self, option):
         if option == "DRAW":
+            # Clean up the previous orphan drawing if there's one.
+            if self._tmp_visual_dompath is not None:
+                self._tmp_visual_dompath.remove_node()
+                self._tmp_visual_dompath = None
             self.accept_once("mouse1", self.set_draw, [True])
             # Delaying allows to ignore the first "mouse-up"
             # when the menu button is released.
             delayed = partial(self.accept_once, "mouse1-up", self.stop_drawing)
             self.accept_once("mouse1-up", delayed)
         elif option == "GENERATE":
-            spline = self.dom_paths[-1]
+            spline = self._tmp_dompath
             # Sample positions
             length = spl.arclength(spline)
             n_doms = int(np.floor(length / (h / 3)))
@@ -140,14 +152,26 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
             coords = np.column_stack(
                     spl.splev(u, spline) + [spl.splang(u, spline)])
             # Generate run
-            run = DominoRun("domrun_{}".format(self.n_runs), (t, w, h), coords,
+            run = DominoRun("domrun_segment", (t, w, h), coords,
                             geom=True, mass=MASS)
             run.create()
-            run.attach_to(self.models, self.world)
-            # Increment run counter
-            self.n_runs += 1
+            # Add to the scene
+            run.attach_to(self._tmp_domrun, self.world)
+            run.path.set_python_tag('u', u)
+            run.path.set_python_tag('spline', spline)
+            run.path.set_python_tag('visual_path', self._tmp_visual_dompath)
+            self._tmp_visual_dompath = None
         elif option == "CLEAR":
-            self.clear_drawing()
+            if self._tmp_domrun.get_num_children():
+                for domrun_seg in self._tmp_domrun.get_children():
+                    for domino in domrun_seg.get_children():
+                        self.world.remove(domino.node())
+                    domrun_seg.get_python_tag('visual_path').remove_node()
+                    domrun_seg.remove_node()
+            # Clean up the orphan drawing if there's one.
+            if self._tmp_visual_dompath is not None:
+                self._tmp_visual_dompath.remove_node()
+                self._tmp_visual_dompath = None
 
 
 def main():
