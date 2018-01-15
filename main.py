@@ -4,6 +4,8 @@ Playing with Panda3D and Bullet
 @author: Robin Roussel
 """
 from functools import partial
+from matplotlib import cm
+from matplotlib import colors as mcol
 import numpy as np
 from panda3d.core import NodePath, Vec3, Vec4, load_prc_file_data
 
@@ -14,6 +16,7 @@ from uimixins import Drawable, Focusable, Tileable
 from uiwidgets import ButtonMenu, DropdownMenu
 from viewers import PhysicsViewer
 from xp.config import MASS, h, t, w
+from xp.domino_predictors import DominoRobustness2
 
 SMOOTHING_FACTOR = .001
 
@@ -39,6 +42,8 @@ class DominoRunMode:
         self.domrun = None
         self.dompath = None
         self.visual_dompath = None
+
+        self.rob_estimator = DominoRobustness2()
 
     def click_menu(self, option):
         if option == "DRAW":
@@ -70,6 +75,8 @@ class DominoRunMode:
             run.path.set_python_tag('spline', spline)
             run.path.set_python_tag('visual_path', self.visual_dompath)
             self.visual_dompath = None
+            # Add colors
+            self.show_robustness(run.path)
         elif option == "CLEAR":
             if self.domrun.get_num_children():
                 for domrun_seg in self.domrun.get_children():
@@ -123,6 +130,27 @@ class DominoRunMode:
         node.set_name("visual_dompath")
         self.visual_dompath = self.parent.visual.attach_new_node(node)
 
+    def show_robustness(self, domrun_np):
+        u = domrun_np.get_python_tag('u')
+        spline = domrun_np.get_python_tag('spline')
+        coords = np.column_stack(
+                spl.splev(u, spline) + [spl.splang(u, spline)])
+        scores = np.empty(len(coords))
+        scores[1:-1] = self.rob_estimator(coords)
+        scores[0] = scores[1]
+        scores[-1] = scores[-2]
+        self.set_colors(domrun_np, scores)
+
+    def set_colors(self, domrun_np, values, cmap=cm.RdYlGn):
+        colors = cmap(values)
+        # Increase saturation
+        colors[:, :3] = mcol.rgb_to_hsv(colors[:, :3])
+        colors[:, 1] *= 2
+        colors[:, :3] = mcol.hsv_to_rgb(colors[:, :3])
+        # Color the dominoes
+        for color, domino in zip(colors, domrun_np.get_children()):
+            domino.set_color(Vec4(*color))
+
 
 class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
 
@@ -151,7 +179,6 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
         floor.create()
         floor.attach_to(self.models, self.world)
 
-#        self.gui = self.render.attach_new_node("gui")
         self.font = self.loader.load_font("assets/Roboto_regular.ttf")
         bt_shape = NodePath(make_rectangle(4, 2, 0.2, 4))
         bt_shape.set_color(Vec4(65, 105, 225, 255)/255)
