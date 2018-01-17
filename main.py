@@ -31,6 +31,7 @@ class DominoRunMode:
                 items=("DRAW", "GENERATE", "CLEAR"),
                 text_scale=1,
                 text_font=parent.font,
+                shadowParams=(50, 2.5, .5),
                 pad=(.2, 0),
                 parent=parent.a2dpTopCenter,
                 pos=Vec3(-.9*16/9, 0, -.2*9/16) + self.hide_menu_xform,
@@ -205,6 +206,8 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
                 text_scale=1,
                 text_font=self.font,
                 text_fg=Vec4(1, 1, 1, 1),
+                # Shadow
+                shadowParams=(8, 4, .3),
                 # Position and scale
                 parent=self.a2dBottomRight,
                 pos=Point3(-.3, 0, .25*9/16),
@@ -215,6 +218,13 @@ class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
         self.hide_menu_xform = Vec3(.36, 0, 0)
 
         self.domrun_mode = DominoRunMode(self)
+
+    #      shadow = self.make_shadow(8, 4, .3)
+    #      shadow.set_bin('fixed', 0)
+    #      shadow.reparent_to(self.menu)
+
+    #  def make_shadow(self, width, height, shadow_size, resol=32):
+    #      return card
 
     def click_add_menu(self, option):
         if option == "TODO":

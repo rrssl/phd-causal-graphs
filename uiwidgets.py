@@ -3,12 +3,49 @@ UI widgets.
 
 NB: Naming conventions follow those used in other DirectObjects (camelCasing).
 """
+from panda3d.core import CardMaker
+from panda3d.core import NodePath
+from panda3d.core import PNMImage
 from panda3d.core import TextNode
+from panda3d.core import Texture
 from panda3d.core import Vec3
+from panda3d.core import Vec4
 import direct.gui.DirectGuiGlobals as DGG
 from direct.gui.DirectGui import DirectButton
 from direct.gui.DirectGui import DirectFrame
 from direct.gui.DirectGui import DirectOptionMenu
+
+
+def make_shadow(width, height, shadowSize, resol=32):
+    # Create white box
+    if width > height:
+        resolX = int(resol * width / height)
+        resolY = resol
+    else:
+        resolX = resol
+        resolY = int(resol * height / width)
+    image = PNMImage(resolX, resolY, 1)
+    image.fill(1)
+    # Expand with black border.
+    borderX = int(2 * shadowSize * resolX)
+    borderY = int(2 * shadowSize * resolY)
+    image.expandBorder(borderX, borderX, borderY, borderY, Vec4(0))
+    # Apply blur.
+    image.gaussianFilter(shadowSize * resol)
+    # Transfer to alpha and make image entirely black.
+    image.addAlpha()
+    image.copyChannel(image, 0, 3)
+    image.fill(0)
+    # Copy to 2D box.
+    cm = CardMaker('card')
+    cm.setFrame(Vec4(-width/2, width/2, -height/2, height/2))
+    card = NodePath(cm.generate())
+    card.setTransparency(True)
+    tex = Texture()
+    tex.load(image)
+    card.setTexture(tex)
+    card.setBin('fixed', 0)
+    return card
 
 
 class DropdownMenu(DirectOptionMenu):
@@ -35,6 +72,8 @@ class DropdownMenu(DirectOptionMenu):
             ('text_align', TextNode.ACenter, None),
             # Remove press effect because it looks a bit funny
             ('pressEffect', 0, DGG.INITOPT),
+            # Shadow parameters
+            ('shadowParams', [], self.setShadow)
            )
         # Merge keyword options with default options
         self.defineoptions(kw, optiondefs)
@@ -153,6 +192,13 @@ class DropdownMenu(DirectOptionMenu):
         # Set initial state
         self.hidePopupMenu()
 
+    def setShadow(self):
+        if not self['shadowParams']:
+            return
+        width, height, shadowSize = self['shadowParams']
+        shadow = make_shadow(width, height, shadowSize)
+        shadow.reparentTo(self)
+
     def showPopupMenu(self, event=None):
         """Make popup visible on top of the button.
 
@@ -237,6 +283,8 @@ class ButtonMenu(DirectOptionMenu):
             ('layout', 'horizontal', DGG.INITOPT),
             # Padding around the buttons
             ('pad', (.1, .1), DGG.INITOPT),
+            # Shadow parameters
+            ('shadowParams', [], None),
             )
         # Merge keyword options with default options
         self.defineoptions(kw, optiondefs)
@@ -315,6 +363,19 @@ class ButtonMenu(DirectOptionMenu):
         px, py = self['pad']
         self['frameSize'] = (
                 -px, self.maxWidth * itemIndex + px, -self.maxHeight - py, py)
+        # Make shadow if need be
+        self.setShadow()
+
+    def setShadow(self):
+        if not self['shadowParams']:
+            return
+        width, height, shadowSize = self['shadowParams']
+        shadow = make_shadow(width, height, shadowSize)
+        shadow.reparentTo(self)
+        frameSize = self['frameSize']
+        px, py = self['pad']
+        shadow.setX((frameSize[1] - frameSize[0]) / 2 - px)
+        shadow.setZ((frameSize[2] - frameSize[3]) / 2 - py)
 
     def set(self, index, fCommand=True):
         """Set the new selected item.
