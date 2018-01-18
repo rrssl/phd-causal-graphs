@@ -16,8 +16,8 @@ from direct.gui.DirectGui import DirectFrame
 from direct.gui.DirectGui import DirectOptionMenu
 
 
-def make_shadow(width, height, shadowSize, resol=32):
-    # Create white box
+def make_box_shadow(width, height, shadowSize, resol=32):
+    # Create grey box
     if width > height:
         resolX = int(resol * width / height)
         resolY = resol
@@ -25,7 +25,7 @@ def make_shadow(width, height, shadowSize, resol=32):
         resolX = resol
         resolY = int(resol * height / width)
     image = PNMImage(resolX, resolY, 1)
-    image.fill(1)
+    image.fill(.3)
     # Expand with black border.
     borderX = int(2 * shadowSize * resolX)
     borderY = int(2 * shadowSize * resolY)
@@ -38,7 +38,9 @@ def make_shadow(width, height, shadowSize, resol=32):
     image.fill(0)
     # Copy to 2D box.
     cm = CardMaker('card')
-    cm.setFrame(Vec4(-width/2, width/2, -height/2, height/2))
+    cardX = width * (1 + 4*shadowSize) / 2   # slightly expand the card
+    cardY = height * (1 + 4*shadowSize) / 2  # to see the shadow
+    cm.setFrame(Vec4(-cardX, cardX, -cardY, cardY))
     card = NodePath(cm.generate())
     card.setTransparency(True)
     tex = Texture()
@@ -73,7 +75,7 @@ class DropdownMenu(DirectOptionMenu):
             # Remove press effect because it looks a bit funny
             ('pressEffect', 0, DGG.INITOPT),
             # Shadow parameters
-            ('shadowParams', [], self.setShadow)
+            ('shadowSize', 0, self.setShadow)
            )
         # Merge keyword options with default options
         self.defineoptions(kw, optiondefs)
@@ -147,7 +149,7 @@ class DropdownMenu(DirectOptionMenu):
                 pad=(.3, .1),
                 command=lambda i=itemIndex: self.set(i),
                 relief=self['relief'] or 'flat',
-                frameColor=self['frameColor'],
+                frameColor=Vec4(0),
                 )
             bounds = c.getBounds()
             if self.minX is None:
@@ -193,10 +195,20 @@ class DropdownMenu(DirectOptionMenu):
         self.hidePopupMenu()
 
     def setShadow(self):
-        if not self['shadowParams']:
+        if not self['shadowSize']:
             return
-        width, height, shadowSize = self['shadowParams']
-        shadow = make_shadow(width, height, shadowSize)
+        if self['frameSize']:
+            left, right, bottom, top = self['frameSize']
+            width = right - left
+            height = top - bottom
+        elif self['geom']:
+            bottomleft, topright = self['geom'].getTightBounds()
+            width, _, height = topright - bottomleft
+        else:
+            print("No frameSize or geom found: can't make shadow.")
+            return
+        shadowSize = self['shadowSize']
+        shadow = make_box_shadow(width, height, shadowSize)
         shadow.reparentTo(self)
 
     def showPopupMenu(self, event=None):
@@ -284,7 +296,7 @@ class ButtonMenu(DirectOptionMenu):
             # Padding around the buttons
             ('pad', (.1, .1), DGG.INITOPT),
             # Shadow parameters
-            ('shadowParams', [], None),
+            ('shadowSize', 0, None),
             )
         # Merge keyword options with default options
         self.defineoptions(kw, optiondefs)
@@ -367,15 +379,17 @@ class ButtonMenu(DirectOptionMenu):
         self.setShadow()
 
     def setShadow(self):
-        if not self['shadowParams']:
+        shadowSize = self['shadowSize']
+        if not shadowSize:
             return
-        width, height, shadowSize = self['shadowParams']
-        shadow = make_shadow(width, height, shadowSize)
-        shadow.reparentTo(self)
         frameSize = self['frameSize']
         px, py = self['pad']
-        shadow.setX((frameSize[1] - frameSize[0]) / 2 - px)
-        shadow.setZ((frameSize[2] - frameSize[3]) / 2 - py)
+        width = frameSize[1] - frameSize[0]
+        height = frameSize[3] - frameSize[2]
+        shadow = make_box_shadow(width, height, shadowSize)
+        shadow.reparentTo(self)
+        shadow.setX(width / 2 - px)
+        shadow.setZ(-(height / 2 - py))
 
     def set(self, index, fCommand=True):
         """Set the new selected item.
