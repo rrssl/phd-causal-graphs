@@ -188,7 +188,7 @@ class Drawable:
             stroke = self.strokes[-1]
             # Filter duplicates
             if not (len(stroke) and np.allclose(pos, stroke[-1])):
-                stroke.append(list(pos))
+                stroke.append(pos)
             # Update the drawing
             node = self._draw_stroke(stroke)
             if self.sketch_np.get_num_children() == len(self.strokes):
