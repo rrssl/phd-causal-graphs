@@ -9,7 +9,9 @@ import math
 
 import numpy as np
 from direct.interval.IntervalGlobal import Func, LerpFunc, Parallel, Sequence
-from panda3d.core import CardMaker, LineSegs, Plane, Point2, Point3, Vec3, Vec4
+from panda3d.core import (CardMaker, CollisionHandlerQueue, CollisionNode,
+                          CollisionRay, CollisionTraverser, GeomNode, LineSegs,
+                          Plane, Point2, Point3, Vec3, Vec4)
 
 
 class Focusable:
@@ -219,3 +221,37 @@ class Drawable:
         a = np.array(self.strokes)
         filename = path + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         np.save(filename, a)
+
+
+class Pickerable:
+    """Mixin giving Modeler the ability to pick objects.
+
+    You need to set the python tag 'pickable' to True if you want a model
+    to be pickable.
+
+    """
+    def __init__(self):
+        self.pick_traverser = CollisionTraverser()
+        self.pick_queue = CollisionHandlerQueue()
+        self.picker_ray = CollisionRay()
+        picker_node = CollisionNode('mouse_ray')
+        picker_node.set_from_collide_mask(GeomNode.get_default_collide_mask())
+        picker_node.add_solid(self.picker_ray)
+        picker_np = self.camera.attach_new_node(picker_node)
+        self.pick_traverser.add_collider(picker_np, self.pick_queue)
+
+    def get_hit_object(self):
+        if self.mouseWatcherNode.has_mouse():
+            pos = self.mouseWatcherNode.get_mouse()
+            self.picker_ray.set_from_lens(
+                    self.camNode, pos.get_x(), pos.get_y())
+            self.pick_traverser.traverse(self.models)
+            pick_queue = self.pick_queue
+            if pick_queue.get_num_entries() > 0:
+                pick_queue.sort_entries()
+                picked_obj = pick_queue.get_entry(0).get_into_node_path()
+                picked_obj = picked_obj.find_net_python_tag('pickable')
+                if (not picked_obj.is_empty()
+                        and picked_obj.get_python_tag('pickable')):
+                    return picked_obj
+        return None

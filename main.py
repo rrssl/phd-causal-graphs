@@ -12,7 +12,7 @@ from panda3d.core import NodePath, Point3, Vec3, Vec4, load_prc_file_data
 import spline2d as spl
 from geom2d import make_rectangle
 from primitives import DominoRun, Plane
-from uimixins import Drawable, Focusable, Tileable
+from uimixins import Drawable, Focusable, Pickerable, Tileable
 from uiwidgets import ButtonMenu, DropdownMenu
 from viewers import PhysicsViewer
 from xp.config import MASS, h, t, w
@@ -28,7 +28,7 @@ class DominoRunMode:
         self.hide_menu_xform = Vec3(0, 0, .2)
         self.menu = ButtonMenu(
                 command=self.click_menu,
-                items=("DRAW", "GENERATE", "CLEAR", "TEST"),
+                items=("DRAW", "GENERATE", "CLEAR", "MOVE DOMINO"),
                 text_scale=1,
                 text_font=parent.font,
                 shadowSize=.2,
@@ -78,6 +78,13 @@ class DominoRunMode:
             self.visual_dompath = None
             # Add colors
             self.show_robustness(run.path)
+        elif option == "MOVE DOMINO":
+            self.set_pickable_dominoes(True)
+            self.parent.accept_once("mouse1", self.highlight_domino)
+            delayed = partial(
+                    self.parent.accept_once, "mouse1-up",
+                    self.set_pickable_dominoes, [False])
+            self.parent.accept_once("mouse1-up", delayed)
         elif option == "CLEAR":
             if self.domrun.get_num_children():
                 for domrun_seg in self.domrun.get_children():
@@ -99,6 +106,8 @@ class DominoRunMode:
     def stop(self):
         if self.domrun.get_num_children() == 0:
             self.domrun.remove_node()
+        else:
+            self.set_pickable_dominoes(False)
         self.domrun = None
         self.dompath = None
         if self.visual_dompath is not None:
@@ -152,6 +161,16 @@ class DominoRunMode:
         for color, domino in zip(colors, domrun_np.get_children()):
             domino.set_color(Vec4(*color))
 
+    def set_pickable_dominoes(self, pick):
+        for domrun_seg in self.domrun.get_children():
+            for domino in domrun_seg.get_children():
+                domino.set_python_tag('pickable', pick)
+
+    def highlight_domino(self):
+        hit_domino = self.parent.get_hit_object()
+        if hit_domino is not None:
+            print(hit_domino)
+
     def hide_menu(self):
         self.menu.posInterval(
                 duration=self.parent.menu_anim_time,
@@ -167,13 +186,14 @@ class DominoRunMode:
                 ).start()
 
 
-class MyApp(Tileable, Focusable, Drawable, PhysicsViewer):
+class MyApp(Tileable, Focusable, Drawable, Pickerable, PhysicsViewer):
 
     def __init__(self):
         PhysicsViewer.__init__(self)
         Tileable.__init__(self, tile_size=.1)
         Focusable.__init__(self)
         Drawable.__init__(self)
+        Pickerable.__init__(self)
 
         # Initial camera position
         self.min_cam_distance = .2
