@@ -6,16 +6,10 @@ Various UI functionalities.
 """
 import datetime
 import math
-import numpy as np
 
+import numpy as np
 from direct.interval.IntervalGlobal import Func, LerpFunc, Parallel, Sequence
-from panda3d.core import CardMaker
-from panda3d.core import LineSegs
-from panda3d.core import Plane
-from panda3d.core import Point2
-from panda3d.core import Point3
-from panda3d.core import Vec3
-from panda3d.core import Vec4
+from panda3d.core import CardMaker, LineSegs, Plane, Point2, Point3, Vec3, Vec4
 
 
 class Focusable:
