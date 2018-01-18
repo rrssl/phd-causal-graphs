@@ -566,7 +566,7 @@ class DominoRun(PrimitiveBase):
 
         for i, (x, y, head) in enumerate(self.coords):
             # Physics
-            body = bt.BulletRigidBodyNode(self.name + "{}_solid".format(i))
+            body = bt.BulletRigidBodyNode(self.name + "_body_{}".format(i))
             self.bodies.append(body)
             body.add_shape(shape)
             self._set_properties(body)

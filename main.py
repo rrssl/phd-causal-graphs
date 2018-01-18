@@ -67,8 +67,9 @@ class DominoRunMode:
             coords = np.column_stack(
                     spl.splev(u, spline) + [spl.splang(u, spline)])
             # Generate run
-            run = DominoRun("domrun_segment", (t, w, h), coords,
-                            geom=True, mass=MASS)
+            run = DominoRun(
+                    "domrun_segment_{}".format(self.domrun.get_num_children()),
+                    (t, w, h), coords, geom=True, mass=MASS)
             run.create()
             # Add to the scene
             run.attach_to(self.domrun, self.parent.world)
