@@ -81,10 +81,10 @@ class DominoRunMode:
             self.show_robustness(run.path)
         elif option == "MOVE DOMINO":
             self.set_pickable_dominoes(True)
-            self.parent.accept_once("mouse1", self.highlight_domino)
+            self.parent.accept_once("mouse1", self.set_move, [True])
             delayed = partial(
                     self.parent.accept_once, "mouse1-up",
-                    self.set_pickable_dominoes, [False])
+                    self.set_move, [False])
             self.parent.accept_once("mouse1-up", delayed)
         elif option == "CLEAR":
             if self.domrun.get_num_children():
@@ -164,13 +164,56 @@ class DominoRunMode:
 
     def set_pickable_dominoes(self, pick):
         for domrun_seg in self.domrun.get_children():
-            for domino in domrun_seg.get_children():
-                domino.set_python_tag('pickable', pick)
+            # Extremities are constrained
+            for i in range(1, domrun_seg.get_num_children()-1):
+                domrun_seg.get_child(i).set_python_tag('pickable', pick)
 
-    def highlight_domino(self):
-        hit_domino = self.parent.get_hit_object()
-        if hit_domino is not None:
-            print(hit_domino)
+    def set_move(self, move):
+        parent = self.parent
+        if move:
+            hit_domino = self.parent.get_hit_object()
+            if hit_domino is None:
+                return
+            # We know the mouse in in the window because we have hit_domino.
+            self.pos = np.array(parent.mouse_to_ground(
+                    parent.mouseWatcherNode.get_mouse()))
+            self.moving = hit_domino
+            parent.task_mgr.add(self.update_move, "update_move")
+        else:
+            self.set_pickable_dominoes(False)
+            parent.task_mgr.remove("update_move")
+
+    def update_move(self, task):
+        if self.parent.mouseWatcherNode.has_mouse():
+            new_pos = np.array(self.parent.mouse_to_ground(
+                    self.parent.mouseWatcherNode.get_mouse()))
+            dom = self.moving
+            dom_name = dom.get_name()
+            dom_id = int(dom_name[dom_name.rfind('_')+1:])
+            domrun_seg = dom.get_parent()
+            u = domrun_seg.get_python_tag('u')
+            dom_u = u[dom_id]
+            spline = domrun_seg.get_python_tag('spline')
+            dom_s = spl.arclength(spline, dom_u)
+            diff = (new_pos - self.pos)[:2]
+            dom_tan = spl.splev(dom_u, spline, 1)
+            dom_tan /= np.linalg.norm(dom_tan)
+            # Compute new position
+            new_dom_s = dom_s + diff.dot(dom_tan)
+            new_dom_u = spl.arclength_inv(spline, new_dom_s)
+            # Clip (basic)
+            new_dom_u = max(new_dom_u, u[dom_id-1])
+            new_dom_u = min(new_dom_u, u[dom_id+1])
+            # Update
+            u[dom_id] = new_dom_u
+            new_x, new_y = spl.splev(new_dom_u, spline)
+            new_h = spl.splang(new_dom_u, spline)
+            dom.set_x(new_x)
+            dom.set_y(new_y)
+            dom.set_h(new_h)
+            # TODO. Update colors
+            self.pos = new_pos
+        return task.cont
 
     def hide_menu(self):
         self.menu.posInterval(
