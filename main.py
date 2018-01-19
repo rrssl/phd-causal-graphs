@@ -148,9 +148,8 @@ class DominoRunMode:
         coords = np.column_stack(
                 spl.splev(u, spline) + [spl.splang(u, spline)])
         scores = np.empty(len(coords))
-        scores[1:-1] = self.rob_estimator(coords)
-        scores[0] = scores[1]
-        scores[-1] = scores[-2]
+        scores[2:] = self.rob_estimator(coords)
+        scores[:2] = scores[2]
         self.set_colors(domrun_np, scores)
 
     def set_colors(self, domrun_np, values, cmap=cm.autumn):
