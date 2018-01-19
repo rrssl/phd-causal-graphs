@@ -152,7 +152,7 @@ class DominoRunMode:
         scores[-1] = scores[-2]
         self.set_colors(domrun_np, scores)
 
-    def set_colors(self, domrun_np, values, cmap=cm.RdYlGn):
+    def set_colors(self, domrun_np, values, cmap=cm.autumn):
         colors = cmap(values)
         # Increase saturation
         colors[:, :3] = mcol.rgb_to_hsv(colors[:, :3])
