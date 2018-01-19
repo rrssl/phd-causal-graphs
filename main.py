@@ -171,7 +171,7 @@ class DominoRunMode:
     def set_move(self, move):
         parent = self.parent
         if move:
-            hit_domino = self.parent.get_hit_object()
+            hit_domino = parent.get_hit_object()
             if hit_domino is None:
                 return
             # We know the mouse in in the window because we have hit_domino.
@@ -184,9 +184,10 @@ class DominoRunMode:
             parent.task_mgr.remove("update_move")
 
     def update_move(self, task):
-        if self.parent.mouseWatcherNode.has_mouse():
-            new_pos = np.array(self.parent.mouse_to_ground(
-                    self.parent.mouseWatcherNode.get_mouse()))
+        parent = self.parent
+        if parent.mouseWatcherNode.has_mouse():
+            new_pos = np.array(parent.mouse_to_ground(
+                    parent.mouseWatcherNode.get_mouse()))
             dom = self.moving
             dom_name = dom.get_name()
             dom_id = int(dom_name[dom_name.rfind('_')+1:])
@@ -202,16 +203,27 @@ class DominoRunMode:
             new_dom_s = dom_s + diff.dot(dom_tan)
             new_dom_u = spl.arclength_inv(spline, new_dom_s)
             # Clip (basic)
-            new_dom_u = max(new_dom_u, u[dom_id-1])
-            new_dom_u = min(new_dom_u, u[dom_id+1])
-            # Update
-            u[dom_id] = new_dom_u
+            #  new_dom_u = max(new_dom_u, u[dom_id-1])
+            #  new_dom_u = min(new_dom_u, u[dom_id+1])
+            # Clip (advanced)
+            old_pos = dom.get_pos()
+            old_h = dom.get_h()
             new_x, new_y = spl.splev(new_dom_u, spline)
             new_h = spl.splang(new_dom_u, spline)
-            dom.set_x(new_x)
-            dom.set_y(new_y)
+            dom.set_pos(new_x, new_y, old_pos.z)
             dom.set_h(new_h)
-            # TODO. Update colors
+            dom_bef = domrun_seg.get_child(dom_id-1).node()
+            dom_aft = domrun_seg.get_child(dom_id+1).node()
+            dom_node = dom.node()
+            test_bef = parent.world.contact_test_pair(dom_node, dom_bef)
+            test_aft = parent.world.contact_test_pair(dom_node, dom_aft)
+            if test_bef.get_num_contacts() + test_aft.get_num_contacts() > 0:
+                dom.set_pos(old_pos)
+                dom.set_h(old_h)
+                return task.cont
+            # Update
+            u[dom_id] = new_dom_u
+            self.show_robustness(domrun_seg)
             self.pos = new_pos
         return task.cont
 
