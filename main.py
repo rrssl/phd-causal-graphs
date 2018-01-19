@@ -74,6 +74,7 @@ class DominoRunMode:
             # Add to the scene
             run.attach_to(self.domrun, self.parent.world)
             run.path.set_python_tag('u', u)
+            run.path.set_python_tag('length', length)
             run.path.set_python_tag('spline', spline)
             run.path.set_python_tag('visual_path', self.visual_dompath)
             self.visual_dompath = None
@@ -194,14 +195,13 @@ class DominoRunMode:
             domrun_seg = dom.get_parent()
             u = domrun_seg.get_python_tag('u')
             dom_u = u[dom_id]
+            length = domrun_seg.get_python_tag('length')
             spline = domrun_seg.get_python_tag('spline')
-            dom_s = spl.arclength(spline, dom_u)
             diff = (new_pos - self.pos)[:2]
             dom_tan = spl.splev(dom_u, spline, 1)
             dom_tan /= np.linalg.norm(dom_tan)
             # Compute new position
-            new_dom_s = dom_s + diff.dot(dom_tan)
-            new_dom_u = spl.arclength_inv(spline, new_dom_s)
+            new_dom_u = dom_u + diff.dot(dom_tan) / length
             # Clip (basic)
             new_dom_u = max(new_dom_u, u[dom_id-1])
             new_dom_u = min(new_dom_u, u[dom_id+1])
