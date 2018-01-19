@@ -240,8 +240,9 @@ class PhysicsViewer(Modeler):
 
     """
 
-    def __init__(self):
+    def __init__(self, framerate=240):
         super().__init__()
+        self.framerate = framerate
 
         self.world = BulletWorld()
         self.world.set_gravity((0, 0, -9.81))
@@ -326,7 +327,8 @@ class PhysicsViewer(Modeler):
         # Rule: timeStep < maxSubSteps * fixedTimeStep
         # If you run interactively at 60Hz, with a simulator frequency of
         # 240Hz, you want maxSubSteps = 240/60+1.
-        self.world.do_physics(dt, 5, 1/240)
+        fps = self.framerate
+        self.world.do_physics(dt, int(fps/60)+1, 1/fps)
         self.world_time += dt
 
     def update_physics(self, task):

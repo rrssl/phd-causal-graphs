@@ -19,6 +19,7 @@ from xp.config import MASS, h, t, w
 from xp.domino_predictors import DominoRobustness2
 
 SMOOTHING_FACTOR = .001
+PHYSICS_FRAMERATE = 240
 
 
 class DominoRunMode:
@@ -244,7 +245,7 @@ class DominoRunMode:
 class MyApp(Tileable, Focusable, Drawable, Pickerable, PhysicsViewer):
 
     def __init__(self):
-        PhysicsViewer.__init__(self)
+        PhysicsViewer.__init__(self, PHYSICS_FRAMERATE)
         Tileable.__init__(self, tile_size=.1)
         Focusable.__init__(self)
         Drawable.__init__(self)
