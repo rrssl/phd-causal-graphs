@@ -15,7 +15,8 @@ from primitives import DominoRun, Plane
 from uimixins import Drawable, Focusable, Pickerable, Tileable
 from uiwidgets import ButtonMenu, DropdownMenu
 from viewers import PhysicsViewer
-from xp.config import MASS, h, t, w
+from xp.config import MASS, h, t, w, TOPPLING_ANGLE
+from xp.domgeom import tilt_box_forward
 from xp.domino_predictors import DominoRobustness2
 
 SMOOTHING_FACTOR = .001
@@ -25,11 +26,14 @@ PHYSICS_FRAMERATE = 240
 class DominoRunMode:
     def __init__(self, parent):
         self.parent = parent
-
+        self.smoothing = SMOOTHING_FACTOR
+        self.domrun = None
+        self.rob_estimator = DominoRobustness2()
+        # Menu
         self.hide_menu_xform = Vec3(0, 0, .2)
         self.menu = ButtonMenu(
                 command=self.click_menu,
-                items=("DRAW", "GENERATE", "CLEAR", "MOVE DOMINO"),
+                items=("CREATE", "REMOVE", "EDIT"),
                 text_scale=1,
                 text_font=parent.font,
                 shadowSize=.2,
@@ -39,109 +43,61 @@ class DominoRunMode:
                 scale=.05,
                 )
 
-        self.smoothing = SMOOTHING_FACTOR
-
-        self.domrun = None
-        self.dompath = None
-        self.visual_dompath = None
-
-        self.rob_estimator = DominoRobustness2()
-
     def click_menu(self, option):
-        if option == "DRAW":
-            # Clean up the previous orphan drawing if there's one.
-            if self.visual_dompath is not None:
-                self.visual_dompath.remove_node()
-                self.visual_dompath = None
-            self.parent.accept_once("mouse1", self.parent.set_draw, [True])
-            # Delaying allows to ignore the first "mouse-up"
-            # when the menu button is released.
-            delayed = partial(
-                    self.parent.accept_once, "mouse1-up", self.stop_drawing)
-            self.parent.accept_once("mouse1-up", delayed)
-        elif option == "GENERATE":
-            spline = self.dompath
-            # Sample positions
-            length = spl.arclength(spline)
-            n_doms = int(np.floor(length / (h / 3)))
-            u = spl.linspace(spline, n_doms)
-            coords = np.column_stack(
-                    spl.splev(u, spline) + [spl.splang(u, spline)])
-            # Generate run
-            run = DominoRun(
-                    "domrun_segment_{}".format(self.domrun.get_num_children()),
-                    (t, w, h), coords, geom=True, mass=MASS)
-            run.create()
-            # Add to the scene
-            run.attach_to(self.domrun, self.parent.world)
-            run.path.set_python_tag('u', u)
-            run.path.set_python_tag('length', length)
-            run.path.set_python_tag('spline', spline)
-            run.path.set_python_tag('visual_path', self.visual_dompath)
-            self.visual_dompath = None
-            # Add colors
-            self.show_robustness(run.path)
-        elif option == "MOVE DOMINO":
-            self.set_pickable_dominoes(True)
-            self.parent.accept_once("mouse1", self.set_move, [True])
-            delayed = partial(
-                    self.parent.accept_once, "mouse1-up",
-                    self.set_move, [False])
-            self.parent.accept_once("mouse1-up", delayed)
-        elif option == "CLEAR":
-            if self.domrun.get_num_children():
-                for domrun_seg in self.domrun.get_children():
-                    for domino in domrun_seg.get_children():
-                        self.parent.world.remove(domino.node())
-                    domrun_seg.get_python_tag('visual_path').remove_node()
-                    domrun_seg.remove_node()
-            # Clean up the orphan drawing if there's one.
-            if self.visual_dompath is not None:
-                self.visual_dompath.remove_node()
-                self.visual_dompath = None
+        if option == "CREATE":
+            self.parent.accept_once("mouse1-up", self.set_draw, [True])
+        if option == "REMOVE":
+            self.parent.accept_once("mouse1-up", self.set_remove, [True])
+        elif option == "EDIT":
+            self.parent.accept_once("mouse1-up", self.set_move, [True])
 
     def start(self):
         self.parent.enter_design_mode()
         self.show_menu()
         self.domrun = self.parent.models.attach_new_node("domrun")
-        self.visual_dompath = None
 
     def stop(self):
         if self.domrun.get_num_children() == 0:
             self.domrun.remove_node()
-        else:
-            self.set_pickable_dominoes(False)
         self.domrun = None
-        self.dompath = None
-        if self.visual_dompath is not None:
-            self.visual_dompath.remove_node()
-            self.visual_dompath = None
         self.hide_menu()
         self.parent.exit_design_mode()
 
-    def stop_drawing(self):
-        self.parent.set_draw(False)
-        stroke = self.parent.strokes.pop()
-        self.parent.clear_drawing()
-        if len(stroke) < 2:
-            return
-        # Project the drawing
-        for point in stroke:
-            point[0], point[1], _ = self.parent.mouse_to_ground(point)
-        # Smooth the path
-        s = self.smoothing
-        k = min(3, len(stroke)-1)
-        spline = spl.splprep(list(zip(*stroke)), k=k, s=s)[0]
-        self.dompath = spline
-        # Update visualization
+    def make_domrun_from_spline(self, spline):
+        # Sample positions
+        length = spl.arclength(spline)
+        n_doms = int(np.floor(length / (h / 3)))
+        u = spl.linspace(spline, n_doms)
+        coords = np.column_stack(
+                spl.splev(u, spline) + [spl.splang(u, spline)])
+        # Generate run
+        run = DominoRun(
+                "domrun_segment_{}".format(self.domrun.get_num_children()),
+                (t, w, h), coords, geom=True, mass=MASS)
+        run.create()
+        # Tilt first domino
+        tilt_box_forward(run.path.get_child(0), TOPPLING_ANGLE + 1)
+        # Add to the scene
+        run.attach_to(self.domrun, self.parent.world)
+        self.parent._create_cache()
+        # Add visual path
         pencil = self.parent.pencil
-        x, y = spl.splev(np.linspace(0, 1, int(1/s)), spline)
+        x, y = spl.splev(np.linspace(0, 1, int(1/self.smoothing)), spline)
         pencil.move_to(x[0], y[0], 0)
         for xi, yi in zip(x, y):
             pencil.draw_to(xi, yi, 0)
         node = pencil.create()
         node.set_name("visual_dompath")
-        self.visual_dompath = self.parent.visual.attach_new_node(node)
+        visual_dompath = self.parent.visual.attach_new_node(node)
+        # Set tags
+        run.path.set_python_tag('u', u)
+        run.path.set_python_tag('length', length)
+        run.path.set_python_tag('spline', spline)
+        run.path.set_python_tag('visual_dompath', visual_dompath)
+        for child in run.path.get_children():
+            child.set_python_tag('pickable', True)
+        # Add colors
+        self.show_robustness(run.path)
 
     def show_robustness(self, domrun_np):
         u = domrun_np.get_python_tag('u')
@@ -163,26 +119,70 @@ class DominoRunMode:
         for color, domino in zip(colors, domrun_np.get_children()):
             domino.set_color(Vec4(*color))
 
-    def set_pickable_dominoes(self, pick):
-        for domrun_seg in self.domrun.get_children():
-            # Extremities are constrained
-            for i in range(1, domrun_seg.get_num_children()-1):
-                domrun_seg.get_child(i).set_python_tag('pickable', pick)
+    def set_draw(self, draw):
+        parent = self.parent
+        if draw:
+            parent.accept_once("mouse1", parent.set_draw, [True])
+            parent.accept_once("mouse1-up", self.set_draw, [False])
+        else:
+            parent.set_draw(False)
+            stroke = parent.strokes.pop()
+            parent.clear_drawing()
+            if len(stroke) < 2:
+                return
+            # Project the drawing
+            for point in stroke:
+                point[0], point[1], _ = parent.mouse_to_ground(point)
+            # Smooth the path
+            s = self.smoothing
+            k = min(3, len(stroke)-1)
+            spline = spl.splprep(list(zip(*stroke)), k=k, s=s)[0]
+            self.make_domrun_from_spline(spline)
+
+    def set_remove(self, remove):
+        parent = self.parent
+        if remove:
+            parent.accept_once("mouse1", self.remove_selected)
+            parent.accept_once("mouse1-up", self.set_remove, [False])
+        else:
+            pass
+
+    def remove_selected(self):
+        parent = self.parent
+        hit_domino = parent.get_hit_object()
+        if hit_domino is None:
+            return
+        domrun_seg = hit_domino.get_parent()
+        for domino in domrun_seg.get_children():
+            parent.world.remove(domino.node())
+        parent._create_cache()
+        domrun_seg.get_python_tag('visual_dompath').remove_node()
+        domrun_seg.remove_node()
 
     def set_move(self, move):
         parent = self.parent
         if move:
-            hit_domino = parent.get_hit_object()
-            if hit_domino is None:
-                return
-            # We know the mouse in in the window because we have hit_domino.
-            self.pos = np.array(parent.mouse_to_ground(
-                    parent.mouseWatcherNode.get_mouse()))
-            self.moving = hit_domino
-            parent.task_mgr.add(self.update_move, "update_move")
+            parent.accept_once("mouse1", self.move_selected)
+            parent.accept_once("mouse1-up", self.set_move, [False])
         else:
-            self.set_pickable_dominoes(False)
             parent.task_mgr.remove("update_move")
+            parent._create_cache()
+
+    def move_selected(self):
+        parent = self.parent
+        hit_domino = parent.get_hit_object()
+        if hit_domino is None:
+            return
+        domrun_seg = hit_domino.get_parent()
+        first = domrun_seg.get_child(0)
+        last = domrun_seg.get_child(domrun_seg.get_num_children() - 1)
+        if hit_domino in (first, last):
+            return
+        # We know the mouse in in the window because we have hit_domino.
+        self.pos = np.array(parent.mouse_to_ground(
+                parent.mouseWatcherNode.get_mouse()))
+        self.moving = hit_domino
+        parent.task_mgr.add(self.update_move, "update_move")
 
     def update_move(self, task):
         parent = self.parent
