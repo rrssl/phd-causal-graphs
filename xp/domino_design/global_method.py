@@ -18,17 +18,17 @@ import scipy.optimize as opt
 from shapely.geometry import box
 from shapely.affinity import rotate, translate
 
-from config import t, w
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl  # noqa
 from xp.calibration.doms2pdf import export_domino_run  # noqa
+from xp.config import t, w
 from xp.domino_design.methods import equal_spacing  # noqa
 from xp.domino_predictors import DominoRobustness, DominoRobustness2  # noqa
 from xp.viewdoms import DominoViewer  # noqa
 
 
 OPTIM_METHOD = 'minimize'
-FREE_ANGLE = 32
+FREE_ANGLE = 10
 SOFTMIN_COEFF = 1
 SHOW_MANU = False
 

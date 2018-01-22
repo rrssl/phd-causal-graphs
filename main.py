@@ -17,6 +17,7 @@ from uiwidgets import ButtonMenu, DropdownMenu
 from viewers import PhysicsViewer
 from xp.config import MASS, h, t, w, TOPPLING_ANGLE
 from xp.domgeom import tilt_box_forward
+from xp.domino_design.global_method import DominoPath, run_optim
 from xp.domino_predictors import DominoRobustness2
 
 SMOOTHING_FACTOR = .001
@@ -33,7 +34,7 @@ class DominoRunMode:
         self.hide_menu_xform = Vec3(0, 0, .2)
         self.menu = ButtonMenu(
                 command=self.click_menu,
-                items=("CREATE", "REMOVE", "EDIT"),
+                items=("CREATE", "REMOVE", "EDIT", "OPTIMIZE"),
                 text_scale=1,
                 text_font=parent.font,
                 shadowSize=.2,
@@ -50,6 +51,8 @@ class DominoRunMode:
             self.parent.accept_once("mouse1-up", self.set_remove, [True])
         elif option == "EDIT":
             self.parent.accept_once("mouse1-up", self.set_move, [True])
+        elif option == "OPTIMIZE":
+            self.parent.accept_once("mouse1-up", self.set_optimize, [True])
 
     def start(self):
         self.parent.enter_design_mode()
@@ -226,6 +229,34 @@ class DominoRunMode:
             self.show_robustness(domrun_seg)
             self.pos = new_pos
         return task.cont
+
+    def set_optimize(self, optimize):
+        parent = self.parent
+        if optimize:
+            parent.accept_once("mouse1", self.optimize_selected)
+            parent.accept_once("mouse1-up", self.set_optimize, [False])
+        else:
+            pass
+
+    def optimize_selected(self):
+        parent = self.parent
+        hit_domino = parent.get_hit_object()
+        if hit_domino is None:
+            return
+        domrun_seg = hit_domino.get_parent()
+        u = domrun_seg.get_python_tag('u')
+        spline = domrun_seg.get_python_tag('spline')
+        init_doms = DominoPath(u, spline)
+        best_doms = run_optim(init_doms, self.rob_estimator, method='minimize')
+        # Update
+        for domino, (x, y, a) in zip(
+                domrun_seg.get_children(), best_doms.coords):
+            domino.set_pos(x, y, domino.get_z())
+            domino.set_h(a)
+        domrun_seg.set_python_tag('u', best_doms.u)
+        print("old u", u, "new u", best_doms.u)
+        self.show_robustness(domrun_seg)
+        parent._create_cache()
 
     def hide_menu(self):
         self.menu.posInterval(
