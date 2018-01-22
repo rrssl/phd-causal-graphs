@@ -22,7 +22,7 @@ from .config import (t, w, h, MASS, FLOOR_MATERIAL_FRICTION,
 from .domgeom import tilt_box_forward
 
 sys.path.insert(0, os.path.abspath(".."))
-from primitives import DominoMaker, Floor  # noqa
+from primitives import DominoRun, Plane  # noqa
 import spline2d as spl  # noqa
 
 
@@ -92,17 +92,14 @@ class Simulation:
     def __init__(self, timestep=TIMESTEP, visual=False):
         self.timestep = timestep
         self._visual = visual
+        self.scene = NodePath("scene")
         # World
         self.world = BulletWorld()
         self.world.set_gravity(Vec3(0, 0, -9.81))
         # Floor
-        self.floor_path = NodePath("floor")
-        floor = Floor(self.floor_path, self.world, make_geom=False)
+        floor = Plane("floor", geom=False, friction=FLOOR_MATERIAL_FRICTION)
         floor.create()
-        self.floor_path.find("floor_solid").node().set_friction(
-                FLOOR_MATERIAL_FRICTION)
-        # Domino runs
-        self.domino_runs_paths = []
+        floor.attach_to(self.scene, self.world)
 
     def run(self):
         """Run the domino run simulation.
@@ -116,7 +113,7 @@ class Simulation:
         """
         ts = self.timestep
         dominoes = [d
-                    for drp in self.domino_runs_paths
+                    for drp in self.scene.get_chidren()
                     for d in drp.get_children()]
         n = len(dominoes)
         last_toppled_id = -1
@@ -151,23 +148,18 @@ class Simulation:
           Whether or not to tilt the first domino.
 
         """
-        doms_np = NodePath(
-                "domino_run_{}".format(len(self.domino_runs_paths)+1))
-        self.domino_runs_paths.append(doms_np)
-        domino_factory = DominoMaker(
-                doms_np, self.world, make_geom=self._visual)
-        extents = Vec3(t, w, h)
-        for i, (x, y, a) in enumerate(coords):
-            dom = domino_factory.add_domino(
-                    Vec3(x, y, h/2), a, extents, MASS, prefix="D{}".format(i)
-                    ).node()
-            dom.set_friction(DOMINO_MATERIAL_FRICTION)
-            dom.set_restitution(DOMINO_MATERIAL_RESTITUTION)
-            dom.set_angular_damping(DOMINO_ANGULAR_DAMPING)
+        domino_factory = DominoRun(
+                "domino_run_{}".format(self.scene.get_num_children()+1),
+                (t, w, h), coords, geom=self._visual, mass=MASS,
+                friction=DOMINO_MATERIAL_FRICTION,
+                restitution=DOMINO_MATERIAL_RESTITUTION,
+                angular_damping=DOMINO_ANGULAR_DAMPING)
+        domino_factory.create()
+        domino_factory.attach_to(self.scene, self.world)
 
         if tilt_first_dom:
             # Set initial conditions for first domino
-            first_domino = doms_np.get_child(0)
+            first_domino = domino_factory.path.get_child(0)
             tilt_box_forward(first_domino, TOPPLING_ANGLE+.5)
             first_domino.node().set_transform_dirty()
             # Alternative with initial velocity:
@@ -199,29 +191,26 @@ def setup_dominoes(coords, randfactor=0, tilt_first_dom=True,
     """
     if randfactor:
         coords = perturbate_dominoes(coords, randfactor)
+    scene = NodePath("scene")
     # World
     world = BulletWorld()
     world.set_gravity(Vec3(0, 0, -9.81))
     # Floor
-    floor_path = NodePath("floor")
-    floor = Floor(floor_path, world, make_geom=_make_geom)
+    floor = Plane("floor", geom=_make_geom, friction=FLOOR_MATERIAL_FRICTION)
     floor.create()
-    floor_path.find("floor_solid").node().set_friction(FLOOR_MATERIAL_FRICTION)
+    floor.attach_to(scene, world)
     # Dominoes
-    doms_np = NodePath("domino_run")
-    domino_factory = DominoMaker(doms_np, world, make_geom=_make_geom)
-    extents = Vec3(t, w, h)
-    for i, (x, y, a) in enumerate(coords):
-        dom = domino_factory.add_domino(
-                Vec3(x, y, h/2), a, extents, MASS, prefix="D{}".format(i)
-                ).node()
-        dom.set_friction(DOMINO_MATERIAL_FRICTION)
-        dom.set_restitution(DOMINO_MATERIAL_RESTITUTION)
-        dom.set_angular_damping(DOMINO_ANGULAR_DAMPING)
+    domino_factory = DominoRun(
+            "domino_run", (t, w, h), coords, geom=_make_visual, mass=MASS,
+            friction=DOMINO_MATERIAL_FRICTION,
+            restitution=DOMINO_MATERIAL_RESTITUTION,
+            angulat_damping=DOMINO_ANGULAR_DAMPING)
+    domino_factory.create()
+    domino_factory.attach_to(scene, world)
 
     if tilt_first_dom:
         # Set initial conditions for first domino
-        first_domino = doms_np.get_child(0)
+        first_domino = domino_factory.path.get_child(0)
         tilt_box_forward(first_domino, TOPPLING_ANGLE+.5)
         first_domino.node().set_transform_dirty()
         # Alternative with initial velocity:
@@ -229,7 +218,7 @@ def setup_dominoes(coords, randfactor=0, tilt_first_dom=True,
         #  angvel_init = Mat3.rotate_mat(headings[0]).xform(angvel_init)
         #  first_domino.node().set_angular_velocity(angvel_init)
 
-    return doms_np, world
+    return domino_factory.path, world
 
 
 def run_simu(doms_np: NodePath, world: BulletWorld, timestep=TIMESTEP,

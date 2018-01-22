@@ -21,7 +21,6 @@ import numpy as np
 from panda3d.core import Vec4
 
 sys.path.insert(0, os.path.abspath(".."))
-from primitives import DominoMaker, Floor  # noqa
 from viewers import PhysicsViewer  # noqa
 import spline2d as spl  # noqa
 from xp.simulate import Simulation  # noqa
@@ -40,20 +39,19 @@ class DominoViewer(PhysicsViewer):
 
         self.simu = Simulation(visual=True)
         self.world = self.simu.world
-        self.simu.floor_path.reparent_to(self.models)
+        self.simu.scene.reparent_to(self.models)
 
     def add_path(self, u, spline, pathcolor=None):
         if pathcolor is None:
             color = next(self.colors)
         spl.show_spline2d(
                 self.render, spline, u,
-                "path_{}".format(len(self.simu.domino_runs_paths)),
+                "path_{}".format(self.simu.scene.get_num_children() - 1),
                 color=pathcolor)
 
     def add_domino_run(self, coords, tilt_first_dom=True, color=None):
         self.simu.add_domino_run(coords, tilt_first_dom=tilt_first_dom)
-        domino_run_path = self.simu.domino_runs_paths[-1]
-        domino_run_path.reparent_to(self.models)
+        domino_run_path = self.simu.scene.get_children()[-1]
         # Visual indicators
         if color is None:
             color = next(self.colors)
