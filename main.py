@@ -228,45 +228,47 @@ class DominoRunMode:
 
     def update_move(self, task):
         parent = self.parent
-        if parent.mouseWatcherNode.has_mouse():
-            new_pos = np.array(parent.mouse_to_ground(
-                    parent.mouseWatcherNode.get_mouse()))
-            dom = self.moving
-            dom_name = dom.get_name()
-            dom_id = int(dom_name[dom_name.rfind('_')+1:])
-            domrun_seg = dom.get_parent()
-            u = domrun_seg.get_python_tag('u')
-            dom_u = u[dom_id]
-            length = domrun_seg.get_python_tag('length')
-            spline = domrun_seg.get_python_tag('spline')
-            diff = (new_pos - self.pos)[:2]
-            dom_tan = spl.splev(dom_u, spline, 1)
-            dom_tan /= np.linalg.norm(dom_tan)
-            # Compute new position
-            new_dom_u = dom_u + diff.dot(dom_tan) / length
-            # Clip (basic)
-            new_dom_u = max(new_dom_u, u[dom_id-1])
-            new_dom_u = min(new_dom_u, u[dom_id+1])
-            # Clip (advanced)
-            old_pos = dom.get_pos()
-            old_h = dom.get_h()
-            new_x, new_y = spl.splev(new_dom_u, spline)
-            new_h = spl.splang(new_dom_u, spline)
-            dom.set_pos(new_x, new_y, old_pos.z)
-            dom.set_h(new_h)
-            dom_bef = domrun_seg.get_child(dom_id-1).node()
-            dom_aft = domrun_seg.get_child(dom_id+1).node()
-            dom_node = dom.node()
-            test_bef = parent.world.contact_test_pair(dom_node, dom_bef)
-            test_aft = parent.world.contact_test_pair(dom_node, dom_aft)
-            if test_bef.get_num_contacts() + test_aft.get_num_contacts() > 0:
-                dom.set_pos(old_pos)
-                dom.set_h(old_h)
-                return task.cont
-            # Update
-            u[dom_id] = new_dom_u
-            self.show_robustness(domrun_seg)
-            self.pos = new_pos
+        if not parent.mouseWatcherNode.has_mouse():
+            return task.cont
+        new_pos = np.array(parent.mouse_to_ground(
+                parent.mouseWatcherNode.get_mouse()))
+        dom = self.moving
+        dom_name = dom.get_name()
+        dom_id = int(dom_name[dom_name.rfind('_')+1:])
+        domrun_seg = dom.get_parent()
+        u = domrun_seg.get_python_tag('u')
+        dom_u = u[dom_id]
+        length = domrun_seg.get_python_tag('length')
+        spline = domrun_seg.get_python_tag('spline')
+        diff = (new_pos - self.pos)[:2]
+        dom_tan = spl.splev(dom_u, spline, 1)
+        dom_tan /= np.linalg.norm(dom_tan)
+        # Compute new position
+        new_dom_u = dom_u + diff.dot(dom_tan) / length
+        # Clip (basic)
+        new_dom_u = max(new_dom_u, u[dom_id-1])
+        new_dom_u = min(new_dom_u, u[dom_id+1])
+        # Clip (advanced)
+        old_pos = dom.get_pos()
+        old_h = dom.get_h()
+        new_x, new_y = spl.splev(new_dom_u, spline)
+        new_h = spl.splang(new_dom_u, spline)
+        dom.set_pos(new_x, new_y, old_pos.z)
+        dom.set_h(new_h)
+        dom_bef = domrun_seg.get_child(dom_id-1).node()
+        dom_aft = domrun_seg.get_child(dom_id+1).node()
+        dom_node = dom.node()
+        test_bef = parent.world.contact_test_pair(dom_node, dom_bef)
+        test_aft = parent.world.contact_test_pair(dom_node, dom_aft)
+        if test_bef.get_num_contacts() + test_aft.get_num_contacts() > 0:
+            dom.set_pos(old_pos)
+            dom.set_h(old_h)
+            return task.cont
+        # Update
+        u[dom_id] = new_dom_u
+        self.show_robustness(domrun_seg)
+        self.pos = new_pos
+
         return task.cont
 
     def set_optimize(self, optimize):
