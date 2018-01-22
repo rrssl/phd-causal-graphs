@@ -150,8 +150,7 @@ class DominoRunMode:
         else:
             parent.task_mgr.remove("update_highlight")
             if self.highlighted is not None:
-                self.highlighted.set_render_mode_filled_wireframe(
-                        parent.wireframe_color)
+                self.highlighted.clear_render_mode()
                 self.highlighted = None
 
     def update_highlight(self, task):
