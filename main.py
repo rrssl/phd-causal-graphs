@@ -142,20 +142,55 @@ class DominoRunMode:
             spline = spl.splprep(list(zip(*stroke)), k=k, s=s)[0]
             self.make_domrun_from_spline(spline)
 
+    def set_highlight(self, highlight):
+        parent = self.parent
+        if highlight:
+            self.highlighted = None
+            parent.task_mgr.add(self.update_highlight, "update_highlight")
+        else:
+            parent.task_mgr.remove("update_highlight")
+            if self.highlighted is not None:
+                self.highlighted.set_render_mode_filled_wireframe(
+                        parent.wireframe_color)
+                self.highlighted = None
+
+    def update_highlight(self, task):
+        parent = self.parent
+        hit = parent.get_hit_object()
+        if self.highlighted is None:
+            if hit is None:
+                pass
+            else:
+                self.highlighted = hit
+                self.highlighted.set_render_mode_filled_wireframe(1)
+        else:
+            if hit is None:
+                self.highlighted.clear_render_mode()
+                self.highlighted = None
+            else:
+                if hit == self.highlighted:
+                    pass
+                else:
+                    self.highlighted.clear_render_mode()
+                    self.highlighted = hit
+                    self.highlighted.set_render_mode_filled_wireframe(1)
+        return task.cont
+
     def set_remove(self, remove):
         parent = self.parent
         if remove:
+            parent.pick_level = 1
+            self.set_highlight(True)
             parent.accept_once("mouse1", self.remove_selected)
             parent.accept_once("mouse1-up", self.set_remove, [False])
         else:
-            pass
+            self.set_highlight(False)
 
     def remove_selected(self):
         parent = self.parent
-        hit_domino = parent.get_hit_object()
-        if hit_domino is None:
+        domrun_seg = parent.get_hit_object()
+        if domrun_seg is None:
             return
-        domrun_seg = hit_domino.get_parent()
         for domino in domrun_seg.get_children():
             parent.world.remove(domino.node())
         parent._create_cache()
@@ -165,9 +200,12 @@ class DominoRunMode:
     def set_move(self, move):
         parent = self.parent
         if move:
+            parent.pick_level = 0
+            self.set_highlight(True)
             parent.accept_once("mouse1", self.move_selected)
             parent.accept_once("mouse1-up", self.set_move, [False])
         else:
+            self.set_highlight(False)
             parent.task_mgr.remove("update_move")
             parent._create_cache()
 
@@ -185,6 +223,7 @@ class DominoRunMode:
         self.pos = np.array(parent.mouse_to_ground(
                 parent.mouseWatcherNode.get_mouse()))
         self.moving = hit_domino
+        parent.task_mgr.remove("update_highlight")
         parent.task_mgr.add(self.update_move, "update_move")
 
     def update_move(self, task):
@@ -233,17 +272,18 @@ class DominoRunMode:
     def set_optimize(self, optimize):
         parent = self.parent
         if optimize:
+            parent.pick_level = 1
+            self.set_highlight(True)
             parent.accept_once("mouse1", self.optimize_selected)
             parent.accept_once("mouse1-up", self.set_optimize, [False])
         else:
-            pass
+            self.set_highlight(False)
 
     def optimize_selected(self):
         parent = self.parent
-        hit_domino = parent.get_hit_object()
-        if hit_domino is None:
+        domrun_seg = parent.get_hit_object()
+        if domrun_seg is None:
             return
-        domrun_seg = hit_domino.get_parent()
         u = domrun_seg.get_python_tag('u')
         spline = domrun_seg.get_python_tag('spline')
         init_doms = DominoPath(u, spline)

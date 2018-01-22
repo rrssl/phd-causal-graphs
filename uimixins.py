@@ -229,6 +229,12 @@ class Pickerable:
     You need to set the python tag 'pickable' to True if you want a model
     to be pickable.
 
+    Attributes
+    ----------
+    pick_level : int
+      Which ancestor to return when calling get_hit_object().
+      0 is the object itself (default), 1 is the parent, etc.
+
     """
     def __init__(self):
         self.pick_traverser = CollisionTraverser()
@@ -239,6 +245,8 @@ class Pickerable:
         picker_node.add_solid(self.picker_ray)
         picker_np = self.camera.attach_new_node(picker_node)
         self.pick_traverser.add_collider(picker_np, self.pick_queue)
+
+        self.pick_level = 0
 
     def get_hit_object(self):
         if self.mouseWatcherNode.has_mouse():
@@ -251,7 +259,7 @@ class Pickerable:
                 pick_queue.sort_entries()
                 picked_obj = pick_queue.get_entry(0).get_into_node_path()
                 picked_obj = picked_obj.find_net_python_tag('pickable')
-                if (not picked_obj.is_empty()
-                        and picked_obj.get_python_tag('pickable')):
-                    return picked_obj
+                # False and None are equivqlent here
+                if picked_obj.get_python_tag('pickable'):
+                        return picked_obj.get_ancestor(self.pick_level)
         return None
