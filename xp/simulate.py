@@ -201,10 +201,10 @@ def setup_dominoes(coords, randfactor=0, tilt_first_dom=True,
     floor.attach_to(scene, world)
     # Dominoes
     domino_factory = DominoRun(
-            "domino_run", (t, w, h), coords, geom=_make_visual, mass=MASS,
+            "domino_run", (t, w, h), coords, geom=_make_geom, mass=MASS,
             friction=DOMINO_MATERIAL_FRICTION,
             restitution=DOMINO_MATERIAL_RESTITUTION,
-            angulat_damping=DOMINO_ANGULAR_DAMPING)
+            angular_damping=DOMINO_ANGULAR_DAMPING)
     domino_factory.create()
     domino_factory.attach_to(scene, world)
 
