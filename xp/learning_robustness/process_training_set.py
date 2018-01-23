@@ -8,6 +8,8 @@ spath : string
   Path to the samples to process.
 sid : int
   ID of the scenario used to generate the samples. See sampling_method.py.
+nprev : int, optional
+  Number of previous dominoes, if the scenario requires this parameter.
 
 """
 import os
@@ -61,8 +63,12 @@ def main():
         return
     spath = sys.argv[1]
     sid = int(sys.argv[2])
+    try:
+        nprev = int(sys.argv[3])
+    except IndexError:
+        nprev = 0
     samples = np.load(spath)
-    coords_list = sample2coords(samples, Scenario(sid))
+    coords_list = sample2coords(samples, Scenario(sid), nprev=nprev)
     values = Parallel(n_jobs=NCORES)(
             delayed(run_domino_toppling_xp)(coords)
             for coords in coords_list)
