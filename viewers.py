@@ -72,6 +72,12 @@ class TurntableViewer(ShowBase):
         # TODO check why the priority value is -4
         self.task_mgr.add(self.update_cam, "update_cam", priority=-4)
 
+        # Framerate
+        self.video_frame_rate = 60
+        clock = self.task_mgr.globalClock
+        clock.set_mode(clock.M_limited)
+        clock.set_frame_rate(self.video_frame_rate)
+
     def reset_default_mouse_controls(self):
         self.accept("mouse1", self.set_move_camera, [True])
         self.accept("mouse1-up", self.set_move_camera, [False])
@@ -240,9 +246,9 @@ class PhysicsViewer(Modeler):
 
     """
 
-    def __init__(self, framerate=240):
+    def __init__(self, frame_rate=240):
         super().__init__()
-        self.framerate = framerate
+        self.physics_frame_rate = frame_rate
 
         self.world = BulletWorld()
         self.world.set_gravity((0, 0, -9.81))
@@ -327,8 +333,9 @@ class PhysicsViewer(Modeler):
         # Rule: timeStep < maxSubSteps * fixedTimeStep
         # If you run interactively at 60Hz, with a simulator frequency of
         # 240Hz, you want maxSubSteps = 240/60+1.
-        fps = self.framerate
-        self.world.do_physics(dt, int(fps/60)+1, 1/fps)
+        fv = self.video_frame_rate
+        fp = self.physics_frame_rate
+        self.world.do_physics(dt, int(fp/fv)+1, 1/fp)
         self.world_time += dt
 
     def update_physics(self, task):
