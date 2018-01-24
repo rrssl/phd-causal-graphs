@@ -29,17 +29,16 @@ def export_domino_run(filename, coords, sheetsize=(21, 29.7)):
     size = np.tile((t*100, w*100), (coords.shape[0], 1))
 
     extents = xy.ptp(axis=0) + w*100
-    assert extents.size == 2
     if extents[1] < sheetsize[0] < extents[0] < sheetsize[1]:
-        rot = np.array(((0, 1), (-1, 0)))
-        xy = xy.dot(rot)
+        xy[:, [0, 1]] = xy[:, [1, 0]]
+        xy[:, 0] *= -1
         a += 90
-        extents = extents[::-1]
     xy = xy - (xy.min(axis=0) + xy.max(axis=0))/2 + np.asarray(sheetsize)/2
 
-    cont = export.VectorFile(filename, sheetsize)
-    cont.add_rectangles(xy, a, size)
-    cont.save()
+    vec = export.VectorFile(filename, sheetsize)
+    vec.add_rectangles(xy, a, size)
+    vec.add_text("up", (2, 2))
+    vec.save()
 
 
 def export_domino_run_from_path(filename, u, spline, sheetsize=(21, 29.7)):

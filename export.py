@@ -30,6 +30,15 @@ class VectorFile:
             rect.rotate(angle, pos)
             group.add(rect)
 
+    def add_polyline(self, points):
+        cont = self.cont
+        cont.add(cont.polyline(
+            points=points, fill='none', stroke='black', stroke_width=.02))
+
+    def add_text(self, text, position):
+        cont = self.cont
+        cont.add(cont.text(text, insert=position, style="font-size:1%"))
+
     def save(self):
         outname = os.path.splitext(self.filename)[0] + ".pdf"
         cairosvg.svg2pdf(self.cont.tostring(), write_to=outname)
