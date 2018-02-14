@@ -4,9 +4,16 @@ Sample the parameter space for robustness learning.
 Parameters
 ----------
 sid : int
-  Sampling scenario. See sampling_methods.py for a description.
+  Sampling scenario.
 nsam : int
   Number of samples.
+
+Scenarios:
+0   TwoDominoesLastRadial
+1   TwoDominoesLastFree
+2   DominoesStraightLastFree
+3   DominoesStraightTwoLastFree
+4   BallPlankDominoes
 
 """
 import os
@@ -15,7 +22,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.abspath("../.."))
-from xp.sampling_methods import sample, Scenario
+from xp.scenarios import SCENARIOS  # noqa: E402
 
 
 def main():
@@ -25,10 +32,9 @@ def main():
     sid = int(sys.argv[1])
     n = int(sys.argv[2])
 
-    generator_rule = 'H'
-    filter_rules = dict(filter_overlap=True, tilt_first_domino=True)
-    samples = sample(n, Scenario(sid), generator_rule, filter_rules)
-    name = "S{}{}-{}samples.npy".format(sid, generator_rule, n)
+    gen_rule = 'H'
+    samples = SCENARIOS(sid).sample_realizations(n, gen_rule=gen_rule)
+    name = "S{}{}-{}samples.npy".format(sid, gen_rule, n)
     np.save(name, samples)
 
 
