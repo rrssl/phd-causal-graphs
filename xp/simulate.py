@@ -2,13 +2,9 @@
 This module provides the necessary functions to simulate a domino run.
 
 """
-import os
-import sys
+from panda3d.core import load_prc_file_data, Vec4
 
-from panda3d.core import load_prc_file_data
-
-sys.path.insert(0, os.path.abspath(".."))
-from xp.config import TIMESTEP  # noqa: E402
+from .config import TIMESTEP
 
 
 # The next line avoids a "memory leak" that notably happens when
@@ -43,11 +39,33 @@ class Simulation:
             time += ts
 
     def run_visual(self):
+        """Run the simulation in visual mode."""
         from gui.viewers import PhysicsViewer
 
         app = PhysicsViewer()
-        self.scenario.scene.reparent_to(app.models)
-        app.world = self.scenario.world
+        scenario = self.scenario
+        scenario.scene.reparent_to(app.models)
+        app.world = scenario.world
+        status = None
+
+        def update_status(task):
+            nonlocal status
+            if scenario.terminate.status != status:
+                status = scenario.terminate.status
+                if status == 'success':
+                    scenario.scene.set_color(Vec4(0, 1, 0, 1))
+                elif status == 'timeout':
+                    scenario.scene.set_color(Vec4(1, 0, 0, 1))
+                else:
+                    scenario.scene.clear_color()
+            return task.cont
+        app.task_mgr.add(update_status, "update_status", sort=2)
+
+        def reset():
+            scenario.terminate.reset()
+            app.reset_physics()
+        app.accept('r', reset)
+
         try:
             app.run()
         except SystemExit:

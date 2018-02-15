@@ -137,14 +137,20 @@ def has_toppled(domino):
 
 class DominoRunTerminationCondition:
     def __init__(self, domrun_np):
-        self.status = None
         self.dominoes = list(domrun_np.get_children())
+        self.reset()
+
+    def reset(self):
+        self.status = None
         self.last_toppled_id = -1
         self.last_toppled_time = 0
 
     def __call__(self, time):
+        # Avoid checking if already terminated.
+        if self.status in ('success', 'timeout'):
+            return True
         n = len(self.dominoes)
-        # Use while here because close dominoes can topple at the same time
+        # Use 'while' here because close dominoes can topple at the same time
         while (self.last_toppled_id < n-1
                 and has_toppled(self.dominoes[self.last_toppled_id+1])):
             self.last_toppled_id += 1
