@@ -1,24 +1,27 @@
 """
-Playing with Panda3D and Bullet
+Main GUI.
 
-@author: Robin Roussel
 """
-from functools import partial
-from matplotlib import cm
-from matplotlib import colors as mcol
+import os
+import sys
+
 import numpy as np
+from matplotlib import colors as mcol
+from matplotlib import cm
 from panda3d.core import NodePath, Point3, Vec3, Vec4, load_prc_file_data
 
-import spline2d as spl
-from geom2d import make_rectangle
-from primitives import DominoRun, Plane
-from uimixins import Drawable, Focusable, Pickerable, Tileable
-from uiwidgets import ButtonMenu, DropdownMenu
-from viewers import PhysicsViewer
-from xp.config import MASS, h, t, w, TOPPLING_ANGLE
-from xp.domgeom import tilt_box_forward
-from xp.domino_design.global_method import DominoPath, run_optim
-from xp.domino_predictors import DominoRobustness2
+sys.path.insert(0, os.path.abspath('..'))
+import core.spline2d as spl  # noqa: E402
+from core.primitives import DominoRun, Plane  # noqa: E402
+from gui.geom2d import make_rectangle  # noqa: E402
+from gui.uimixins import (Drawable, Focusable, Pickerable,  # noqa: E402
+                          Tileable)
+from gui.uiwidgets import ButtonMenu, DropdownMenu  # noqa: E402
+from gui.viewers import PhysicsViewer  # noqa: E402
+from xp.config import MASS, TOPPLING_ANGLE, h, t, w  # noqa: E402
+from xp.domgeom import tilt_box_forward  # noqa: E402
+from xp.domino_design.global_method import DominoPath, run_optim  # noqa: E402
+from xp.domino_predictors import DominoRobustness2  # noqa: E402
 
 SMOOTHING_FACTOR = .001
 PHYSICS_FRAMERATE = 240
@@ -339,7 +342,7 @@ class MyApp(Tileable, Focusable, Drawable, Pickerable, PhysicsViewer):
         floor.create()
         floor.attach_to(self.models, self.world)
 
-        self.font = self.loader.load_font("assets/Roboto_regular.ttf")
+        self.font = self.loader.load_font("../assets/Roboto_regular.ttf")
         bt_shape = NodePath(make_rectangle(4, 2, 0.2, 4))
         bt_shape.set_color(Vec4(65, 105, 225, 255)/255)
         self.add_modes = ("DOMINO RUN", "TODO")

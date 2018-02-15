@@ -21,9 +21,9 @@ import numpy as np
 from panda3d.core import Vec4
 
 sys.path.insert(0, os.path.abspath(".."))
-from viewers import PhysicsViewer  # noqa
-import spline2d as spl  # noqa
-from xp.simulate import Simulation  # noqa
+from gui.viewers import PhysicsViewer  # noqa: E402
+import core.spline2d as spl  # noqa: E402
+from xp.simulate import Simulation  # noqa: E402
 
 
 class DominoViewer(PhysicsViewer):
@@ -43,7 +43,7 @@ class DominoViewer(PhysicsViewer):
 
     def add_path(self, u, spline, pathcolor=None):
         if pathcolor is None:
-            color = next(self.colors)
+            pathcolor = next(self.colors)
         spl.show_spline2d(
                 self.render, spline, u,
                 "path_{}".format(self.simu.scene.get_num_children() - 1),

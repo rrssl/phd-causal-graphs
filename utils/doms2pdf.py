@@ -17,10 +17,10 @@ import sys
 
 import numpy as np
 
-sys.path.insert(0, os.path.abspath("../.."))
-import export  # noqa
-import spline2d as spl  # noqa
-from xp.config import t, w  # noqa
+sys.path.insert(0, os.path.abspath(".."))
+import core.spline2d as spl  # noqa: E402
+from core.export import VectorFile  # noqa: E402
+from xp.config import t, w  # noqa: E402
 
 
 def export_domino_run(filename, coords, sheetsize=(21, 29.7)):
@@ -35,7 +35,7 @@ def export_domino_run(filename, coords, sheetsize=(21, 29.7)):
         a += 90
     xy = xy - (xy.min(axis=0) + xy.max(axis=0))/2 + np.asarray(sheetsize)/2
 
-    vec = export.VectorFile(filename, sheetsize)
+    vec = VectorFile(filename, sheetsize)
     vec.add_rectangles(xy, a, size)
     vec.add_text("up", (2, 2))
     vec.save()

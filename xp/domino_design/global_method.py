@@ -11,24 +11,24 @@ import os
 import pickle
 import sys
 
-from matplotlib import cm
 #  import matplotlib.pyplot as plt
 import numpy as np
 import scipy.optimize as opt
-from shapely.geometry import box
+from matplotlib import cm
 from shapely.affinity import rotate, translate
+from shapely.geometry import box
 
 sys.path.insert(0, os.path.abspath("../.."))
-import spline2d as spl  # noqa
-from xp.calibration.doms2pdf import export_domino_run  # noqa
-from xp.config import t, w
-from xp.domino_design.methods import equal_spacing  # noqa
-from xp.domino_predictors import DominoRobustness, DominoRobustness2  # noqa
-from xp.viewdoms import DominoViewer  # noqa
+import core.spline2d as spl  # noqa: E402
+from utils.doms2pdf import export_domino_run  # noqa: E402
+from xp.config import t, w  # noqa: E402
+from xp.domino_predictors import (DominoRobustness,  # noqa: E402
+                                  DominoRobustness2)
+from apps.viewdoms import DominoViewer  # noqa: E402
 
 
 OPTIM_METHOD = 'minimize'
-FREE_ANGLE = 10
+FREE_ANGLE = 30
 SOFTMIN_COEFF = 1
 SHOW_MANU = False
 
@@ -325,7 +325,7 @@ def main():
     spline_shifted2 = spl.translate(spline, (0, .2))
 
     # Distribute dominoes linearly along this path.
-    base_u = equal_spacing(spline, n_doms)
+    base_u = spl.linspace(spline, n_doms)
     base_doms = DominoPath(base_u, spline)
 
     if SHOW_MANU:
