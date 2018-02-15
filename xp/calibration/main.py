@@ -17,22 +17,24 @@ import skopt
 import stochopy
 sys.path.insert(0, os.path.abspath("../.."))
 from _ext import go_amp  # noqa
-
+from viewers import PhysicsViewer  # noqa
 from xp.config import MAX_WAIT_TIME, TOPPLING_ANGLE, t, h  # noqa
 import xp.simulate as simu  # noqa
-from viewers import PhysicsViewer  # noqa
 
 
 MAKE_VISUALS = 1
-BASES = ["data/20171104/I", "data/20171104/U", "data/20171104/O"]
+BASES = ["data/20171104/I", "data/20171104/U", "data/20171104/O",
+         "data/20171127/N", "data/20171127/["]
+INIT_COND = ['straight', 'straight', 'straight', 'tilted', 'tilted']
 SPLINE_EXT = ".pkl"
 DOMS_EXT = "-doms.npz"
-REF_TIMES_EXT = "-groundtruth.txt"
+REF_TIMES_EXT = "-groundtruth.csv"
 FPS = 480  # Hz
-OPTIM_SOLVERS = ('scipy_DE',
-                 'skopt_GP', 'skopt_GBRT', 'skopt_forest',
-                 'stochopy_PSO', 'stochopy_CPSO', 'stochopy_CMAES',
-                 )
+OPTIM_SOLVERS = ('scipy_DE',)
+#  OPTIM_SOLVERS = ('scipy_DE',
+#                   'skopt_GP', 'skopt_GBRT', 'skopt_forest',
+#                   'stochopy_PSO', 'stochopy_CPSO', 'stochopy_CMAES',
+#                   )
 
 
 class CustomViewer(PhysicsViewer):
@@ -59,40 +61,43 @@ class CustomViewer(PhysicsViewer):
 
 
 class Objective:
-    def __init__(self, data_dicts):
+    def __init__(self, data_dicts, init_cond='straight'):
         self.n_events = 2
         self.n_shapes = len(data_dicts)
         self.distributions = [dd['doms'] for dd in data_dicts]
         self.splines = [dd['spline'] for dd in data_dicts]
         self.push_times = [dd['ref_times'][0] for dd in data_dicts]
         self.A_ref = np.array([dd['ref_times'][1:] for dd in data_dicts])
+        self.init_cond = [dd['init'] for dd in data_dicts]
         self.E = np.zeros((self.n_shapes, self.n_events))
         self.push_point = Point3(-t/2, 0, h/3)
-        self.denorm_factor = np.array([1/10, 1, 1, 1, 1/10])
+        #  self.denorm_factor = np.array([1/10, 1, 1, 1, 1/10])
+        self.denorm_factor = np.array([1/10]*self.n_shapes + [1, 1, 1, 1/10])
 
-    def __call__(self, x, _visual=False, _print=False):
-        parameters = x * self.denorm_factor
+    def __call__(self, x, _visual=False, _matrix_out=False):
+        *mag, dom_fric, flo_fric, dom_rest, dom_damp = x * self.denorm_factor
         # Reset world for each shape
         worlds = [simu.setup_dominoes_from_path(
-            distrib, spline, tilt_first_dom=False, _make_geom=_visual)[1]
-            for distrib, spline in zip(self.distributions, self.splines)
+            distrib, spline, tilt_first_dom=(init == 'tilted'),
+            _make_geom=_visual)[1]
+            for distrib, spline, init in zip(
+                self.distributions, self.splines, self.init_cond)
             ]
 
         # Compute the N_shapes-by-N_events error matrix
         for i in range(self.n_shapes):
             self.E[i] = self.A_ref[i] - run_simu(
                     worlds[i],
-                    floor_friction=parameters[2],
-                    domino_friction=parameters[1],
-                    domino_restitution=parameters[3],
-                    domino_angular_damping=parameters[4],
-                    push_magnitude=parameters[0],
+                    floor_friction=flo_fric,
+                    domino_friction=dom_fric,
+                    domino_restitution=dom_rest,
+                    domino_angular_damping=dom_damp,
+                    push_magnitude=mag[i],
                     push_duration=self.push_times[i],
                     push_point=self.push_point,
                     _visual=_visual*(i == 2))
-        if _print:
-            print("Error matrix:")
-            print(self.E)
+        if _matrix_out:
+            return np.abs(self.E)
 
         out = np.sum(self.E**2)
         #  try:
@@ -108,9 +113,10 @@ class Objective:
         return out
 
 
-def gen_data():
+def load_data():
     data_dicts = []
-    for base in BASES:
+    for base, init in zip(BASES, INIT_COND):
+        name = os.path.basename(base)
         # Spline
         with open(base + SPLINE_EXT, 'rb') as f:
             spline = pickle.load(f)[0]
@@ -133,12 +139,16 @@ def gen_data():
                          last_topple_times.std()]
 
         data_dicts.append({
+            'name': name,
             'spline': spline,
             'doms': doms,
             'ref_times': ref_times,
             'ref_times_std': ref_times_std,
-            'n_trials': table.shape[0]
+            'n_trials': table.shape[0],
+            'init': init
             })
+        print("{} -- Times: {}; STD: {}".format(
+            name, ref_times[1:], ref_times_std[1:]))
     n_shapes = len(data_dicts)
 
     if MAKE_VISUALS and 0:
@@ -146,13 +156,13 @@ def gen_data():
         fig, ax = plt.subplots(figsize=plt.figaspect(.5))
         barwidth = .5
         inter_plot_width = barwidth * (n_shapes + 1)
-        shapes = ("$I$", "$U$", "$\Omega$")
+        #  shapes = ("$I$", "$U$", "$\Omega$", "$N$", "$[$")
         for i, dd in enumerate(data_dicts):
-            x = np.arange(n_shapes)*inter_plot_width + i*barwidth
             y = dd['ref_times']
+            x = np.arange(len(y))*inter_plot_width + i*barwidth
             yerr = dd['ref_times_std']
-            label = "{} shape ($N_{{dom}}={}$, $N_{{trials}}={}$)".format(
-                    shapes[i], len(dd['doms']), dd['n_trials'])
+            label = "${}$ shape ($N_{{dom}}={}$, $N_{{trials}}={}$)".format(
+                    dd['name'], len(dd['doms']), dd['n_trials'])
             ax.bar(x, y, barwidth, yerr=yerr, capsize=3, label=label)
         ax.set_title("Duration of some events for each path shape (mean+std)")
         ax.set_xticks(x-(barwidth*i/2))
@@ -430,43 +440,120 @@ def find_toppling_bounds(floor_friction=.5,
 
 def main():
     # Load all files
-    data_dicts = gen_data()
+    data_dicts = load_data()
+    calib_dicts = [data_dicts[i] for i in (1, 2, 4)]
+    valid_dicts = [data_dicts[i] for i in (0, 3)]
 
     # Initialize optimization
-    objective = Objective(data_dicts)
+    objective = Objective(calib_dicts)
     # Ensure reproducibility
     #  objective([0.51414948, 0.47084592, 0.92685865], _visual=0)
-    _temp1 = [.1, .7, .5, .1, .1]
+    _temp1 = [.1]*len(calib_dicts) + [.7, .5, .1, .1]
     #  _temp2 = [.0001, .6, .6, .2, .1]
     assert objective(_temp1) == objective(_temp1)
     #  assert objective(_temp2) == objective(_temp2)
     #  assert objective(_temp1) == objective(_temp1)
 
     # Find a good value with brute force.
-    best_x_brute, best_fun_val_brute = run_bruteforce_optim(objective)
-    print("Optim result (bruteforce): {}, with energy: {}".format(
-        best_x_brute, best_fun_val_brute))
+    #  best_x_brute, best_fun_val_brute = run_bruteforce_optim(objective)
+    #  print("Optim result (bruteforce): {}, with energy: {}".format(
+    #      best_x_brute, best_fun_val_brute))
 
     # Compare solvers and pick the best
     #  x0 = [.1, .5, .5]
-    bounds = [[.01, 1.], [.1, 1.5], [.1, 1.5], [0., 1.], [0., 1.]]
-    maxiter = 100
+    bounds = [[.001, 1.]]*len(calib_dicts) + [
+            [.1, 1.5], [.1, 1.5], [0., 1.], [0., 1.]]
+    maxiter = 200
     best_solver, best_x, best_f = find_best_solver(objective, bounds, maxiter)
     print("Optim params: {}, with energy: {}, obtained with solver {}".format(
         best_x*objective.denorm_factor, best_f, best_solver))
-    #  objective([.0535, .5, .5, 0., 0.], _print=1, _visual=0)
-    #  objective(best_x, _print=1, _visual=0)
+
+    # Test with the calibration set.
+    uncal_error = objective(
+            list(best_x[:len(calib_dicts)])+[.5, .5, 0., 0.],
+            _matrix_out=True)
+    manual_error = objective(np.array(bounds).mean(axis=1)**2, _matrix_out=True)
+    cal_error = objective(best_x, _matrix_out=True)
+    print("Original error on the calibration set:", uncal_error, sep='\n')
+    print("Final error on the calibration set:", cal_error, sep='\n')
+
+    # Test with the validation set.
+    valid_objective = Objective(valid_dicts)
+    valid_uncal_error = valid_objective(
+            [best_x[0], best_x[2], .5, .5, 0., 0.],
+            _matrix_out=True)
+    valid_manual_error = valid_objective(
+            np.array([bounds[0]] + bounds[2:]).mean(axis=1)**2,
+            _matrix_out=True)
+    valid_cal_error = valid_objective(
+            [best_x[0]] + list(best_x[2:]),
+            _matrix_out=True)
+    print("Original error on the validation set:", valid_uncal_error, sep='\n')
+    print("Final error on the validation set:", valid_cal_error, sep='\n')
+
+    if MAKE_VISUALS and 1:
+        all_dicts = calib_dicts + valid_dicts
+        names = [di['name'] for di in all_dicts]
+        stds = np.vstack([di['ref_times_std'][1:] for di in all_dicts])
+        n_shapes = len(all_dicts)
+
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9,6))
+        #  fig.subplots_adjust(hspace=.3)
+        barwidth = .5
+        inter_plot_width = barwidth * (n_shapes + 1)
+        all_uncal_error = np.vstack((uncal_error, valid_uncal_error))
+        all_cal_error = np.vstack((cal_error, valid_cal_error))
+        all_manual_error = np.vstack((manual_error, valid_manual_error))
+
+        x = np.arange(n_shapes)*inter_plot_width
+        ax1.bar(x, all_uncal_error[:, 0], barwidth, label="Default")
+        ax1.bar(x+1*barwidth, all_manual_error[:, 0], barwidth, label="Manual")
+        ax1.bar(x+2*barwidth, all_cal_error[:, 0], barwidth, label="Optimized")
+        bar = ax1.bar(x+barwidth, stds[:, 0], 3*barwidth,
+                      label="Ground truth STD",
+                      edgecolor=[(0,0,0,.5)]*n_shapes, color='none')
+        for bi in bar:
+            bi.set_hatch('//')
+        ax1.set_title("Error before and after calibration -- "
+                      "From first to last collision")
+        ax1.set_xticks(x+barwidth)
+        ax1.axvline((x[-3]+x[-2]+barwidth)/2, lw=1, ls='--', c='k')
+        ax1.set_xticklabels(names)
+        ax1.set_ylabel("Time error (s)")
+        ax1.legend()
+
+        ax2.bar(x, all_uncal_error[:, 1], barwidth, label="Default")
+        ax2.bar(x+1*barwidth, all_manual_error[:, 1], barwidth, label="Manual")
+        ax2.bar(x+2*barwidth, all_cal_error[:, 1], barwidth, label="Optimized")
+        bar = ax2.bar(x+barwidth, stds[:, 1], 3*barwidth,
+                      label="Ground truth STD",
+                      edgecolor=[(0,0,0,.5)]*n_shapes, color='none')
+        for bi in bar:
+            bi.set_hatch('//')
+        ax2.set_title("Error before and after calibration -- "
+                      "From last collision to hitting the floor")
+        ax2.set_xticks(x+barwidth)
+        ax2.axvline((x[-3]+x[-2]+barwidth)/2, lw=1, ls='--', c='k')
+        ax2.set_xticklabels(names)
+        ax2.set_ylabel("Time error (s)")
+
+        fig.tight_layout()
 
     # Find the fall/no-fall distances.
     params = best_x * objective.denorm_factor
     bounds = find_toppling_bounds(
-            domino_friction=params[1],
-            domino_restitution=params[3],
-            domino_angular_damping=params[4],
-            floor_friction=params[2],
             timestep=1/(2*FPS),
             _visual=0)
-    print("Toppling bounds: {:.2f}cm -- {:.2f}cm".format(
+    print("Initial toppling bounds: {:.2f}cm -- {:.2f}cm".format(
+        bounds[0]*100, bounds[1]*100))
+    bounds = find_toppling_bounds(
+            domino_friction=params[-4],
+            domino_restitution=params[-2],
+            domino_angular_damping=params[-1],
+            floor_friction=params[-3],
+            timestep=1/(2*FPS),
+            _visual=0)
+    print("Calibrated toppling bounds: {:.2f}cm -- {:.2f}cm".format(
         bounds[0]*100, bounds[1]*100))
 
     # TODO. Produce 240FPS videos to compare to real footage.
