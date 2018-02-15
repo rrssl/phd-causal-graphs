@@ -1,8 +1,11 @@
+import os
+import sys
 from panda3d.core import Point3, Vec3
 
-from primitives import Plane, Ball, Goblet, Lever, DominoRun
-from xp.domino_syncing.domino_templates import create_circular_arc
-from viewers import PhysicsViewer
+sys.path.insert(0, os.path.abspath('..'))
+from core.primitives import Plane, Ball, Goblet, Lever, DominoRun
+from core.domino_templates import create_circular_arc
+from gui.viewers import PhysicsViewer
 
 
 def main():

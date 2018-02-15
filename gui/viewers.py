@@ -1,18 +1,13 @@
-# -*- coding: utf-8 -*-
 """
 Custom classes to improve on the basic Panda3D viewer.
 
-@author: Robin Roussel
 """
 from direct.showbase.ShowBase import ShowBase
-from panda3d.core import AmbientLight, DirectionalLight
-from panda3d.core import ShadeModelAttrib
-from panda3d.core import Point2
-from panda3d.core import LineSegs
-from panda3d.core import NodePath
-from panda3d.bullet import BulletWorld, BulletDebugNode
+from panda3d.bullet import BulletDebugNode, BulletWorld
+from panda3d.core import (AmbientLight, DirectionalLight, LineSegs, NodePath,
+                          Point2, ShadeModelAttrib)
 
-from coord_grid import ThreeAxisGrid
+from .coord_grid import ThreeAxisGrid
 
 
 class TurntableViewer(ShowBase):
