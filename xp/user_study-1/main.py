@@ -14,7 +14,7 @@ STRIDES = 6
 SHAPES = [
         {'name': 'N', 'n_doms': 10},
         {'name': '[', 'n_doms': 20},
-        {'name': 'U', 'n_doms': 11},
+        #  {'name': 'U', 'n_doms': 11},
         ]
 
 
