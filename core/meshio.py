@@ -1,9 +1,6 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Utility functions
+Mesh conversion functions
 
-@author: Robin Roussel
 """
 from panda3d.core import (Geom, GeomVertexFormat, GeomVertexWriter,
                           GeomVertexData, GeomTriangles)
@@ -39,13 +36,13 @@ def trimesh2panda(vertices, triangles, vertex_normals=None, face_normals=None,
     vdata.setNumRows(len(vertices))
 
     # Add vertex position
-    writer = GeomVertexWriter(vdata, "vertex") # Name is not arbitrary here!
+    writer = GeomVertexWriter(vdata, "vertex")  # 1.Name is not arbitrary here!
     for vertex in vertices:
         writer.addData3f(*vertex)
 
     # Add vertex normals
     if has_normals:
-        writer = GeomVertexWriter(vdata, "normal") # Name is not arbitrary here!
+        writer = GeomVertexWriter(vdata, "normal")  # Same as (1)
         if flat_shading:
             for normal in normals:
                 writer.addData3f(0, 0, 0)
@@ -57,7 +54,7 @@ def trimesh2panda(vertices, triangles, vertex_normals=None, face_normals=None,
 
     # Add vertex color
     if has_colors:
-        writer = GeomVertexWriter(vdata, "color") # Name is not arbitrary here!
+        writer = GeomVertexWriter(vdata, "color")  # Same as (1)
         for color in colors:
             writer.addData4i(*color)
 

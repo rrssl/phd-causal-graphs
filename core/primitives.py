@@ -11,7 +11,7 @@ import panda3d.bullet as bt
 import solid as sl
 import solid.utils as slu
 
-from .utils import solid2panda, trimesh2panda
+from .meshio import solid2panda, trimesh2panda
 
 
 class BulletRootNodePath(NodePath):
