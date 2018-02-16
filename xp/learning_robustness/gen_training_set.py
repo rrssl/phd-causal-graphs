@@ -32,9 +32,9 @@ def main():
     sid = int(sys.argv[1])
     n = int(sys.argv[2])
 
-    gen_rule = 'H'
-    samples = SCENARIOS(sid).sample_realizations(n, gen_rule=gen_rule)
-    name = "S{}{}-{}samples.npy".format(sid, gen_rule, n)
+    rule = 'H'
+    samples = SCENARIOS[sid].sample_valid(n, rule=rule)
+    name = "S{}{}-{}samples.npy".format(sid, rule, n)
     np.save(name, samples)
 
 
