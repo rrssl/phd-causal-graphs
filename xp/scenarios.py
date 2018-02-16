@@ -228,7 +228,7 @@ class TwoDominoesLastRadial(Samplable):
     relative heading angle).
 
     """
-    def __init__(self, sample, make_geom=False):
+    def __init__(self, sample, make_geom=False, **kwargs):
         self.scene, self.world = self.init_scenario(sample, make_geom)
         domrun = self.scene.find("domino_run")
         self.terminate = DominoRunTerminationCondition(domrun)
@@ -266,7 +266,7 @@ class TwoDominoesLastFree(Samplable):
     relative heading angle).
 
     """
-    def __init__(self, sample, make_geom=False):
+    def __init__(self, sample, make_geom=False, **kwargs):
         self.scene, self.world = self.init_scenario(sample, make_geom)
         domrun = self.scene.find("domino_run")
         self.terminate = DominoRunTerminationCondition(domrun)
@@ -317,7 +317,8 @@ class DominoesStraightLastFree(Samplable):
     relative heading angle and spacing between previous doms).
 
     """
-    def __init__(self, sample, nprev, make_geom=False):
+    def __init__(self, sample, make_geom=False, **kwargs):
+        nprev = kwargs.pop('nprev', 0)
         self.scene, self.world = self.init_scenario(sample, nprev, make_geom)
         domrun = self.scene.find("domino_run")
         self.terminate = DominoRunTerminationCondition(domrun)
@@ -360,7 +361,7 @@ class DominoesStraightLastFree(Samplable):
         return cp.J(dist_x, dist_y, dist_a, dist_s)
 
     @staticmethod
-    def init_scenario(sample, nprev, make_geom=False):
+    def init_scenario(sample, nprev=0, make_geom=False):
         scene, world = init_scene()
         length = sample[3] * nprev
         coords = np.zeros((nprev+2, 3))
@@ -379,7 +380,8 @@ class DominoesStraightTwoLastFree(Samplable):
     Samplable with 6 DoFs (relative transforms of domino 2 vs 1 and 3 vs 2.)
 
     """
-    def __init__(self, sample, nprev, make_geom=False):
+    def __init__(self, sample, make_geom=False, **kwargs):
+        nprev = kwargs.pop('nprev', 0)
         self.scene, self.world = self.init_scenario(sample, nprev, make_geom)
         domrun = self.scene.find("domino_run")
         self.terminate = DominoRunTerminationCondition(domrun)
@@ -428,7 +430,7 @@ class DominoesStraightTwoLastFree(Samplable):
         #  return cp.J(dist_xya1, dist_xya2)
 
     @staticmethod
-    def init_scenario(sample, nprev, make_geom=False):
+    def init_scenario(sample, nprev=0, make_geom=False):
         scene, world = init_scene()
         length = nprev * cfg.h / 3
         coords = np.zeros((nprev+3, 3))
@@ -461,7 +463,7 @@ class CustomDominoRun:
       Whether to add a geometry or not.
 
     """
-    def __init__(self, sample, make_geom=False):
+    def __init__(self, sample, make_geom=False, **kwargs):
         self.scene, self.world = self.init_scenario(sample, make_geom)
         domrun = self.scene.find("domino_run")
         self.terminate = DominoRunTerminationCondition(domrun)
@@ -484,7 +486,8 @@ class BallPlankDominoes(Samplable):
     Samplable with 3 DoFs (x, y and angle of the plank).
 
     """
-    def __init__(self, sample, ndoms, make_geom=False):
+    def __init__(self, sample, make_geom=False, **kwargs):
+        ndoms = kwargs.pop('ndoms', 1)
         self.scene, self.world = self.init_scenario(sample, ndoms, make_geom)
         domrun = self.scene.find("domino_run")
         self.terminate = DominoRunTerminationCondition(domrun)
@@ -520,7 +523,7 @@ class BallPlankDominoes(Samplable):
         return cp.J(dist_x, dist_y, dist_a)
 
     @staticmethod
-    def init_scenario(sample, ndoms, make_geom=False):
+    def init_scenario(sample, ndoms=1, make_geom=False):
         scene, world = init_scene()
         # Plank
         angle = radians(sample[2])
