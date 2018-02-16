@@ -42,7 +42,7 @@ class Simulation:
         """Run the simulation in visual mode."""
         from gui.viewers import PhysicsViewer
 
-        app = PhysicsViewer()
+        app = PhysicsViewer(frame_rate=1/TIMESTEP)
         scenario = self.scenario
         scenario.scene.reparent_to(app.models)
         app.world = scenario.world
