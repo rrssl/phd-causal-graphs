@@ -494,8 +494,8 @@ class BallPlankDominoes(Samplable):
 
     @staticmethod
     def check_valid(scene, world):
-        floor = scene.find("floor").node()
-        plank = scene.find("plank").node()
+        floor = scene.find("floor_solid").node()
+        plank = scene.find("plank_solid").node()
         contact = world.contact_test_pair(floor, plank).get_num_contacts()
         if contact:
             return False
@@ -533,12 +533,12 @@ class BallPlankDominoes(Samplable):
         corner_abs = np.asarray(sample[:2])
         corner_rel = np.array([cfg.PLANK_LENGTH/2, -cfg.PLANK_THICKNESS/2])
         center = corner_abs - corner_rel.dot(rot_t)
-        pos = Point3(center[0], center[1], 0)
-        hpr = Vec3(0, 0, sample[2])
+        pos = Point3(center[0], 0, center[1])
+        hpr = Vec3(0, 0, -sample[2])
         add_plank("plank", pos, hpr, scene, world, make_geom)
         # Ball
-        center += -corner_rel.dot(rot_t) + [1e-3, cfg.BALL_RADIUS+1e-3]
-        pos = Point3(center[0], center[1], 0)
+        center += -corner_rel.dot(rot_t) + [1e-2, cfg.BALL_RADIUS+1e-3]
+        pos = Point3(center[0], 0, center[1])
         add_ball("ball", pos, scene, world, make_geom)
         # Dominoes
         coords = np.zeros((ndoms, 3))
