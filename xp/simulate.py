@@ -49,6 +49,7 @@ class Simulation:
         status = None
 
         def update_status(task):
+            scenario.terminate(app.world_time)
             nonlocal status
             if scenario.terminate.status != status:
                 status = scenario.terminate.status
@@ -59,7 +60,7 @@ class Simulation:
                 else:
                     scenario.scene.clear_color()
             return task.cont
-        app.task_mgr.add(update_status, "update_status", sort=2)
+        app.task_mgr.add(update_status, "update_status")
 
         def reset():
             scenario.terminate.reset()
