@@ -202,11 +202,12 @@ class Samplable:
             cp.seed(n)
         return cls.get_distribution().sample(n, rule=rule).T
 
+    @classmethod
     def sample_valid(cls, n, max_trials=None, rule='R'):
         if max_trials is None:
             max_trials = 2 * n
         cand_samples = cls.sample(max_trials, rule)
-        samples = np.empty((n, len(cand_samples)))
+        samples = np.empty((n, cand_samples.shape[1]))
         n_valid = 0
         for sample in cand_samples:
             if cls.check_valid(*cls.init_scenario(sample)):
@@ -372,7 +373,7 @@ class DominoesStraightLastFree(Samplable):
         return self.terminate.status == 'success'
 
 
-class DominoesStraightTwoLastFree:
+class DominoesStraightTwoLastFree(Samplable):
     """Any number of dominoes in a straight line, the last two being free.
 
     Samplable with 6 DoFs (relative transforms of domino 2 vs 1 and 3 vs 2.)
