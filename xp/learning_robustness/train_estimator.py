@@ -1,5 +1,5 @@
 """
-Train the domino-topples classifier.
+Train the estimator (distance function of an RBF-kernel SVC).
 
 Parameters
 ----------
