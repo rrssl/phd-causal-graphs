@@ -33,9 +33,13 @@ def main():
     n = int(sys.argv[2])
 
     rule = 'H'
-    samples = SCENARIOS[sid].sample_valid(n, rule=rule)
-    name = "S{}{}-{}samples.npy".format(sid, rule, n)
-    np.save(name, samples)
+    samples = SCENARIOS[sid].sample_valid(2*n, rule=rule)
+    training_set = samples[:n]
+    test_set = samples[n:]
+
+    base = "S{}{}-{}-".format(sid, rule, n)
+    np.save(base+"training.npy", training_set)
+    np.save(base+"test.npy", test_set)
 
 
 if __name__ == "__main__":
