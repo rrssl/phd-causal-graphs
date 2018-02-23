@@ -247,6 +247,13 @@ class TwoDominoesLastRadial(Samplable):
         return cp.J(dist_x, dist_a)
 
     @staticmethod
+    def get_parameters(scene):
+        d1, d2 = scene.find("domino_run").get_children()
+        d = (d2.get_pos() - d1.get_pos()).length()
+        a = d2.get_h() - d1.get_h()
+        return d, a
+
+    @staticmethod
     def init_scenario(sample, make_geom=False):
         scene, world = init_scene()
         coords = np.zeros((2,  3))
@@ -297,6 +304,13 @@ class TwoDominoesLastFree(Samplable):
                               (cfg.A_MIN+cfg.A_MAX)/2,
                               (cfg.A_MAX-cfg.A_MIN)/4)
         return cp.J(dist_x, dist_y, dist_a)
+
+    @staticmethod
+    def get_parameters(scene):
+        d1, d2 = scene.find("domino_run").get_children()
+        x, y, _ = d2.get_pos() - d1.get_pos()
+        a = d2.get_h() - d1.get_h()
+        return x, y, a
 
     @staticmethod
     def init_scenario(sample, make_geom=False):
@@ -359,6 +373,21 @@ class DominoesStraightLastFree(Samplable):
                               (cfg.MIN_SPACING+cfg.MAX_SPACING)/2,
                               (cfg.MAX_SPACING-cfg.MIN_SPACING)/4)
         return cp.J(dist_x, dist_y, dist_a, dist_s)
+
+    @staticmethod
+    def get_parameters(scene):
+        doms = list(scene.find("domino_run").get_children())
+        x, y, _ = doms[-1].get_pos() - doms[-2].get_pos()
+        a = doms[-1].get_h() - doms[-2].get_h()
+        prev = doms[:-2]
+        if prev:
+            s = sum(
+                (d2.get_pos() - d1.get_pos()).length()
+                for d1, d2 in zip(prev[:-1], prev[1:])
+            ) / (len(prev) - 1)
+        else:
+            s = 0.
+        return x, y, a, s
 
     @staticmethod
     def init_scenario(sample, nprev=0, make_geom=False):
@@ -430,6 +459,15 @@ class DominoesStraightTwoLastFree(Samplable):
         #  return cp.J(dist_xya1, dist_xya2)
 
     @staticmethod
+    def get_parameters(scene):
+        *_, d1, d2, d3 = scene.find("domino_run").get_children()
+        x1, y1, _ = d2.get_pos() - d1.get_pos()
+        a1 = d2.get_h() - d1.get_h()
+        x2, y2, _ = d3.get_pos(d2)
+        a2 = d3.get_h() - d2.get_h()
+        return x1, y1, a1, x2, y2, a2
+
+    @staticmethod
     def init_scenario(sample, nprev=0, make_geom=False):
         scene, world = init_scene()
         length = nprev * cfg.h / 3
@@ -483,7 +521,8 @@ class CustomDominoRun:
 class BallPlankDominoes(Samplable):
     """A ball rolls on a plank and hits a straight row of dominoes.
 
-    Samplable with 3 DoFs (x, y and angle of the plank).
+    Samplable with 3 DoFs (x, y (of lower right corner wrt the 1st domino)
+    and angle of the plank).
 
     """
     def __init__(self, sample, make_geom=False, **kwargs):
@@ -521,6 +560,17 @@ class BallPlankDominoes(Samplable):
                               (cfg.PLANK_A_MIN+cfg.PLANK_A_MAX)/2,
                               (cfg.PLANK_A_MAX-cfg.PLANK_A_MIN)/4)
         return cp.J(dist_x, dist_y, dist_a)
+
+    @staticmethod
+    def get_parameters(scene):
+        dom = scene.find("domino_run").get_child(0)
+        plank = scene.find("plank*")
+        corner = NodePath("corner")
+        corner.set_pos(plank,
+                       Vec3(cfg.PLANK_LENGTH/2, 0, -cfg.PLANK_THICKNESS/2))
+        x, _, y = corner.get_pos() - Vec3(dom.get_x(), dom.get_y(), 0)
+        a = - plank.get_r()
+        return x, y, a
 
     @staticmethod
     def init_scenario(sample, ndoms=1, make_geom=False):
