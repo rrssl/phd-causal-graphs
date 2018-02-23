@@ -5,7 +5,7 @@ Custom classes to improve on the basic Panda3D viewer.
 from direct.showbase.ShowBase import ShowBase
 from panda3d.bullet import BulletDebugNode, BulletWorld
 from panda3d.core import (AmbientLight, DirectionalLight, LineSegs, NodePath,
-                          Point2, ShadeModelAttrib)
+                          Point2, ShadeModelAttrib, Vec4)
 
 from .coord_grid import ThreeAxisGrid
 
@@ -400,3 +400,43 @@ class FutureViewer(PhysicsViewer):
 
         self.reset_physics()
         self.redraw_future()
+
+
+class ScenarioViewer(PhysicsViewer):
+    """Physics viewer with additional scenario semantics.
+
+    Colors the objects according to the scenario status.
+
+    Parameters
+    ----------
+    scenario : Scenario
+      Instance of a class from scenario.py.
+    frame_rate : float, optional
+      Same as PhysicsViewer.
+
+    """
+    def __init__(self, scenario, frame_rate=240):
+        super().__init__(frame_rate=frame_rate)
+        self.scenario = scenario
+        scenario.scene.reparent_to(self.models)
+        self.world = scenario.world
+        self.status = None
+        self.task_mgr.add(self.update_status, "update_status")
+        self.accept('r', self.reset_scenario)
+
+    def update_status(self, task):
+        scenario = self.scenario
+        scenario.terminate(self.world_time)
+        if scenario.terminate.status != self.status:
+            self.status = scenario.terminate.status
+            if self.status == 'success':
+                scenario.scene.set_color(Vec4(0, 1, 0, 1))
+            elif self.status == 'timeout':
+                scenario.scene.set_color(Vec4(1, 0, 0, 1))
+            else:
+                scenario.scene.clear_color()
+        return task.cont
+
+    def reset_scenario(self):
+        self.scenario.terminate.reset()
+        self.reset_physics()
