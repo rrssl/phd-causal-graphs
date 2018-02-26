@@ -29,7 +29,9 @@ def main():
     scenario = BallPlankDominoes(X0, make_geom=True, ndoms=5)
     ball = scenario.scene.find("ball*")
     plank = scenario.scene.find("plank*")
-    app = ScenarioViewer(scenario)
+    app = ScenarioViewer(scenario, 480)
+    app.min_cam_distance = 1.
+    app.camLens.set_near(0.1)
     app.pivot.set_h(180)
     # Import the estimator
     estimator = joblib.load("ballplankdominoes-estimator.pkl")
@@ -57,7 +59,7 @@ def main():
     card = vis.ImageCard("field", frame=Vec4(frame),
                          resol=128*np.asarray(ratio))
     app.visual.attach_new_node(card.generate())
-    fplot = vis.Function2DPlot(datalims=frame, size=ratio, levels=[0.2])
+    fplot = vis.Function2DPlot(datalims=frame, size=ratio, levels=[0.])
     card.set_image(fplot.update_data(
         X[0, :, :, ida], X[1, :, :, ida], F[:, :, ida]
     ))
