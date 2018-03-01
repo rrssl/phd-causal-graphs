@@ -4,7 +4,7 @@ import numpy as np
 from panda3d.bullet import BulletBoxShape, BulletRigidBodyNode
 from panda3d.core import NodePath, Point3, Vec3
 
-from domgeom import has_contact, rotate_around, tilt_box_forward
+from geom import has_contact, rotate_around, tilt_box_forward
 
 
 def make_dummy_collision_box(extents, pos, rot):

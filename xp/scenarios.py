@@ -14,7 +14,7 @@ from shapely.geometry import box
 
 import core.primitives as prim
 import xp.config as cfg
-import xp.domgeom as dom
+import xp.dominoes.geom as dom
 
 
 def init_scene():
