@@ -2,66 +2,69 @@
 Basic geometric operations on dominoes.
 
 """
-from panda3d.bullet import BulletWorld, BulletBoxShape, BulletRigidBodyNode
-from panda3d.core import NodePath
-from panda3d.core import Point3, Vec3
+from panda3d.bullet import BulletWorld
+from panda3d.core import NodePath, Point3, TransformState, Vec3
 
 
-def rotate_around(path: NodePath, pivot: Point3, hpr: Vec3):
+def rotate_around(pos: Point3, hpr: Vec3, initial: NodePath):
     """Rotate in place the NodePath around a 3D point.
 
     Parameters
     ----------
-    path : NodePath
-        The NodePath to rotate.
-    pivot : Point3
-        Center of rotation, relative to the NodePath.
+    pos : Point3
+      Center of rotation, relative to the NodePath.
     hpr : Vec3
-        HPR components of the rotation, relative to the NodePath.
+      HPR components of the rotation, relative to the NodePath.
+    initial : NodePath
+      The NodePath to rotate.
+
     """
-    pivot_np = NodePath("pivot")
-    pivot_np.set_pos(path, pivot)
-    pivot_np.set_hpr(path.get_hpr())  # Put pivot in the same relative frame
-    path.set_hpr(pivot_np, hpr)
+    xform = initial.get_transform()
+    xform = xform.compose(
+        TransformState.make_pos(pos)
+        .compose(TransformState.make_hpr(hpr))
+        .compose(TransformState.make_pos(-pos))
+    )
+    initial.set_transform(xform)
 
 
 def tilt_box_forward(box: NodePath, angle):
+    """Rotate a node with a BulletBoxShape around its locally Y-aligned
+    bottom front edge.
+
+    Parameters
+    ----------
+    box : NodePath
+      NodePath to the box.
+    angle : float
+      Rotation angle around the Y-aligned front edge.
+
+    """
     # Bullet uses a small collision margin for colligion shapes, equal to
     # min(half_dims)/10. This margin is *substracted* from the half extents
     # during the creation of a btBoxShape, so the "true" originally intended
     # size is get_half_extents_with_margin(), not *_without_margin().
     extents = box.node().get_shape(0).get_half_extents_with_margin()
     ctr = Point3(extents[0], 0, -extents[2])
-    rotate_around(box, ctr, Vec3(0, 0, angle))
+    rotate_around(ctr, Vec3(0, 0, angle), box)
 
 
-def make_collision_box(extents, pos, rot):
-    box = BulletRigidBodyNode("box")
-    box.add_shape(BulletBoxShape(Vec3(*extents)*.5))
-    box.set_static(False)  # otherwise collisions are ignored
-    path = NodePath(box)
-    path.set_pos(Vec3(*pos))
-    path.set_hpr(Vec3(*rot))
-    return path
+def has_contact(a: NodePath, b: NodePath, world: BulletWorld=None):
+    """Check whether two BulletRigidBodyNodes are in contact.
 
+    Parameters
+    ----------
+    a : NodePath
+      Path to the first node.
+    b : NodePath
+      Path to the second node.
+    world : BulletWorld, optional
+      A world where the two nodes are already attached.
 
-def has_contact(a: NodePath, b: NodePath):
-    world = BulletWorld()
-    an = a.node()
-    bn = b.node()
-    world.attach(an)
-    world.attach(bn)
-    test = world.contact_test_pair(an, bn)
+    """
+    if world is None:
+        world = BulletWorld()
+        world.attach(a.node())
+        world.attach(b.node())
+    test = world.contact_test_pair(a.node(), b.node())
     return test.get_num_contacts() > 0
-
-
-def test_contact():
-    dims = (.03, .1, .3)
-    b1 = make_collision_box(dims, (0, 0, dims[2]*.5), Vec3(0))
-    b2 = make_collision_box(dims, (.1, 0, dims[2]*.5), Vec3(0))
-    tilt_box_forward(b1, 45)
-    assert(has_contact(b1, b2))
-
-
-if __name__ == "__main__":
-    test_contact()
