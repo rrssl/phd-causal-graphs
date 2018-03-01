@@ -25,7 +25,7 @@ from utils.doms2pdf import export_domino_run  # noqa: E402
 from xp.config import t, w  # noqa: E402
 #  from xp.domino_predictors import DominoRobustness
 from xp.domino_predictors import DominoRobustness2  # noqa: E402
-from xp.dominoes.dompath import DominoPath  # noqa: E402
+from xp.dominoes.path import DominoPath  # noqa: E402
 
 
 OPTIM_METHOD = 'minimize'

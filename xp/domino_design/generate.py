@@ -24,7 +24,7 @@ from config import t, w, h
 from config import NCORES
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl  # noqa: E402
-from xp.dominoes.dompath import DominoPathChecker  # noqa: E402
+from xp.dominoes.path import DominoPathChecker  # noqa: E402
 
 
 def generate_candidate_spline(sketches, size_rng, smoothing_rng):
