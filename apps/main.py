@@ -19,8 +19,9 @@ from gui.uimixins import (Drawable, Focusable, Pickerable,  # noqa: E402
 from gui.uiwidgets import ButtonMenu, DropdownMenu  # noqa: E402
 from gui.viewers import PhysicsViewer  # noqa: E402
 from xp.config import MASS, TOPPLING_ANGLE, h, t, w  # noqa: E402
+from xp.dominoes.creation_global import run_optim  # noqa: E402
 from xp.dominoes.geom import tilt_box_forward  # noqa: E402
-from xp.domino_design.global_method import DominoPath, run_optim  # noqa: E402
+from xp.dominoes.path import DominoPath  # noqa: E402
 from xp.domino_predictors import DominoRobustness2  # noqa: E402
 
 SMOOTHING_FACTOR = .001

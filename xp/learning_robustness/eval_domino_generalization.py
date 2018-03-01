@@ -26,7 +26,7 @@ from sklearn.externals import joblib
 from config import NCORES
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl  # noqa
-from xp.domino_design.methods import equal_spacing  # noqa
+from xp.dominoes.creation import equal_spacing  # noqa
 from xp.domino_predictors import DominoRobustness, DominoRobustness2  # noqa
 import xp.simulate as simu  # noqa
 

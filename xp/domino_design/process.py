@@ -21,8 +21,8 @@ from scipy.interpolate import splev
 from sklearn.externals.joblib import delayed, Parallel
 
 from config import NCORES
-sys.path.insert(0, os.path.abspath(".."))
-from domino_design.methods import get_methods
+sys.path.insert(0, os.path.abspath("../.."))
+from xp.dominoes.creation import get_methods
 
 
 # We use a callable object here instead of a decorator so that it can be

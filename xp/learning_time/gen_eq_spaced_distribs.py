@@ -22,10 +22,10 @@ from sklearn.externals.joblib import Parallel
 from config import t, h
 from config import NCORES, MIN_DENSITY, MAX_DENSITY
 sys.path.insert(0, os.path.abspath(".."))
-from domino_design.methods import equal_spacing
 from domino_design.evaluate import test_no_successive_overlap_fast
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
+from xp.dominoes.creation import equal_spacing
 
 
 VERBOSE = False

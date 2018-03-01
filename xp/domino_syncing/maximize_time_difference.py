@@ -27,7 +27,7 @@ from xp.dominoes.templates import create_line, create_branch
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl  # noqa
 from xp.calibration.doms2pdf import export_domino_run  # noqa
-from xp.domino_design.methods import equal_spacing  # noqa
+from xp.dominoes.creation import equal_spacing  # noqa
 from xp.domino_predictors import (DominoRobustness, DominoTime)  # noqa
 from xp.simulate import Simulation  # noqa
 from xp.viewdoms import DominoViewer  # noqa

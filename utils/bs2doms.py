@@ -16,7 +16,7 @@ import sys
 import numpy as np
 
 sys.path.insert(0, os.path.abspath("../.."))
-from xp.domino_design.methods import batch_classif_based, equal_spacing
+from xp.dominoes.creation import batch_classif_based, equal_spacing
 from xp.viewdoms import show_dominoes
 
 

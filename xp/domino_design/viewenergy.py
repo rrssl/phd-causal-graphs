@@ -26,7 +26,7 @@ from config import t, w, h
 from config import X_MAX, Y_MAX, A_MAX, SVC_PATH, SVC2_PATH
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl  # flake8: noqa E402
-from xp.domino_design.methods import _init_routines_vec
+from xp.dominoes.creation import _init_routines_vec
 
 
 def get_inc_classif_based_energy(u, uprev_id, spline):

@@ -20,7 +20,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
-from xp.domino_design.methods import get_methods
+from xp.dominoes.creation import get_methods
 from xp.viewdoms import show_dominoes
 
 
