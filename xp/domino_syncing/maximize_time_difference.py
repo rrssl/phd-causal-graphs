@@ -23,7 +23,7 @@ from sklearn.externals import joblib
 import scipy.optimize as opt
 
 from config import (MIN_SPACING, MAX_SPACING, NCORES, t, w)
-from domino_templates import create_line, create_branch
+from xp.dominoes.templates import create_line, create_branch
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl  # noqa
 from xp.calibration.doms2pdf import export_domino_run  # noqa

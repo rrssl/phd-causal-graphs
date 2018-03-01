@@ -4,7 +4,7 @@ from panda3d.core import Point3, Vec3
 
 sys.path.insert(0, os.path.abspath('..'))
 from core.primitives import Plane, Ball, Goblet, Lever, DominoRun
-from core.domino_templates import create_circular_arc
+from xp.dominoes.templates import create_circular_arc
 from gui.viewers import PhysicsViewer
 
 
