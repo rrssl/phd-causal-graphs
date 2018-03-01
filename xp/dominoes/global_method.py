@@ -20,38 +20,18 @@ from shapely.geometry import box
 
 sys.path.insert(0, os.path.abspath("../.."))
 import core.spline2d as spl  # noqa: E402
+from apps.viewdoms import DominoViewer  # noqa: E402
 from utils.doms2pdf import export_domino_run  # noqa: E402
 from xp.config import t, w  # noqa: E402
-from xp.domino_predictors import (DominoRobustness,  # noqa: E402
-                                  DominoRobustness2)
-from apps.viewdoms import DominoViewer  # noqa: E402
+#  from xp.domino_predictors import DominoRobustness
+from xp.domino_predictors import DominoRobustness2  # noqa: E402
+from xp.dominoes.dompath import DominoPath  # noqa: E402
 
 
 OPTIM_METHOD = 'minimize'
 FREE_ANGLE = 30
 SOFTMIN_COEFF = 1
 SHOW_MANU = False
-
-
-class DominoSequence:
-    def __init__(self, coords):
-        self.coords = coords
-
-    def __len__(self):
-        return len(self.coords)
-
-    def __getitem__(self, key):
-        return self.coords[key]
-
-
-class DominoPath(DominoSequence):
-    def __init__(self, u, spline):
-        self.u = u
-        self.spline = spline
-        coords = np.zeros((len(u), 3))
-        coords[:, 0], coords[:, 1] = spl.splev(u, spline)
-        coords[:, 2] = spl.splang(u, spline)
-        super().__init__(coords)
 
 
 class CustomViewer(DominoViewer):
