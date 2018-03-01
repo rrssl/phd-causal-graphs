@@ -26,7 +26,7 @@ from config import t, w
 from config import X_MAX, Y_MAX, A_MAX, MIN_SPACING, MAX_SPACING
 sys.path.insert(0, os.path.abspath(".."))
 from domino_design.methods import equal_spacing, batch_classif_based
-from dompath import get_rel_coords
+from xp.dominoes.dompath import get_rel_coords
 from predicting_domino_timing.methods import physics_based
 #  from predicting_domino_timing.methods import nprev_estimator
 from predicting_domino_timing.methods import combined_estimators

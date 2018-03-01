@@ -17,7 +17,7 @@ from sklearn.externals import joblib
 sys.path.insert(0, os.path.abspath("../.."))
 import spline2d as spl
 from xp.config import X_MAX, Y_MAX, A_MAX, MAX_SPACING
-from xp.dompath import get_rel_coords
+from xp.dominoes.dompath import get_rel_coords
 from xp.predicting_domino_timing.config import TIMESTEP_FAST, TIMESTEP_PRECISE
 import xp.simulate as simu
 
