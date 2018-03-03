@@ -3,6 +3,4 @@ __pycache__/
 *.pkl
 .vim_session
 *.swp
-.envrc
-.idea/
 assets/
