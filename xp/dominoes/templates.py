@@ -15,6 +15,22 @@ def _linear_transform_2D(coords, position, angle):
 
 
 def create_branch(origin, angle, half_length, half_width, density):
+    """Create a Y branching in the domino path.
+
+    Parameters
+    ----------
+    origin : (2,) sequence
+      Position of the base of the Y.
+    angle : float
+      General orientation of the Y (in degrees).
+    half_length : float
+      Half length of the branch (or 'half height' of the Y).
+    half_width : float
+      Half width of the branch.
+    density : float
+      Number of dominoes per half-length.
+
+    """
     n_doms = max(2, int(density * half_length))
     coords = np.zeros((3*n_doms-2, 3))
     coords[:n_doms, 0] = np.linspace(0, half_length, n_doms)
