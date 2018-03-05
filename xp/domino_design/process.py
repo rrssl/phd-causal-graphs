@@ -17,12 +17,11 @@ import pickle
 import time
 
 import numpy as np
-from scipy.interpolate import splev
 from sklearn.externals.joblib import delayed, Parallel
 
 from config import NCORES
 sys.path.insert(0, os.path.abspath("../.."))
-from xp.dominoes.creation import get_methods
+from xp.dominoes.creation import get_methods  # noqa: E402
 
 
 # We use a callable object here instead of a decorator so that it can be

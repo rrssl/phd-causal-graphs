@@ -38,15 +38,13 @@ import sys
 import numpy as np
 from shapely.affinity import rotate, translate
 from shapely.geometry import box
-from sklearn.externals.joblib import delayed, Parallel
+from sklearn.externals.joblib import Parallel, delayed
 
 sys.path.insert(0, os.path.abspath("../.."))
-import spline2d as spl
-from xp.config import t, w, h
-from xp.config import TOPPLING_ANGLE
-from xp.config import NCORES
-from xp.domino_design.config import NTRIALS_UNCERTAINTY
-import xp.simulate as simu
+import core.spline2d as spl  # noqa: E402
+import xp.simulate as simu  # noqa: E402
+from xp.config import NCORES, TOPPLING_ANGLE, h, t, w  # noqa: E402
+from xp.domino_design.config import NTRIALS_UNCERTAINTY  # noqa: E402
 
 
 VERBOSE = True

@@ -18,12 +18,9 @@ import sys
 import numpy as np
 from sklearn.externals.joblib import Parallel, delayed
 
-from config import MIN_SIZE_RATIO, MAX_SIZE_RATIO
-from config import MIN_SMOOTHING_FACTOR, MAX_SMOOTHING_FACTOR
-from config import t, w, h
-from config import NCORES
+import config as cfg
 sys.path.insert(0, os.path.abspath("../.."))
-import spline2d as spl  # noqa: E402
+import core.spline2d as spl  # noqa: E402
 from xp.dominoes.path import DominoPathChecker  # noqa: E402
 
 
@@ -37,9 +34,9 @@ def generate_candidate_spline(sketches, size_rng, smoothing_rng):
         # Translate, resize and smooth the path
         path -= path.min(axis=0)
         path *= size_ratio * math.sqrt(
-                t * w / (path[:, 0].max() * path[:, 1].max()))
+                cfg.t * cfg.w / (path[:, 0].max() * path[:, 1].max()))
         spline = spl.get_smooth_path(path, s=smoothing_factor)
-        tester = DominoPathChecker(spline, (t, w, h))
+        tester = DominoPathChecker(spline, cfg.DOMINO_EXTENTS)
         if tester.check():
             return spline
 
@@ -52,11 +49,11 @@ def main():
     skpaths = sys.argv[2:]
     sketches = [np.load(skpath) for skpath in skpaths]
 
-    splines = Parallel(n_jobs=NCORES)(
+    splines = Parallel(n_jobs=cfg.NCORES)(
             delayed(generate_candidate_spline)(
                 sketches,
-                (MIN_SIZE_RATIO, MAX_SIZE_RATIO),
-                (MIN_SMOOTHING_FACTOR, MAX_SMOOTHING_FACTOR),
+                (cfg.MIN_SIZE_RATIO, cfg.MAX_SIZE_RATIO),
+                (cfg.MIN_SMOOTHING_FACTOR, cfg.MAX_SMOOTHING_FACTOR),
                 )
             for _ in range(nsplines))
 

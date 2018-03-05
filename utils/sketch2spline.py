@@ -18,8 +18,8 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 
-sys.path.insert(0, os.path.abspath("../.."))
-import spline2d as spl  # noqa
+sys.path.insert(0, os.path.abspath(".."))
+import core.spline2d as spl  # noqa: E402
 
 
 def main():
