@@ -388,6 +388,8 @@ class Lever(PrimitiveBase):
       Name of the lever.
     extents : float sequence
       Extents of the lever (same as Box).
+    pivot_pos_hpr : float sequence
+      Relative position and orientation of the pivot (X, Y, Z, H, P, R).
     geom : bool
       Whether to generate a geometry for visualization.
     bt_props : dict
@@ -397,9 +399,11 @@ class Lever(PrimitiveBase):
 
     """
 
-    def __init__(self, name, extents, geom=False, **bt_props):
+    def __init__(self, name, extents, pivot_pos_hpr, geom=False, **bt_props):
         super().__init__(name=name, geom=geom, **bt_props)
         self.extents = extents
+        self.pivot_pos = Point3(pivot_pos_hpr[:3])
+        self.pivot_hpr = Vec3(pivot_pos_hpr[3:])
 
     def create(self):
         # Physics
@@ -410,7 +414,7 @@ class Lever(PrimitiveBase):
         pivot = Empty(name=self.name + "_pivot")
         pivot.create()
         self.bodies += pivot.bodies
-        frame = TransformState.make_hpr(Vec3(0, 0, 90))
+        frame = TransformState.make_pos_hpr(self.pivot_pos, self.pivot_hpr)
         cs = bt.BulletHingeConstraint(
                 box.bodies[0], pivot.bodies[0], frame, frame)
         self.constraints.append(cs)
