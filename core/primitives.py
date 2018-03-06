@@ -402,8 +402,8 @@ class Lever(PrimitiveBase):
     def __init__(self, name, extents, pivot_pos_hpr, geom=False, **bt_props):
         super().__init__(name=name, geom=geom, **bt_props)
         self.extents = extents
-        self.pivot_pos = Point3(pivot_pos_hpr[:3])
-        self.pivot_hpr = Vec3(pivot_pos_hpr[3:])
+        self.pivot_pos = Point3(*pivot_pos_hpr[:3])
+        self.pivot_hpr = Vec3(*pivot_pos_hpr[3:])
 
     def create(self):
         # Physics

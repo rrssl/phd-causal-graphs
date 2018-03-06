@@ -2,10 +2,10 @@ import os
 import sys
 from panda3d.core import Point3, Vec3
 
-sys.path.insert(0, os.path.abspath('..'))
-from core.primitives import Plane, Ball, Goblet, Lever, DominoRun
-from xp.dominoes.templates import create_circular_arc
-from gui.viewers import PhysicsViewer
+sys.path.insert(0, os.path.abspath(".."))
+from core.primitives import Plane, Ball, Goblet, Lever, DominoRun  # noqa:E402
+from xp.dominoes.templates import create_circular_arc  # noqa:E402
+from gui.viewers import PhysicsViewer  # noqa:E402
 
 
 def main():
@@ -23,8 +23,9 @@ def main():
     ball.create().set_pos(Point3(0, 0, .4))
     ball.attach_to(app.models, app.world)
 
-    lever = Lever(name="lever", extents=[.05, .1, .01], geom=True,
-                  mass=.1, angular_damping=.1)
+    lever = Lever(name="lever", extents=[.05, .1, .01],
+                  pivot_pos_hpr=[0, 0, 0, 0, 0, 90],
+                  geom=True, mass=.1, angular_damping=.1)
     lever.create().set_pos(Point3(0, -.03, .3))
     lever.attach_to(app.models, app.world)
 
