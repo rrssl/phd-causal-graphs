@@ -6,14 +6,16 @@ import math
 import os
 import sys
 
-from panda3d.core import NodePath, Point2, Point3, Vec2, Vec3
+from panda3d.core import Point2, Point3, Vec2, Vec3
 
 sys.path.insert(0, os.path.abspath("../.."))
 import xp.config as cfg  # noqa: E402
-from core.primitives import Ball, Box, DominoRun, Lever, Plane  # noqa: E402
-from gui.viewers import PhysicsViewer  # noqa: E402
+from core.primitives import Ball, Box, DominoRun, Lever  # noqa: E402
+from gui.viewers import ScenarioViewer  # noqa: E402
 from xp.dominoes.geom import tilt_box_forward  # noqa: E402
 from xp.dominoes.templates import create_branch, create_line  # noqa: E402
+from xp.scenarios import (AndTerminationCondition,  # noqa: E402
+                          DominoRunTerminationCondition, init_scene)
 
 
 # TODO. Turn this into a list of dicts.
@@ -54,85 +56,96 @@ RIGHT_ROW_ANGLE = BRANCH_ANGLE
 RIGHT_ROW_DENSITY = 4 / RIGHT_ROW_LENGTH
 
 
+class DominoesBallSync:
+    """Scenario used to sync a domino run with a ball run."""
+    def __init__(self, make_geom=False, **kwargs):
+        self.scene, self.world = self.init_scenario(make_geom)
+        term1 = DominoRunTerminationCondition(self.scene.find("left_row"))
+        term2 = DominoRunTerminationCondition(self.scene.find("right_row"))
+        self.terminate = AndTerminationCondition((term1, term2))
+
+    @staticmethod
+    def init_scenario(make_geom=False):
+        scene, world = init_scene()
+
+        branch = DominoRun(
+            "branch",
+            cfg.DOMINO_EXTENTS,
+            create_branch(BRANCH_ORIGIN, BRANCH_ANGLE, BRANCH_HALF_LENGTH,
+                          BRANCH_HALF_WIDTH, BRANCH_DENSITY),
+            geom=make_geom,
+            mass=cfg.DOMINO_MASS
+        )
+        branch.create()
+        tilt_box_forward(branch.path.get_child(0), cfg.TOPPLING_ANGLE+1)
+        branch.attach_to(scene, world)
+
+        left_row = DominoRun(
+            "left_row",
+            cfg.DOMINO_EXTENTS,
+            create_line(LEFT_ROW_ORIGIN, LEFT_ROW_ANGLE, LEFT_ROW_LENGTH,
+                        LEFT_ROW_DENSITY),
+            geom=make_geom,
+            mass=cfg.DOMINO_MASS,
+        )
+        left_row.create()
+        left_row.attach_to(scene, world)
+
+        lever = Lever(
+            "lever",
+            LEVER_EXTENTS,
+            LEVER_PIVOT_POS_HPR,
+            geom=make_geom,
+            mass=LEVER_MASS
+        )
+        lever.create().set_pos(LEVER_POS)
+        lever.attach_to(scene, world)
+
+        ball = Ball(
+            "ball",
+            cfg.BALL_RADIUS,
+            geom=make_geom,
+            mass=cfg.BALL_MASS
+        )
+        ball.create().set_pos(BALL_POS)
+        ball.attach_to(scene, world)
+
+        preplank = Box(
+            "preplank",
+            PREPLANK_EXTENTS,
+            geom=make_geom
+        )
+        preplank.create().set_pos_hpr(PREPLANK_POS, PREPLANK_HPR)
+        preplank.attach_to(scene, world)
+
+        plank = Box(
+            "plank",
+            cfg.PLANK_EXTENTS,
+            geom=make_geom
+        )
+        plank.create().set_pos_hpr(PLANK_POS, PLANK_HPR)
+        plank.attach_to(scene, world)
+
+        right_row = DominoRun(
+            "right_row",
+            cfg.DOMINO_EXTENTS,
+            create_line(RIGHT_ROW_ORIGIN, RIGHT_ROW_ANGLE, RIGHT_ROW_LENGTH,
+                        RIGHT_ROW_DENSITY),
+            geom=make_geom,
+            mass=cfg.DOMINO_MASS,
+        )
+        right_row.create()
+        right_row.attach_to(scene, world)
+
+        return scene, world
+
+    def succeeded(self):
+        return self.terminate.status == 'success'
+
+
 def main():
-    app = PhysicsViewer(frame_rate=960)
-    world = app.world
-    scene = NodePath("scene")
-    scene.reparent_to(app.models)
-
-    floor = Plane("floor", geom=False)
-    floor.create()
-    floor.attach_to(scene, world)
-
-    branch = DominoRun(
-        "branch",
-        cfg.DOMINO_EXTENTS,
-        create_branch(BRANCH_ORIGIN, BRANCH_ANGLE, BRANCH_HALF_LENGTH,
-                      BRANCH_HALF_WIDTH, BRANCH_DENSITY),
-        geom=True,
-        mass=cfg.DOMINO_MASS
-    )
-    branch.create()
-    tilt_box_forward(branch.path.get_child(0), cfg.TOPPLING_ANGLE+1)
-    branch.attach_to(scene, world)
-
-    left_row = DominoRun(
-        "left_row",
-        cfg.DOMINO_EXTENTS,
-        create_line(LEFT_ROW_ORIGIN, LEFT_ROW_ANGLE, LEFT_ROW_LENGTH,
-                    LEFT_ROW_DENSITY),
-        geom=True,
-        mass=cfg.DOMINO_MASS,
-    )
-    left_row.create()
-    left_row.attach_to(scene, world)
-
-    lever = Lever(
-        "lever",
-        LEVER_EXTENTS,
-        LEVER_PIVOT_POS_HPR,
-        geom=True,
-        mass=LEVER_MASS
-    )
-    lever.create().set_pos(LEVER_POS)
-    lever.attach_to(scene, world)
-
-    ball = Ball(
-        "ball",
-        cfg.BALL_RADIUS,
-        geom=True,
-        mass=cfg.BALL_MASS
-    )
-    ball.create().set_pos(BALL_POS)
-    ball.attach_to(scene, world)
-
-    preplank = Box(
-        "preplank",
-        PREPLANK_EXTENTS,
-        geom=True
-    )
-    preplank.create().set_pos_hpr(PREPLANK_POS, PREPLANK_HPR)
-    preplank.attach_to(scene, world)
-
-    plank = Box(
-        "plank",
-        cfg.PLANK_EXTENTS,
-        geom=True
-    )
-    plank.create().set_pos_hpr(PLANK_POS, PLANK_HPR)
-    plank.attach_to(scene, world)
-
-    right_row = DominoRun(
-        "right_row",
-        cfg.DOMINO_EXTENTS,
-        create_line(RIGHT_ROW_ORIGIN, RIGHT_ROW_ANGLE, RIGHT_ROW_LENGTH,
-                    RIGHT_ROW_DENSITY),
-        geom=True,
-        mass=cfg.DOMINO_MASS,
-    )
-    right_row.create()
-    right_row.attach_to(scene, world)
-
+    scenario = DominoesBallSync(make_geom=True)
+    app = ScenarioViewer(scenario, frame_rate=1000)
     app.run()
 
 

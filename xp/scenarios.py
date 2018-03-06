@@ -166,6 +166,27 @@ class DominoRunTerminationCondition:
         return False
 
 
+class AndTerminationCondition:
+    """This condition terminates when all sub conditions have terminated."""
+    def __init__(self, conditions):
+        self.conditions = conditions
+        self.reset()
+
+    def reset(self):
+        self.status = None
+        for c in self.conditions:
+            c.reset()
+
+    def __call__(self, time):
+        terminated = all(c(time) for c in self.conditions)
+        if terminated:
+            if all(c.status == 'success' for c in self.conditions):
+                self.status = 'success'
+            else:
+                self.status = 'timeout'
+        return terminated
+
+
 class DominoRunTopplingTimeObserver:
     """Observes the toppling time of each domino in a run.
 
