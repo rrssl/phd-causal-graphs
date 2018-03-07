@@ -3,12 +3,13 @@ Custom classes to improve on the basic Panda3D viewer.
 
 """
 from direct.showbase.ShowBase import ShowBase
-from panda3d.bullet import BulletDebugNode, BulletWorld
+from panda3d.bullet import BulletDebugNode
 from panda3d.core import (AmbientLight, DirectionalLight, LineSegs, NodePath,
                           Point2, ShadeModelAttrib, Vec4)
 
 import gui.config as cfg
 from gui.coord_grid import ThreeAxisGrid
+from core.primitives import World
 
 
 class TurntableViewer(ShowBase):
@@ -248,7 +249,7 @@ class PhysicsViewer(Modeler):
         self.physics_frame_rate = frame_rate
 
         if world is None:
-            self.world = BulletWorld()
+            self.world = World()
             self.world.set_gravity(cfg.GRAVITY)
         else:
             self.world = world

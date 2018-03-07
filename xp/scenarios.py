@@ -7,7 +7,6 @@ from random import uniform
 
 import chaospy as cp
 import numpy as np
-from panda3d.bullet import BulletWorld
 from panda3d.core import NodePath, Point3, Vec3
 from shapely.affinity import rotate, translate
 from shapely.geometry import box
@@ -20,7 +19,7 @@ import xp.dominoes.geom as dom
 def init_scene():
     """Initialize the Panda3D scene."""
     scene = NodePath("scene")
-    world = BulletWorld()
+    world = prim.World()
     world.set_gravity(cfg.GRAVITY)
     floor = prim.Plane(
             "floor", geom=False,

@@ -14,6 +14,17 @@ import solid.utils as slu
 from .meshio import solid2panda, trimesh2panda
 
 
+class World(bt.BulletWorld):
+    """The world in which the primitives live."""
+
+    def __init__(self):
+        super().__init__(self)
+
+    def set_gravity(self, gravity):
+        gravity = Vec3(*gravity)
+        super().set_gravity(gravity)
+
+
 class BulletRootNodePath(NodePath):
     """Special NodePath, parent to bt nodes, that propagates transforms."""
 
