@@ -7,7 +7,8 @@ from panda3d.bullet import BulletDebugNode, BulletWorld
 from panda3d.core import (AmbientLight, DirectionalLight, LineSegs, NodePath,
                           Point2, ShadeModelAttrib, Vec4)
 
-from .coord_grid import ThreeAxisGrid
+import gui.config as cfg
+from gui.coord_grid import ThreeAxisGrid
 
 
 class TurntableViewer(ShowBase):
@@ -53,11 +54,11 @@ class TurntableViewer(ShowBase):
         self.accept_once("-", self.zoom, [False])
 
         # Control parameters
-        self.cam_distance = 30.
-        self.max_cam_distance = 100.
-        self.min_cam_distance = 2.  # Must be > 0
-        self.zoom_speed = 3.
-        self.mouse_speed = 100.
+        self.cam_distance = cfg.INIT_CAM_DISTANCE
+        self.max_cam_distance = cfg.MAX_CAM_DISTANCE
+        self.min_cam_distance = cfg.MIN_CAM_DISTANCE  # Must be > 0
+        self.zoom_speed = cfg.ZOOM_SPEED
+        self.mouse_speed = cfg.MOUSE_SPEED
 
         # Pivot node
         self.pivot = self.render.attach_new_node("Pivot point")
@@ -68,7 +69,7 @@ class TurntableViewer(ShowBase):
         self.task_mgr.add(self.update_cam, "update_cam", priority=-4)
 
         # Framerate
-        self.video_frame_rate = 60
+        self.video_frame_rate = cfg.VIDEO_FRAME_RATE
         clock = self.task_mgr.globalClock
         clock.set_mode(clock.M_limited)
         clock.set_frame_rate(self.video_frame_rate)
@@ -189,20 +190,21 @@ class Modeler(TurntableViewer):
         self.visual = self.render.attach_new_node("visual")
         # Shading
         self.models.set_attrib(ShadeModelAttrib.make(ShadeModelAttrib.M_flat))
-        self.models.set_render_mode_filled_wireframe(.3)
+        self.models.set_render_mode_filled_wireframe(
+                cfg.MODELS_WIREFRAME_COLOR)
         # Lights
         dlight = DirectionalLight("models_dlight")
         dlnp = self.camera.attach_new_node(dlight)
         dlnp.look_at(-self.cam.get_pos())
         self.models.set_light(dlnp)
         alight = AmbientLight("models_alight")
-        alight.set_color(.1)
+        alight.set_color(cfg.MODELS_AMBIENT_LIGHT_COLOR)
         self.models.set_light(self.render.attach_new_node(alight))
         alight = AmbientLight("visual_alight")
-        alight.set_color(.8)
+        alight.set_color(cfg.VISUAL_AMBIENT_LIGHT_COLOR)
         self.visual.set_light(self.render.attach_new_node(alight))
         # Background
-        self.set_background_color(.9, .9, .9)
+        self.set_background_color(cfg.BACKGROUND_COLOR)
         # Axes indicator (source: panda3dcodecollection, with modifications.)
         # Load the axes that should be displayed
         axes = create_axes()
@@ -217,7 +219,7 @@ class Modeler(TurntableViewer):
         self.task_mgr.add(self.update_axes, "update_axes", priority=-4)
         # Ground plane
         grid_maker = ThreeAxisGrid(xsize=1, ysize=1, zsize=0, gridstep=1)
-        grid_maker.gridColor = grid_maker.subdivColor = .35
+        grid_maker.gridColor = grid_maker.subdivColor = cfg.GRID_COLOR
         grid_maker.create().reparent_to(self.visual)
 
     def update_axes(self, task):
@@ -241,12 +243,15 @@ class PhysicsViewer(Modeler):
 
     """
 
-    def __init__(self, frame_rate=240):
+    def __init__(self, frame_rate=cfg.PHYSICS_FRAME_RATE, world=None):
         super().__init__()
         self.physics_frame_rate = frame_rate
 
-        self.world = BulletWorld()
-        self.world.set_gravity((0, 0, -9.81))
+        if world is None:
+            self.world = BulletWorld()
+            self.world.set_gravity(cfg.GRAVITY)
+        else:
+            self.world = world
         self.world_time = 0.
 
         self.task_mgr.add(self.update_physics, "update_physics")
@@ -349,8 +354,8 @@ class FutureViewer(PhysicsViewer):
 
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, frame_rate=cfg.PHYSICS_FRAME_RATE, world=None):
+        super().__init__(frame_rate=frame_rate, world=world)
 
         self.future_vision_horizon = 20.  # seconds
         self.future_vision_resol = 1 / 10.  # hertz
@@ -415,8 +420,9 @@ class ScenarioViewer(PhysicsViewer):
       Same as PhysicsViewer.
 
     """
-    def __init__(self, scenario, frame_rate=240):
-        super().__init__(frame_rate=frame_rate)
+    def __init__(self, scenario, frame_rate=cfg.PHYSICS_FRAME_RATE,
+                 world=None):
+        super().__init__(frame_rate=frame_rate, world=world)
         self.scenario = scenario
         scenario.scene.reparent_to(self.models)
         self.world = scenario.world
@@ -430,9 +436,9 @@ class ScenarioViewer(PhysicsViewer):
         if scenario.terminate.status != self.status:
             self.status = scenario.terminate.status
             if self.status == 'success':
-                scenario.scene.set_color(Vec4(0, 1, 0, 1))
+                scenario.scene.set_color(Vec4(*cfg.SCENARIO_SUCCESS_COLOR))
             elif self.status == 'timeout':
-                scenario.scene.set_color(Vec4(1, 0, 0, 1))
+                scenario.scene.set_color(Vec4(*cfg.SCENARIO_TIMEOUT_COLOR))
             else:
                 scenario.scene.clear_color()
         return task.cont

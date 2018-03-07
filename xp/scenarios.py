@@ -21,7 +21,7 @@ def init_scene():
     """Initialize the Panda3D scene."""
     scene = NodePath("scene")
     world = BulletWorld()
-    world.set_gravity(Vec3(0, 0, -9.81))
+    world.set_gravity(cfg.GRAVITY)
     floor = prim.Plane(
             "floor", geom=False,
             friction=cfg.FLOOR_MATERIAL_FRICTION,
