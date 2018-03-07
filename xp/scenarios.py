@@ -269,7 +269,12 @@ class TwoDominoesLastRadial(Samplable):
     @staticmethod
     def get_parameters(scene):
         d1, d2 = scene.find("domino_run").get_children()
+        # Untilt 1st dom before computing the distance.
+        tilt = d1.get_r()
+        dom.tilt_box_forward(d1, -tilt)
         d = (d2.get_pos() - d1.get_pos()).length()
+        # Retilt 1st dom.
+        dom.tilt_box_forward(d1, tilt)
         a = d2.get_h() - d1.get_h()
         return d, a
 
@@ -328,7 +333,12 @@ class TwoDominoesLastFree(Samplable):
     @staticmethod
     def get_parameters(scene):
         d1, d2 = scene.find("domino_run").get_children()
+        # Untilt 1st dom before computing the distance.
+        tilt = d1.get_r()
+        dom.tilt_box_forward(d1, -tilt)
         x, y, _ = d2.get_pos() - d1.get_pos()
+        # Retilt 1st dom.
+        dom.tilt_box_forward(d1, tilt)
         a = d2.get_h() - d1.get_h()
         return x, y, a
 
@@ -397,6 +407,9 @@ class DominoesStraightLastFree(Samplable):
     @staticmethod
     def get_parameters(scene):
         doms = list(scene.find("domino_run").get_children())
+        # Untilt 1st dom before computing the distance.
+        tilt = doms[0].get_r()
+        dom.tilt_box_forward(doms[0], -tilt)
         x, y, _ = doms[-1].get_pos() - doms[-2].get_pos()
         a = doms[-1].get_h() - doms[-2].get_h()
         prev = doms[:-2]
@@ -407,6 +420,8 @@ class DominoesStraightLastFree(Samplable):
             ) / (len(prev) - 1)
         else:
             s = 0.
+        # Retilt 1st dom.
+        dom.tilt_box_forward(doms[0], tilt)
         return x, y, a, s
 
     @staticmethod
@@ -480,11 +495,17 @@ class DominoesStraightTwoLastFree(Samplable):
 
     @staticmethod
     def get_parameters(scene):
-        *_, d1, d2, d3 = scene.find("domino_run").get_children()
+        doms = list(scene.find("domino_run").get_children())
+        *_, d1, d2, d3 = doms[-3:]
+        # Untilt 1st dom before computing the distance.
+        tilt = doms[0].get_r()
+        dom.tilt_box_forward(doms[0], -tilt)
         x1, y1, _ = d2.get_pos() - d1.get_pos()
         a1 = d2.get_h() - d1.get_h()
         x2, y2, _ = d3.get_pos(d2)
         a2 = d3.get_h() - d2.get_h()
+        # Retilt 1st dom.
+        dom.tilt_box_forward(doms[0], tilt)
         return x1, y1, a1, x2, y2, a2
 
     @staticmethod
