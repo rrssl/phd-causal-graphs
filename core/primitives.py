@@ -18,7 +18,7 @@ class World(bt.BulletWorld):
     """The world in which the primitives live."""
 
     def __init__(self):
-        super().__init__(self)
+        super().__init__()
 
     def set_gravity(self, gravity):
         gravity = Vec3(*gravity)
