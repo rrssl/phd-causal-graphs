@@ -33,16 +33,18 @@ class Simulation:
         world = self.scenario.world
         terminate = self.scenario.terminate
         time = 0.
-        while not terminate(time):
+        while True:
+            # We want to call the observers _before_ breaking.
             for obs in self.observers:
                 obs(time)
+            if terminate(time):
+                break
             world.do_physics(ts, 2, ts)
             time += ts
 
     def run_visual(self):
         """Run the simulation in visual mode."""
-        app = ScenarioViewer(self.scenario, frame_rate=1/TIMESTEP)
-
+        app = ScenarioViewer(self.scenario, frame_rate=1/self.timestep)
         try:
             app.run()
         except SystemExit:
