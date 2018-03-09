@@ -58,7 +58,7 @@ class TurntableViewer(ShowBase):
         self.cam_distance = cfg.INIT_CAM_DISTANCE
         self.max_cam_distance = cfg.MAX_CAM_DISTANCE
         self.min_cam_distance = cfg.MIN_CAM_DISTANCE  # Must be > 0
-        self.zoom_speed = cfg.ZOOM_SPEED
+        self.zoom_factor = cfg.ZOOM_FACTOR
         self.mouse_speed = cfg.MOUSE_SPEED
 
         # Pivot node
@@ -74,6 +74,7 @@ class TurntableViewer(ShowBase):
         clock = self.task_mgr.globalClock
         clock.set_mode(clock.M_limited)
         clock.set_frame_rate(self.video_frame_rate)
+        self.set_frame_rate_meter(True)  # show framerate
 
     def reset_default_mouse_controls(self):
         self.accept("mouse1", self.set_move_camera, [True])
@@ -102,17 +103,18 @@ class TurntableViewer(ShowBase):
     def zoom(self, zoom_in):
         if zoom_in:
             if self.cam_distance > self.min_cam_distance:
-                # Prevent the distance from becoming negative
-                self.cam_distance -= min(
-                        self.zoom_speed,
-                        self.cam_distance - self.min_cam_distance)
+                self.cam_distance *= 1 - self.zoom_factor
                 # Reaccept the zoom in key
                 self.acceptOnce("+", self.zoom, [True])
         else:
             if self.cam_distance < self.max_cam_distance:
-                self.cam_distance += self.zoom_speed
+                self.cam_distance *= 1 + self.zoom_factor
                 # Reaccept the zoom out key
                 self.acceptOnce("-", self.zoom, [False])
+        self.camLens.set_near_far(
+            self.cam_distance * cfg.CAM_LENS_NEAR_FACTOR,
+            self.cam_distance * cfg.CAM_LENS_FAR_FACTOR
+        )
 
     def update_cam(self, task):
         if self.mouseWatcherNode.has_mouse():
