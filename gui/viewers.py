@@ -421,12 +421,10 @@ class ScenarioViewer(PhysicsViewer):
       Same as PhysicsViewer.
 
     """
-    def __init__(self, scenario, frame_rate=cfg.PHYSICS_FRAME_RATE,
-                 world=None):
-        super().__init__(frame_rate=frame_rate, world=world)
+    def __init__(self, scenario, frame_rate=cfg.PHYSICS_FRAME_RATE):
+        super().__init__(frame_rate=frame_rate, world=scenario.world)
         self.scenario = scenario
         scenario.scene.reparent_to(self.models)
-        self.world = scenario.world
         self.status = None
         self.task_mgr.add(self.update_status, "update_status")
         self.accept('r', self.reset_scenario)
