@@ -251,10 +251,9 @@ class Model:
 
 
 class Objective:
-    err_val = 10
-
-    def __init__(self, model):
+    def __init__(self, model, err_val=np.nan):
         self.model = model
+        self.err_val = err_val
 
     def __call__(self, x):
         self.model.update(x, _visual=0)
@@ -299,6 +298,9 @@ def main():
 
     import matplotlib
     matplotlib.use('qt5agg')
+    import matplotlib.cm as cm
+    current_cmap = cm.get_cmap()
+    current_cmap.set_bad(color='red')
     import matplotlib.pyplot as plt
     im = plt.imshow(
         vals[x_best_id[0]].T, origin='lower',
@@ -308,6 +310,7 @@ def main():
     plt.scatter(*x_best[1:])
     plt.show()
 
+    objective.err_val = 2
     x_init = x_best
     x_best = opt.minimize(objective, x_init,
                           bounds=bounds,
