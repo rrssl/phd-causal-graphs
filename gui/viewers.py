@@ -224,6 +224,8 @@ class Modeler(TurntableViewer):
         grid_maker = ThreeAxisGrid(xsize=1, ysize=1, zsize=0, gridstep=1)
         grid_maker.gridColor = grid_maker.subdivColor = cfg.GRID_COLOR
         grid_maker.create().reparent_to(self.visual)
+        # Save scene
+        self.accept('s', self.models.write_bam_file, ["scene.bam"])
 
     def update_axes(self, task):
         # Point of reference for each rotation is super important here.
