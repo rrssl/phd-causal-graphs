@@ -310,12 +310,16 @@ def main():
     plt.scatter(*x_best[1:])
     plt.show()
 
+    bounds = np.column_stack((x_best*0.9, x_best*1.1))
+    print(bounds)
     objective.err_val = 2
     x_init = x_best
-    x_best = opt.minimize(objective, x_init,
-                          bounds=bounds,
-                          # constraints=constraints,
-                          options=dict(disp=True, maxiter=10, eps=1e-4)).x
+    x_best = opt.minimize(
+        objective, x_init, bounds=bounds,
+        # constraints=constraints,
+        method='SLSQP',
+        options=dict(disp=True, maxiter=10, eps=1e-4)
+    ).x
     print(x_best)
     print(objective(x_best))
 
