@@ -36,13 +36,13 @@ TOPPLING_ANGLE = degrees(atan(t / h))     # [degrees]
 # Plank properties.
 PLANK_LENGTH = .1       # [m]
 PLANK_WIDTH = .04       # [m]
-PLANK_THICKNESS = .005   # [m]
+PLANK_THICKNESS = .01   # [m]
 PLANK_EXTENTS = (PLANK_LENGTH, PLANK_WIDTH, PLANK_THICKNESS)
 PLANK_MATERIAL_FRICTION = 0.5
 PLANK_MATERIAL_RESTITUTION = 0.
 
 # Ball properties.
-BALL_RADIUS = .015/2    # [m]
+BALL_RADIUS = .01    # [m]
 BALL_MASS = .01/6       # [kg]
 BALL_MATERIAL_FRICTION = .5
 BALL_MATERIAL_RESTITUTION = 0.
