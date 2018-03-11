@@ -3,12 +3,8 @@ Global parameters.
 
 """
 from math import atan, degrees
-import os
-import sys
 
-sys.path.insert(0, os.path.abspath(".."))
 from config import *
-
 
 # Number of cores to use for parallelization.
 NCORES = 7
