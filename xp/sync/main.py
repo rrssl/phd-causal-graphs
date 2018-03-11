@@ -151,42 +151,48 @@ class DominoesBallSync:
 
 
 class BallRunSubmodel:
+    min_x = LEVER_POS.x + LEVER_THICKNESS/2 + cfg.BALL_RADIUS
+    max_x = RIGHT_ROW_ORIGIN.x
     min_z = 0
     max_z = LEVER_HEIGHT
     min_r = 0
     max_r = 90
 
     @classmethod
-    def opt2model(cls, x_opt):
+    def opt2model(cls, X_opt):
         """Map variables from [0, 1] to their original interval."""
-        z = x_opt[0]*(cls.max_z - cls.min_z) + cls.min_z
-        r = x_opt[1]*(cls.max_r - cls.min_r) + cls.min_r
-        return z, r
+        x = X_opt[0]*(cls.max_x - cls.min_x) + cls.min_x
+        z = X_opt[1]*(cls.max_z - cls.min_z) + cls.min_z
+        r = X_opt[2]*(cls.max_r - cls.min_r) + cls.min_r
+        return x, z, r
 
     @classmethod
-    def model2opt(cls, x_model):
+    def model2opt(cls, X_model):
         """Map variables from their original interval to [0, 1]."""
-        z, r = x_model
-        x = np.array([
+        x, z, r = X_model
+        X = np.array([
+            (x - cls.min_x) / (cls.max_x - cls.min_x),
             (z - cls.min_z) / (cls.max_z - cls.min_z),
             (r - cls.min_r) / (cls.max_r - cls.min_r),
         ])
-        return x
+        return X
 
     @classmethod
-    def update(cls, scene, x):
-        z, r = cls.opt2model(x)
+    def update(cls, scene, X):
+        x, z, r = cls.opt2model(X)
         # Find relevant objects in the scene.
         ball = scene.find("ball*")
         preplank = scene.find("preplank*")
         plank = scene.find("plank*")
         # Update their coordinates.
+        ball.set_x(x)
         ball.set_z(z)
+        preplank.set_x(ball.get_x() + PREPLANK_EXTENTS[0]/2 - .005,)
         preplank.set_z(ball.get_z() - cfg.BALL_RADIUS - PREPLANK_EXTENTS[2]/2)
         plank.set_r(r)
         r_rad = math.radians(r)
         plank.set_x(
-            PREPLANK_POS.x + PREPLANK_EXTENTS[0]/2
+            preplank.get_x() + PREPLANK_EXTENTS[0]/2
             + cfg.PLANK_LENGTH/2*math.cos(r_rad)
             - cfg.PLANK_THICKNESS/2*math.sin(r_rad)
         )
@@ -271,33 +277,35 @@ class NonPenetrationConstraint:
 def main():
     model = Model()
     objective = Objective(model)
-    x_init = model.model2opt([BALL_POS.z, PLANK_HPR.z])
+    x_init = model.model2opt([BALL_POS.x, BALL_POS.z, PLANK_HPR.z])
     bounds = [(.0, 1)] * len(x_init)
     # constraints = (
     #     {'type': 'ineq', 'fun': NonPenetrationConstraint(model)},
     # )
     # First, brute force.
-    ns = 51
+    ns = 11
     x_grid = np.mgrid[[np.s_[b[0]:b[1]:ns*1j] for b in bounds]]
-    x_grid = x_grid.reshape(2, -1).T
+    x_grid_vec = x_grid.reshape(x_grid.shape[0], -1).T
     filename = "grid_values.npy"
     try:
         vals = np.load(filename)
     except FileNotFoundError:
-        vals = Parallel(n_jobs=6)(delayed(objective)(x) for x in x_grid)
+        vals = Parallel(n_jobs=6)(delayed(objective)(x) for x in x_grid_vec)
+        vals = np.asarray(vals).reshape(x_grid[0].shape)
         np.save(filename, vals)
-    x_best = x_grid[np.argmin(vals)]
-    vals = np.asarray(vals).reshape(ns, ns)
+    best_id = np.nanargmax(vals)
+    x_best_id = np.unravel_index(best_id, x_grid[0].shape)
+    x_best = x_grid_vec[best_id]
 
     import matplotlib
     matplotlib.use('qt5agg')
     import matplotlib.pyplot as plt
     im = plt.imshow(
-        vals.T, origin='lower',
-        extent=np.concatenate(bounds), aspect='equal'
+        vals[x_best_id[0]].T, origin='lower',
+        extent=np.concatenate(bounds[1:]), aspect='equal'
     )
     plt.colorbar(im)
-    plt.scatter(*x_best)
+    plt.scatter(*x_best[1:])
     plt.show()
 
     x_init = x_best
