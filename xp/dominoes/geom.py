@@ -1,5 +1,5 @@
 """
-Basic geometric operations on dominoes.
+Useful geometric operations for dominoes.
 
 """
 from panda3d.bullet import BulletWorld
@@ -49,6 +49,7 @@ def tilt_box_forward(box: NodePath, angle):
     rotate_around(ctr, Vec3(0, 0, angle), box)
 
 
+# TODO. Move outside of dominoes
 def has_contact(a: NodePath, b: NodePath, world: BulletWorld=None):
     """Check whether two BulletRigidBodyNodes are in contact.
 
