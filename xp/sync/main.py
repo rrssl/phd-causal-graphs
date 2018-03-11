@@ -296,32 +296,34 @@ def main():
     x_best_id = np.unravel_index(best_id, x_grid[0].shape)
     x_best = x_grid_vec[best_id]
 
-    import matplotlib
-    matplotlib.use('qt5agg')
-    import matplotlib.cm as cm
-    current_cmap = cm.get_cmap()
-    current_cmap.set_bad(color='red')
-    import matplotlib.pyplot as plt
-    im = plt.imshow(
-        vals[x_best_id[0]].T, origin='lower',
-        extent=np.concatenate(bounds[1:]), aspect='equal'
-    )
-    plt.colorbar(im)
-    plt.scatter(*x_best[1:])
-    plt.show()
+    if 1:
+        import matplotlib
+        matplotlib.use('qt5agg')
+        import matplotlib.cm as cm
+        current_cmap = cm.get_cmap()
+        current_cmap.set_bad(color='red')
+        import matplotlib.pyplot as plt
+        im = plt.imshow(
+            vals[x_best_id[0]].T, origin='lower',
+            extent=np.concatenate(bounds[1:]), aspect='equal'
+        )
+        plt.colorbar(im)
+        plt.scatter(*x_best[1:])
+        plt.show()
 
-    bounds = np.column_stack((x_best*0.9, x_best*1.1))
-    print(bounds)
-    objective.err_val = 2
-    x_init = x_best
-    x_best = opt.minimize(
-        objective, x_init, bounds=bounds,
-        # constraints=constraints,
-        method='SLSQP',
-        options=dict(disp=True, maxiter=10, eps=1e-4)
-    ).x
-    print(x_best)
-    print(objective(x_best))
+    if 0:
+        bounds = np.column_stack((x_best*0.9, x_best*1.1))
+        print(bounds)
+        objective.err_val = 2
+        x_init = x_best
+        x_best = opt.minimize(
+            objective, x_init, bounds=bounds,
+            # constraints=constraints,
+            method='SLSQP',
+            options=dict(disp=True, maxiter=10, eps=1e-4)
+        ).x
+        print(x_best)
+        print(objective(x_best))
 
     # Show the solution.
     model.update(x_best, _visual=True)
