@@ -1,7 +1,3 @@
-import os
-import sys
-
-sys.path.insert(0, os.path.abspath(".."))
 from config import *
 
 VIDEO_FRAME_RATE = 60
@@ -18,6 +14,7 @@ MODELS_WIREFRAME_COLOR = .3
 MODELS_AMBIENT_LIGHT_COLOR = .1
 VISUAL_AMBIENT_LIGHT_COLOR = .8
 BACKGROUND_COLOR = (.9, .9, .9)
+DEBUG_BACKGROUND_COLOR = (.1, .1, .1)
 GRID_COLOR = .35
 
 PHYSICS_FRAME_RATE = 240

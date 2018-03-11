@@ -315,16 +315,22 @@ class PhysicsViewer(Modeler):
         try:
             if self._debug_np.is_hidden():
                 self._debug_np.show()
+                self.models.hide()
+                self.set_background_color(cfg.DEBUG_BACKGROUND_COLOR)
             else:
                 self._debug_np.hide()
+                self.models.show()
+                self.set_background_color(cfg.BACKGROUND_COLOR)
         except AttributeError:
             dn = BulletDebugNode("debug")
             dn.show_wireframe(True)
             #  dn.show_constraints(True)
-            dn.show_bounding_boxes(True)
+            # dn.show_bounding_boxes(True)
             #  dn.show_normals(True)
             self._debug_np = self.render.attach_new_node(dn)
             self._debug_np.show()
+            self.models.hide()
+            self.set_background_color(cfg.DEBUG_BACKGROUND_COLOR)
             self.world.set_debug_node(dn)
 
     def toggle_physics(self):
