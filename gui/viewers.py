@@ -334,6 +334,7 @@ class PhysicsViewer(Modeler):
             self.models.hide()
             self.set_background_color(cfg.DEBUG_BACKGROUND_COLOR)
             self.world.set_debug_node(dn)
+            self.do_physics(0)  # To force the update of Bullet
 
     def toggle_physics(self):
         self.play_physics = not self.play_physics
