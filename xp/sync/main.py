@@ -275,17 +275,19 @@ class NonPenetrationConstraint:
 
 
 def main():
+    x_init = Model.model2opt([BALL_POS.x, BALL_POS.z, PLANK_HPR.z])
     model = Model()
     objective = Objective(model)
-    x_init = model.model2opt([BALL_POS.x, BALL_POS.z, PLANK_HPR.z])
     bounds = [(.0, 1)] * len(x_init)
     # constraints = (
     #     {'type': 'ineq', 'fun': NonPenetrationConstraint(model)},
     # )
+    model.update(x_init, _visual=True)
     # First, brute force.
     ns = 11
     x_grid = np.mgrid[[np.s_[b[0]:b[1]:ns*1j] for b in bounds]]
     x_grid_vec = x_grid.reshape(x_grid.shape[0], -1).T
+    print("Bruteforce:", x_grid_vec.shape[0], "samples")
     filename = "grid_values.npy"
     try:
         vals = np.load(filename)
@@ -304,12 +306,13 @@ def main():
         current_cmap = cm.get_cmap()
         current_cmap.set_bad(color='red')
         import matplotlib.pyplot as plt
-        im = plt.imshow(
+        fig, ax = plt.subplots()
+        im = ax.imshow(
             vals[x_best_id[0]].T, origin='lower',
             extent=np.concatenate(bounds[1:]), aspect='equal'
         )
-        plt.colorbar(im)
-        plt.scatter(*x_best[1:])
+        fig.colorbar(im)
+        ax.scatter(*x_best[1:])
         plt.show()
 
     if 0:
