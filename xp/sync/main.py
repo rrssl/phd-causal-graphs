@@ -220,7 +220,7 @@ class Model:
         """Map variables from their original interval to [0, 1]."""
         return BallRunSubmodel.model2opt(x_model)
 
-    def update(self, x, _visual=False):
+    def update(self, x, run_simu=True, _visual=False):
         if not np.isfinite(x).all():
             self.left_time = math.nan
             self.right_time = math.nan
@@ -236,6 +236,8 @@ class Model:
         scene = scenario.scene
         # Update with new parameters.
         BallRunSubmodel.update(scene, x)
+        if not run_simu:
+            return
         # Create observers.
         observers = (
             DominoRunTopplingTimeObserver(scene.find("left_row*")),
@@ -270,8 +272,27 @@ class NonPenetrationConstraint:
         self.model = model
 
     def __call__(self, x):
-        # self.model.update(x)
-        return 0
+        self.model.update(x, run_simu=False)
+        world = self.model.scenario.world
+        scene = self.model.scenario.scene
+        # Get the bodies at risk of colliding
+        plank = scene.find("plank*").node()
+        right_row = scene.find("right_row*").node()
+        floor = scene.find("floor*").node()
+        targets = right_row.get_children() + (floor,)
+        # Accumulate penetration depths
+        total = sum(self.get_sum_of_penetration_depths(plank, target, world)
+                    for target in targets)
+        return total
+
+    @staticmethod
+    def get_sum_of_penetration_depths(node0, node1, world):
+        penetration = 0
+        result = world.contact_test_pair(node0, node1)
+        for contact in result.get_contacts():
+            mpoint = contact.get_manifold_point()
+            penetration += mpoint.get_distance()
+        return penetration
 
 
 def main():
@@ -279,9 +300,9 @@ def main():
     model = Model()
     objective = Objective(model)
     bounds = [(.0, 1)] * len(x_init)
-    # constraints = (
-    #     {'type': 'ineq', 'fun': NonPenetrationConstraint(model)},
-    # )
+    constraints = (
+        {'type': 'ineq', 'fun': NonPenetrationConstraint(model)},
+    )
     model.update(x_init, _visual=True)
     # First, brute force.
     ns = 11
@@ -292,9 +313,18 @@ def main():
     try:
         vals = np.load(filename)
     except FileNotFoundError:
-        vals = Parallel(n_jobs=6)(delayed(objective)(x) for x in x_grid_vec)
-        vals = np.asarray(vals).reshape(x_grid[0].shape)
+        cons = constraints[0]['fun']
+        valid = np.array([cons(x) >= 0 for x in x_grid_vec], dtype=bool)
+        valid.shape = x_grid[0].shape
+        print("Validity tests DONE: ", valid.sum(), "valid samples")
+        vals = np.empty(valid.shape)
+        vals[~valid] = np.nan
+        model.scenario = None  # to avoid serialization issues with BAM
+        vals[valid] = Parallel(n_jobs=6)(
+            delayed(objective)(x) for x in x_grid_vec[valid.flat]
+        )
         np.save(filename, vals)
+    print(np.isfinite(vals).sum(), "valid samples after simulation")
     best_id = np.nanargmax(vals)
     x_best_id = np.unravel_index(best_id, x_grid[0].shape)
     x_best = x_grid_vec[best_id]
