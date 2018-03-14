@@ -140,6 +140,10 @@ class DominoRunTerminationCondition:
         self.verbose = verbose
         self.reset()
 
+    def __repr__(self):
+        r = "{} on {}".format(type(self).__name__, self._domrun_np.get_name())
+        return r
+
     def reset(self):
         self.status = None
         self.last_event_time = 0
@@ -190,6 +194,13 @@ class AndTerminationCondition:
         self.verbose = verbose
         self.reset()
 
+    def __repr__(self):
+        r = "{} between ".format(type(self).__name__)
+        for c in self.conditions[:-1]:
+            r += "{}, ".format(c)
+        r += "and {}".format(self.conditions[-1])
+        return r
+
     def reset(self):
         self.status = None
         self.last_event_time = 0
@@ -209,7 +220,8 @@ class AndTerminationCondition:
                 self.status = 'started'
                 self.last_event_time = time
                 if self.verbose:
-                    print("At least one block has started")
+                    start = next(c for c in self.conditions if c.has_started())
+                    print("One condition has started:", start)
             else:
                 return False
         # Update internal state.
@@ -220,13 +232,19 @@ class AndTerminationCondition:
             success = not any(c.status == 'failure' for c in self.conditions)
             self.status = 'success' if success else 'failure'
             if self.verbose:
-                print("All blocks have successfully terminated")
+                if success:
+                    print("All conditions have successfully terminated")
+                else:
+                    fail = [c for c in self.conditions
+                            if c.status == 'failure']
+                    print("The following conditions were not met:", fail)
             return True
         if time - self.last_event_time > cfg.MAX_WAIT_TIME:
             # The chain broke.
             self.status = 'failure'
             if self.verbose:
-                print("At least one block has not started: timeout")
+                noterm = [c for c in self.conditions if not c(time)]
+                print("The following conditions have not terminated:", noterm)
             return True
         return False
 
