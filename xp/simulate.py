@@ -37,7 +37,7 @@ class Simulation:
             # We want to call the observers _before_ breaking.
             for obs in self.observers:
                 obs(time)
-            if terminate(time):
+            if terminate.update_and_check(time):
                 break
             world.do_physics(ts, 2, ts)
             time += ts

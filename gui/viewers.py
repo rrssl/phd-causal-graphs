@@ -457,7 +457,7 @@ class ScenarioViewer(PhysicsViewer):
 
     def update_status(self, task):
         scenario = self.scenario
-        scenario.terminate(self.world_time)
+        scenario.terminate.update_and_check(self.world_time)
         if scenario.terminate.status != self.status:
             self.status = scenario.terminate.status
             if self.status == 'success':
