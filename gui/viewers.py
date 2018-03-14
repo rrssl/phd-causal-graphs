@@ -53,8 +53,8 @@ class TurntableViewer(ShowBase):
         # Zoom
         self.accept("wheel_up", self.zoom, [True])
         self.accept("wheel_down", self.zoom, [False])
-        self.accept_once("+", self.zoom, [True])
-        self.accept_once("-", self.zoom, [False])
+        self.accept_once("+", self.zoom, [True, True])
+        self.accept_once("-", self.zoom, [False, True])
 
         # Control parameters
         self.cam_distance = cfg.INIT_CAM_DISTANCE
@@ -102,17 +102,17 @@ class TurntableViewer(ShowBase):
         self.set_move_pivot(move)
         self.set_move_camera(move)
 
-    def zoom(self, zoom_in):
+    def zoom(self, zoom_in, from_key=False):
         if zoom_in:
             if self.cam_distance > self.min_cam_distance:
                 self.cam_distance *= 1 - self.zoom_factor
-                # Reaccept the zoom in key
-                self.acceptOnce("+", self.zoom, [True])
+                if from_key:
+                    self.acceptOnce("+", self.zoom, [True, True])
         else:
             if self.cam_distance < self.max_cam_distance:
                 self.cam_distance *= 1 + self.zoom_factor
-                # Reaccept the zoom out key
-                self.acceptOnce("-", self.zoom, [False])
+                if from_key:
+                    self.acceptOnce("-", self.zoom, [False, True])
         self.camLens.set_near_far(
             self.cam_distance * cfg.CAM_LENS_NEAR_FACTOR,
             self.cam_distance * cfg.CAM_LENS_FAR_FACTOR
