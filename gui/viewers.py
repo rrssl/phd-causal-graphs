@@ -41,6 +41,8 @@ class TurntableViewer(ShowBase):
         super().__init__()
 
         self.disable_mouse()
+        self.disable_all_audio()
+        self.task_mgr.remove("audioLoop")
 
         # Camera movement
         self.mouse_pos = None
