@@ -257,8 +257,12 @@ class Model:
         # Create and run simulation.
         simu = Simulation(scenario, observers, timestep=OPTIM_SIMU_TIMESTEP)
         simu.run()
-        print("Observed times -- left:", observers[0].times)
-        print("Observed times -- right:", observers[1].times)
+        if not scenario.succeeded():
+            self.left_time = math.nan
+            self.right_time = math.nan
+            return
+        # print("Observed times -- left:", observers[0].times)
+        # print("Observed times -- right:", observers[1].times)
         # Update output variables.
         self.left_time = observers[0].times[-1]
         self.right_time = observers[1].times[-1]
