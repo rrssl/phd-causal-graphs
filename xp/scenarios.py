@@ -135,8 +135,9 @@ def has_toppled(domino):
 
 
 class DominoRunTerminationCondition:
-    def __init__(self, domrun_np):
+    def __init__(self, domrun_np, verbose=False):
         self._domrun_np = domrun_np
+        self.verbose = verbose
         self.reset()
 
     def reset(self):
@@ -157,6 +158,8 @@ class DominoRunTerminationCondition:
             if self.has_started():
                 self.status = 'started'
                 self.last_event_time = time
+                if self.verbose:
+                    print(self._domrun_np.get_name(), "has started to topple")
             else:
                 return False
         # Update internal state.
@@ -168,18 +171,23 @@ class DominoRunTerminationCondition:
         if not self._domlist:
             # All dominoes toppled in order.
             self.status = 'success'
+            if self.verbose:
+                print(self._domrun_np.get_name(), "has completely toppled")
             return True
         if time - self.last_event_time > cfg.MAX_WAIT_TIME:
             # The chain broke.
             self.status = 'failure'
+            if self.verbose:
+                print(self._domrun_np.get_name(), "has timed out")
             return True
         return False
 
 
 class AndTerminationCondition:
     """This condition terminates when all sub conditions have terminated."""
-    def __init__(self, conditions):
+    def __init__(self, conditions, verbose=False):
         self.conditions = conditions
+        self.verbose = verbose
         self.reset()
 
     def reset(self):
@@ -200,6 +208,8 @@ class AndTerminationCondition:
             if self.has_started():
                 self.status = 'started'
                 self.last_event_time = time
+                if self.verbose:
+                    print("At least one block has started")
             else:
                 return False
         # Update internal state.
@@ -209,10 +219,14 @@ class AndTerminationCondition:
         if terminated:
             success = not any(c.status == 'failure' for c in self.conditions)
             self.status = 'success' if success else 'failure'
+            if self.verbose:
+                print("All blocks have successfully terminated")
             return True
         if time - self.last_event_time > cfg.MAX_WAIT_TIME:
             # The chain broke.
             self.status = 'failure'
+            if self.verbose:
+                print("At least one block has not started: timeout")
             return True
         return False
 

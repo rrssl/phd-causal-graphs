@@ -66,11 +66,14 @@ RIGHT_ROW_DENSITY = 4 / RIGHT_ROW_LENGTH
 
 class DominoesBallSync:
     """Scenario used to sync a domino run with a ball run."""
-    def __init__(self, make_geom=False, **kwargs):
+    def __init__(self, make_geom=False, verbose_cond=False, **kwargs):
         self.scene, self.world = self.init_scenario(make_geom)
-        term1 = DominoRunTerminationCondition(self.scene.find("left_row"))
-        term2 = DominoRunTerminationCondition(self.scene.find("right_row"))
-        self.terminate = AndTerminationCondition((term1, term2))
+        term1 = DominoRunTerminationCondition(self.scene.find("left_row"),
+                                              verbose=verbose_cond)
+        term2 = DominoRunTerminationCondition(self.scene.find("right_row"),
+                                              verbose=verbose_cond)
+        self.terminate = AndTerminationCondition((term1, term2),
+                                                 verbose=verbose_cond)
 
     @staticmethod
     def init_scenario(make_geom=False):
@@ -226,7 +229,7 @@ class Model:
             self.right_time = math.nan
             return
         if _visual:
-            scenario = DominoesBallSync(make_geom=True)
+            scenario = DominoesBallSync(make_geom=True, verbose_cond=True)
             BallRunSubmodel.update(scenario.scene, x)
             simu = Simulation(scenario, timestep=OPTIM_SIMU_TIMESTEP)
             simu.run_visual()
