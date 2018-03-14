@@ -156,6 +156,7 @@ class DominoRunTerminationCondition:
         if self.status is None:
             if self.has_started():
                 self.status = 'started'
+                self.last_event_time = time
             else:
                 return False
         # Update internal state.
@@ -198,6 +199,7 @@ class AndTerminationCondition:
         if self.status is None:
             if self.has_started():
                 self.status = 'started'
+                self.last_event_time = time
             else:
                 return False
         # Update internal state.
