@@ -68,11 +68,19 @@ class DominoesBallSync:
     """Scenario used to sync a domino run with a ball run."""
     def __init__(self, make_geom=False, verbose_cond=False, **kwargs):
         self.scene, self.world = self.init_scenario(make_geom)
-        term1 = DominoRunTerminationCondition(self.scene.find("left_row"),
-                                              verbose=verbose_cond)
-        term2 = DominoRunTerminationCondition(self.scene.find("right_row"),
-                                              verbose=verbose_cond)
-        self.terminate = AndTerminationCondition((term1, term2),
+        term1 = DominoRunTerminationCondition(
+            self.scene.find("left_row"), verbose=verbose_cond
+        )
+        term2 = MoveCollideTerminationCondition(
+            self.world,
+            self.scene.find("lever*").get_child(0),
+            self.scene.find("ball*"),
+            verbose=verbose_cond
+        )
+        term3 = DominoRunTerminationCondition(
+            self.scene.find("right_row"), verbose=verbose_cond
+        )
+        self.terminate = AndTerminationCondition((term1, term2, term3),
                                                  verbose=verbose_cond)
 
     @staticmethod

@@ -188,6 +188,67 @@ class DominoRunTerminationCondition:
         return self.terminated
 
 
+class MoveCollideTerminationCondition:
+    def __init__(self, world, a, b, verbose):
+        self._world = world
+        self._a = a
+        self._b = b
+        self.verbose = verbose
+        self.reset()
+
+    def __repr__(self):
+        r = "{} between {} and {}".format(
+            type(self).__name__,
+            self._a.get_name(),
+            self._b.get_name()
+        )
+        return r
+
+    def reset(self):
+        self.status = None
+        self.terminated = False
+        self.last_event_time = 0
+
+    def has_started(self):
+        body = self._a.node()
+        lin = body.get_linear_velocity().length_squared()
+        rot = body.get_angular_velocity().length_squared()
+        if lin + rot > 1e-2:
+            return True
+
+    def update_and_check(self, time):
+        # Avoid checking if already terminated.
+        if self.terminated:
+            return True
+        # Check start condition.
+        if self.status is None:
+            if self.has_started():
+                self.status = 'started'
+                self.last_event_time = time
+                if self.verbose:
+                    print(self._a.get_name(), "has started to move")
+            else:
+                return False
+        # Update internal state.
+        result = self._world.contact_test_pair(self._a.node(), self._b.node())
+        # Update status.
+        if result.get_num_contacts():
+            self.status = 'success'
+            self.terminated = True
+            self.last_event_time = time
+            if self.verbose:
+                print(self._a.get_name(), "has hit", self._b.get_name())
+        if time - self.last_event_time > cfg.MAX_WAIT_TIME:
+            # The chain broke.
+            self.status = 'failure'
+            self.terminated = True
+            if self.verbose:
+                print("Collision between {} and {} has timed out".format(
+                    self._a.get_name(), self._b.get_name())
+                )
+        return self.terminated
+
+
 class AndTerminationCondition:
     """This condition terminates when all sub conditions have terminated."""
     def __init__(self, conditions, verbose=False):
