@@ -462,7 +462,7 @@ class ScenarioViewer(PhysicsViewer):
             self.status = scenario.terminate.status
             if self.status == 'success':
                 scenario.scene.set_color(Vec4(*cfg.SCENARIO_SUCCESS_COLOR))
-            elif self.status == 'timeout':
+            elif self.status == 'failure':
                 scenario.scene.set_color(Vec4(*cfg.SCENARIO_TIMEOUT_COLOR))
             else:
                 scenario.scene.clear_color()

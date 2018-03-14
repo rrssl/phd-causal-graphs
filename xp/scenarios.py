@@ -136,31 +136,41 @@ def has_toppled(domino):
 
 class DominoRunTerminationCondition:
     def __init__(self, domrun_np):
-        self.dominoes = list(domrun_np.get_children())
+        self._domrun_np = domrun_np
         self.reset()
 
     def reset(self):
         self.status = None
-        self.last_toppled_id = -1
-        self.last_toppled_time = 0
+        self.last_event_time = 0
+        # Internals
+        self._domlist = list(self._domrun_np.get_children())
+
+    def has_started(self):
+        return has_toppled(self._domrun_np.get_child(0))
 
     def __call__(self, time):
         # Avoid checking if already terminated.
-        if self.status in ('success', 'timeout'):
+        if self.status in ('success', 'failure'):
             return True
-        n = len(self.dominoes)
-        # Use 'while' here because close dominoes can topple at the same time
-        while (self.last_toppled_id < n-1
-                and has_toppled(self.dominoes[self.last_toppled_id+1])):
-            self.last_toppled_id += 1
-            self.last_toppled_time = time
-        if self.last_toppled_id == n-1:
+        # Check start condition.
+        if self.status is None:
+            if self.has_started():
+                self.status = 'started'
+            else:
+                return False
+        # Update internal state.
+        # Use 'while' here because close dominoes can topple at the same time.
+        while (self._domlist and has_toppled(self._domlist[0])):
+            self._domlist.pop(0)
+            self.last_event_time = time
+        # Update status.
+        if not self._domlist:
             # All dominoes toppled in order.
             self.status = 'success'
             return True
-        if time - self.last_toppled_time > cfg.MAX_WAIT_TIME:
-            # The chain broke
-            self.status = 'timeout'
+        if time - self.last_event_time > cfg.MAX_WAIT_TIME:
+            # The chain broke.
+            self.status = 'failure'
             return True
         return False
 
@@ -173,17 +183,36 @@ class AndTerminationCondition:
 
     def reset(self):
         self.status = None
+        self.last_event_time = 0
         for c in self.conditions:
             c.reset()
 
+    def has_started(self):
+        return any(c.has_started() for c in self.conditions)
+
     def __call__(self, time):
-        terminated = all(c(time) for c in self.conditions)
-        if terminated:
-            if all(c.status == 'success' for c in self.conditions):
-                self.status = 'success'
+        # Avoid checking if already terminated.
+        if self.status in ('success', 'failure'):
+            return True
+        # Check start condition.
+        if self.status is None:
+            if self.has_started():
+                self.status = 'started'
             else:
-                self.status = 'timeout'
-        return terminated
+                return False
+        # Update internal state.
+        terminated = all(c(time) for c in self.conditions)
+        self.last_event_time = max(c.last_event_time for c in self.conditions)
+        # Update status.
+        if terminated:
+            success = not any(c.status == 'failure' for c in self.conditions)
+            self.status = 'success' if success else 'failure'
+            return True
+        if time - self.last_event_time > cfg.MAX_WAIT_TIME:
+            # The chain broke.
+            self.status = 'failure'
+            return True
+        return False
 
 
 class DominoRunTopplingTimeObserver:
