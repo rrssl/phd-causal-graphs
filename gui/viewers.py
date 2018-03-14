@@ -68,7 +68,7 @@ class TurntableViewer(ShowBase):
         self.pivot.set_pos(0, 0, 0)
         self.camera.reparent_to(self.pivot)
 
-        # TODO check why the priority value is -4
+        # TODO rationalize inconsistent use of priorities
         self.task_mgr.add(self.update_cam, "update_cam", priority=-4)
 
         # Framerate
@@ -101,6 +101,10 @@ class TurntableViewer(ShowBase):
     def set_move_pivot_and_camera(self, move):
         self.set_move_pivot(move)
         self.set_move_camera(move)
+
+    def shutdown(self):
+        self.task_mgr.remove("update_cam")
+        super().shutdown()
 
     def zoom(self, zoom_in, from_key=False):
         if zoom_in:
@@ -236,6 +240,10 @@ class Modeler(TurntableViewer):
         self.axes.set_hpr(self.render2d, self.render.get_hpr(self.camera))
         return task.cont
 
+    def shutdown(self):
+        self.task_mgr.remove("update_axes")
+        super().shutdown()
+
 
 class PhysicsViewer(Modeler):
     """Provides control and visualization for the physical simulation.
@@ -314,6 +322,11 @@ class PhysicsViewer(Modeler):
             body.set_angular_velocity(state[2])
             body.set_active(True)
             self.world_time = 0.
+
+    def shutdown(self):
+        self.task_mgr.remove("init_physics_cache")
+        self.task_mgr.remove("update_physics")
+        super().shutdown()
 
     def toggle_bullet_debug(self):
         try:
@@ -458,3 +471,7 @@ class ScenarioViewer(PhysicsViewer):
     def reset_scenario(self):
         self.scenario.terminate.reset()
         self.reset_physics()
+
+    def shutdown(self):
+        self.task_mgr.remove("update_status")
+        super().shutdown()
