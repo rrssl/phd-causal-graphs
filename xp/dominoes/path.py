@@ -2,16 +2,12 @@
 Utility functions related to domino paths.
 
 """
-import os
-import sys
-
 import numpy as np
 from scipy.signal import argrelmax
 from shapely.affinity import rotate, translate
 from shapely.geometry import box, LineString, Point
 
-sys.path.insert(0, os.path.abspath(".."))
-import spline2d as spl  # noqa: E402
+import core.spline2d as spl
 
 
 def get_rel_coords(u, spline):
