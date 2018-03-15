@@ -345,11 +345,8 @@ def main():
     x_best = x_grid_vec[best_id]
 
     if 1:
-        import matplotlib
-        matplotlib.use('qt5agg')
-        import matplotlib.cm as cm
-        current_cmap = cm.get_cmap()
-        current_cmap.set_bad(color='red')
+        from matplotlib.cm import get_cmap
+        get_cmap().set_bad(color='red')
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots()
         im = ax.imshow(
@@ -358,6 +355,9 @@ def main():
         )
         fig.colorbar(im)
         ax.scatter(*x_best[1:])
+        ax.set_title("Time difference left vs. right side (red=invalid)\n")
+        ax.set_xlabel("Plank height (normalized)")
+        ax.set_ylabel("Plank angle (normalized)")
         plt.show()
 
     if 0:
