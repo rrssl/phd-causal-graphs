@@ -20,7 +20,6 @@ class VectorFile:
                 filename, size=(width + 'cm', height + 'cm'),
                 viewBox='0 0 ' + width + ' ' + height)
 
-
     def add_rectangles(self, positions, angles, sizes):
         cont = self.cont
         group = cont.add(cont.g(fill='none', stroke='black', stroke_width=.02))

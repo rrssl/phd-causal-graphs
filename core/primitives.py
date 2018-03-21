@@ -152,8 +152,8 @@ class Plane(PrimitiveBase):
         self._set_properties(body)
         # TODO. Investigate whether PlaneShape really is the cause
         # of the problem. Maybe it's just a matter of collision margin?
-        # shape = bt.BulletBoxShape(
-        #     (10, 10, .1), TransformState.make_pos(Point3(0, 0, -.1)))
+        # shape = bt.BulletBoxShape((1, 1, .1))
+        # body.add_shape(shape, TransformState.make_pos(Point3(0, 0, -.1)))
         shape = bt.BulletPlaneShape(Vec3(*self.normal), self.distance)
         body.add_shape(shape)
         # Scene graph
