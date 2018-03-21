@@ -7,9 +7,9 @@ import os
 import sys
 
 import numpy as np
-from panda3d.core import Point2, Point3, Vec2, Vec3
 import scipy.optimize as opt
-from sklearn.externals.joblib import delayed, Parallel
+from joblib import delayed, Parallel
+from panda3d.core import Point2, Point3, Vec2, Vec3
 
 sys.path.insert(0, os.path.abspath("../.."))
 import xp.config as cfg  # noqa: E402
