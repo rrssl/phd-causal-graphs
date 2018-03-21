@@ -21,6 +21,7 @@ from xp.simulate import Simulation  # noqa: E402
 from xp.scenarios import (AndTerminationCondition,  # noqa: E402
                           DominoRunTerminationCondition,
                           DominoRunTopplingTimeObserver,
+                          MoveCollideTerminationCondition,
                           init_scene)
 
 
