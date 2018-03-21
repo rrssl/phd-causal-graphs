@@ -14,7 +14,7 @@ from panda3d.core import Point2, Point3, Vec2, Vec3
 sys.path.insert(0, os.path.abspath("../.."))
 import xp.config as cfg  # noqa: E402
 from core.primitives import Ball, Box, DominoRun, Lever  # noqa: E402
-from xp.dominoes.geom import tilt_box_forward  # noqa: E402
+from xp.dominoes.geom import add_wave, tilt_box_forward  # noqa: E402
 from xp.dominoes.templates import create_branch, create_line  # noqa: E402
 from xp.simulate import Simulation  # noqa: E402
 
@@ -66,9 +66,16 @@ RIGHT_ROW_NDOMS = 4
 
 
 class DominoesBallSync:
-    """Scenario used to sync a domino run with a ball run."""
-    def __init__(self, make_geom=False, verbose_cond=False, **kwargs):
-        self.scene, self.world = self.init_scenario(make_geom)
+    """Scenario used to sync a domino run with a ball run.
+
+    Parameters
+    ----------
+    sample : (10,) sequence
+      [ndoms*, fx*, fy*, fa*, ax, ay, aa, bx, bz, pa] (*: integers)
+
+    """
+    def __init__(self, sample, make_geom=False, verbose_cond=False, **kwargs):
+        self.scene, self.world = self.init_scenario(sample, make_geom)
         term1 = DominoRunTerminationCondition(
             self.scene.find("left_row"), verbose=verbose_cond
         )
@@ -85,7 +92,7 @@ class DominoesBallSync:
                                                  verbose=verbose_cond)
 
     @staticmethod
-    def init_scenario(make_geom=False):
+    def init_scenario(sample, make_geom=False):
         scene, world = init_scene()
 
         branch = DominoRun(
@@ -100,11 +107,17 @@ class DominoesBallSync:
         tilt_box_forward(branch.path.get_child(0), cfg.TOPPLING_ANGLE+1)
         branch.attach_to(scene, world)
 
+        coords = create_line(LEFT_ROW_ORIGIN, LEFT_ROW_ANGLE, LEFT_ROW_LENGTH,
+                             int(sample[0]))
+        x = coords[:, 0] - coords[0, 0]
+        coords[:, 0] = add_wave(x, coords[:, 0], sample[4], sample[1])
+        coords[:, 1] = add_wave(x, coords[:, 1], sample[5], sample[2])
+        coords[:, 2] = add_wave(x, coords[:, 2],
+                                sample[6] * np.pi / LEFT_ROW_LENGTH, sample[3])
         left_row = DominoRun(
             "left_row",
             cfg.DOMINO_EXTENTS,
-            create_line(LEFT_ROW_ORIGIN, LEFT_ROW_ANGLE, LEFT_ROW_LENGTH,
-                        LEFT_ROW_NDOMS),
+            coords,
             geom=make_geom,
             mass=cfg.DOMINO_MASS,
         )
@@ -116,7 +129,8 @@ class DominoesBallSync:
             LEVER_EXTENTS,
             LEVER_PIVOT_POS_HPR,
             geom=make_geom,
-            mass=LEVER_MASS
+            mass=LEVER_MASS,
+            angular_damping=LEVER_ANGULAR_DAMPING
         )
         lever.create().set_pos(LEVER_POS)
         lever.attach_to(scene, world)
@@ -127,7 +141,8 @@ class DominoesBallSync:
             geom=make_geom,
             mass=cfg.BALL_MASS
         )
-        ball.create().set_pos(BALL_POS)
+        ball_pos = Point3(sample[7], BALL_POS.y, sample[8])
+        ball.create().set_pos(ball_pos)
         ball.attach_to(scene, world)
 
         preplank = Box(
@@ -135,7 +150,12 @@ class DominoesBallSync:
             PREPLANK_EXTENTS,
             geom=make_geom
         )
-        preplank.create().set_pos_hpr(PREPLANK_POS, PREPLANK_HPR)
+        preplank_pos = Point3(
+            ball_pos.x + PREPLANK_EXTENTS[0]/2 - .005,
+            PREPLANK_POS.y,
+            ball_pos.z - cfg.BALL_RADIUS - PREPLANK_EXTENTS[2]/2
+        )
+        preplank.create().set_pos_hpr(preplank_pos, PREPLANK_HPR)
         preplank.attach_to(scene, world)
 
         plank = Box(
@@ -143,7 +163,16 @@ class DominoesBallSync:
             cfg.PLANK_EXTENTS,
             geom=make_geom
         )
-        plank.create().set_pos_hpr(PLANK_POS, PLANK_HPR)
+        r_rad = math.radians(sample[9])
+        plank_pos = Point3(
+            preplank_pos.x + PREPLANK_EXTENTS[0]/2
+            + cfg.PLANK_LENGTH/2*math.cos(r_rad)
+            - cfg.PLANK_THICKNESS/2*math.sin(r_rad),
+            PLANK_POS.y,
+            preplank_pos.z - cfg.PLANK_LENGTH/2*math.sin(r_rad)
+        )
+        plank_hpr = Vec3(PLANK_HPR.x, PLANK_HPR.y, sample[9])
+        plank.create().set_pos_hpr(plank_pos, plank_hpr)
         plank.attach_to(scene, world)
 
         right_row = DominoRun(
@@ -164,12 +193,13 @@ class DominoesBallSync:
 
 
 class BallRunSubmodel:
+    # Bounds
     min_x = BALL_POS.x
-    max_x = RIGHT_ROW_ORIGIN.x
+    max_x = BALL_POS.x + cfg.PLANK_LENGTH / 2
     min_z = cfg.BALL_RADIUS + cfg.PLANK_THICKNESS
-    max_z = LEVER_HEIGHT
-    min_r = 0
-    max_r = 90
+    max_z = LEVER_HEIGHT - cfg.BALL_RADIUS
+    min_r = 0.
+    max_r = 75.
 
     @classmethod
     def opt2model(cls, X_opt):
@@ -215,6 +245,43 @@ class BallRunSubmodel:
             obj.node().set_transform_dirty()
 
 
+class DominoRunSubmodel:
+    # Bounds
+    min_n = 10
+    max_n = 20
+    min_xf = 0
+    max_xf = 2
+    min_yf = 0
+    max_yf = 2
+    min_af = 0
+    max_af = 2
+    min_xa = 0.
+    max_xa = 1.
+    min_ya = 0.
+    max_ya = 1.
+    min_aa = 0.
+    max_aa = 90.
+
+    @classmethod
+    def opt2model(cls, X_opt):
+        """Map continuous variables from [0, 1] to their original interval."""
+        xa = X_opt[0]*(cls.max_xa - cls.min_xa) + cls.min_xa
+        ya = X_opt[0]*(cls.max_ya - cls.min_ya) + cls.min_ya
+        aa = X_opt[1]*(cls.max_aa - cls.min_aa) + cls.min_aa
+        return xa, ya, aa
+
+    @classmethod
+    def model2opt(cls, X_model):
+        """Map continuous variables from their original interval to [0, 1]."""
+        xa, ya, aa = X_model
+        X = np.array([
+            (xa - cls.min_xa) / (cls.max_xa - cls.min_xa),
+            (ya - cls.min_ya) / (cls.max_ya - cls.min_ya),
+            (aa - cls.min_aa) / (cls.max_aa - cls.min_aa),
+        ])
+        return X
+
+
 class Model:
     """Interface between the optimizer and the objects being optimized."""
     def __init__(self):
@@ -238,16 +305,13 @@ class Model:
             self.right_time = math.nan
             return
         if _visual:
-            scenario = DominoesBallSync(make_geom=True, verbose_cond=True)
-            BallRunSubmodel.update(scenario.scene, x)
+            scenario = DominoesBallSync(x, make_geom=True, verbose_cond=True)
             simu = Simulation(scenario, timestep=OPTIM_SIMU_TIMESTEP)
             simu.run_visual()
         # Create new scenario.
-        scenario = DominoesBallSync(make_geom=_visual)
+        scenario = DominoesBallSync(x, make_geom=_visual)
         self.scenario = scenario
         scene = scenario.scene
-        # Update with new parameters.
-        BallRunSubmodel.update(scene, x)
         if not run_simu:
             return
         # Create observers.
@@ -292,13 +356,19 @@ class NonPenetrationConstraint:
         world = self.model.scenario.world
         scene = self.model.scenario.scene
         # Get the bodies at risk of colliding
+        left_row_doms = scene.find("left_row*").node().get_children()
         plank = scene.find("plank*").node()
-        right_row = scene.find("right_row*").node()
+        right_row_doms = scene.find("right_row*").node().get_children()
         floor = scene.find("floor*").node()
-        targets = right_row.get_children() + (floor,)
+        targets = right_row_doms + (floor,)
         # Accumulate penetration depths
-        total = sum(self.get_sum_of_penetration_depths(plank, target, world)
-                    for target in targets)
+        total = sum(
+            self.get_sum_of_penetration_depths(plank, target, world)
+            for target in targets
+        ) + sum(
+            self.get_sum_of_penetration_depths(d1, d2, world)
+            for d1, d2 in zip(left_row_doms[:-1], left_row_doms[1:])
+        )
         return total
 
     @staticmethod
@@ -312,38 +382,84 @@ class NonPenetrationConstraint:
 
 
 def main():
-    x_init = Model.model2opt([BALL_POS.x, BALL_POS.z, PLANK_HPR.z])
+    x_init = [LEFT_ROW_NDOMS, 0, 0, 0, 0, 0, 0,
+              BALL_POS.x, BALL_POS.z, PLANK_HPR.z]
     model = Model()
+    model.update(x_init, _visual=True)
     objective = Objective(model)
     bounds = [(.0, 1)] * len(x_init)
     constraints = (
         {'type': 'ineq', 'fun': NonPenetrationConstraint(model)},
     )
-    model.update(x_init, _visual=True)
-    # First, brute force.
-    ns = 11
-    x_grid = np.mgrid[[np.s_[b[0]:b[1]:ns*1j] for b in bounds]]
+
+    def fromleft(xl):
+        return list(xl) + [BALL_POS.x, BALL_POS.z, PLANK_HPR.z]
+
+    def fromright(xr):
+        return [LEFT_ROW_NDOMS, 0, 0, 0, 0, 0, 0] + list(xr)
+    # Brute force on the left side.
+    x_grid = np.mgrid[
+        np.s_[DominoRunSubmodel.min_n:DominoRunSubmodel.max_n:6j],
+        np.s_[DominoRunSubmodel.min_xf:DominoRunSubmodel.max_xf+1],
+        np.s_[DominoRunSubmodel.min_yf:DominoRunSubmodel.max_yf+1],
+        np.s_[DominoRunSubmodel.min_af:DominoRunSubmodel.max_af+1],
+        np.s_[DominoRunSubmodel.min_xa:DominoRunSubmodel.max_xa:5j],
+        np.s_[DominoRunSubmodel.min_ya:DominoRunSubmodel.max_ya:5j],
+        np.s_[DominoRunSubmodel.min_aa:DominoRunSubmodel.max_aa:5j],
+    ]
     x_grid_vec = x_grid.reshape(x_grid.shape[0], -1).T
     print("Bruteforce:", x_grid_vec.shape[0], "samples")
-    filename = "grid_values.npy"
+    filename = "left_side_grid_values.npy"
     try:
         vals = np.load(filename)
     except FileNotFoundError:
         cons = constraints[0]['fun']
-        valid = np.array([cons(x) >= 0 for x in x_grid_vec], dtype=bool)
+        valid = np.array([cons(fromleft(x)) >= 0
+                          for x in x_grid_vec], dtype=bool)
         valid.shape = x_grid[0].shape
         print("Validity tests DONE: ", valid.sum(), "valid samples")
         vals = np.empty(valid.shape)
         vals[~valid] = np.nan
         model.scenario = None  # to avoid serialization issues with BAM
         vals[valid] = Parallel(n_jobs=6)(
-            delayed(objective)(x) for x in x_grid_vec[valid.flat]
+            delayed(objective)(fromleft(x)) for x in x_grid_vec[valid.flat]
         )
         np.save(filename, vals)
     print(np.isfinite(vals).sum(), "valid samples after simulation")
     best_id = np.nanargmax(vals)
     x_best_id = np.unravel_index(best_id, x_grid[0].shape)
-    x_best = x_grid_vec[best_id]
+    x_best_left = x_grid_vec[best_id]
+    print(objective(fromleft(x_best_left)))
+
+    # Brute force on the right side.
+    x_grid = np.mgrid[
+        np.s_[BallRunSubmodel.min_x:BallRunSubmodel.max_x:20j],
+        np.s_[BallRunSubmodel.min_z:BallRunSubmodel.max_z:20j],
+        np.s_[BallRunSubmodel.min_r:BallRunSubmodel.max_r:20j],
+    ]
+    x_grid_vec = x_grid.reshape(x_grid.shape[0], -1).T
+    print("Bruteforce:", x_grid_vec.shape[0], "samples")
+    filename = "right_side_grid_values.npy"
+    try:
+        vals = np.load(filename)
+    except FileNotFoundError:
+        cons = constraints[0]['fun']
+        valid = np.array([cons(fromright(x)) >= 0
+                          for x in x_grid_vec], dtype=bool)
+        valid.shape = x_grid[0].shape
+        print("Validity tests DONE: ", valid.sum(), "valid samples")
+        vals = np.empty(valid.shape)
+        vals[~valid] = np.nan
+        model.scenario = None  # to avoid serialization issues with BAM
+        vals[valid] = Parallel(n_jobs=6)(
+            delayed(objective)(fromright(x)) for x in x_grid_vec[valid.flat]
+        )
+        np.save(filename, vals)
+    print(np.isfinite(vals).sum(), "valid samples after simulation")
+    best_id = np.nanargmax(vals)
+    x_best_id = np.unravel_index(best_id, x_grid[0].shape)
+    x_best_right = x_grid_vec[best_id]
+    print(objective(fromright(x_best_right)))
 
     if 1:
         from matplotlib.cm import get_cmap
@@ -355,11 +471,13 @@ def main():
             extent=np.concatenate(bounds[1:]), aspect='equal'
         )
         fig.colorbar(im)
-        ax.scatter(*x_best[1:])
+        ax.scatter(*x_best_right[1:])
         ax.set_title("Time difference left vs. right side (red=invalid)\n")
         ax.set_xlabel("Plank height (normalized)")
         ax.set_ylabel("Plank angle (normalized)")
         plt.show()
+
+    x_best = np.concatenate([x_best_left, x_best_right])
 
     if 0:
         bounds = np.column_stack((x_best*0.9, x_best*1.1))
