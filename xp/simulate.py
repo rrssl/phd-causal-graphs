@@ -4,7 +4,7 @@ This module provides the necessary functions to simulate a domino run.
 """
 from panda3d.core import load_prc_file_data
 
-from .config import TIMESTEP
+from xp.config import TIMESTEP, TIMEOUT
 from gui.viewers import ScenarioViewer
 
 
@@ -27,14 +27,14 @@ class Simulation:
         self.observers = [] if observers is None else observers
         self.timestep = timestep
 
-    def run(self):
+    def run(self, timeout=TIMEOUT):
         """Run the simulation until the termination condition is met."""
         ts = self.timestep
         world = self.scenario.world
         terminate = self.scenario.terminate
         time = 0.
-        while True:
-            # We want to call the observers _before_ breaking.
+        while time < timeout:
+            # We want to call the observers _before_ normally breaking.
             for obs in self.observers:
                 obs(time)
             if terminate.update_and_check(time):
