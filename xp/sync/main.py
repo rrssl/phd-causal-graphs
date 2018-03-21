@@ -373,6 +373,8 @@ class NonPenetrationConstraint:
         # Get the bodies at risk of colliding
         left_row_doms = scene.find("left_row*").node().get_children()
         plank = scene.find("plank*").node()
+        plank.set_static(False)  # Otherwise we won't detect collision with
+        plank.set_active(True)   # the floor. Both are necessary!
         right_row_doms = scene.find("right_row*").node().get_children()
         floor = scene.find("floor*").node()
         targets = right_row_doms + (floor,)
