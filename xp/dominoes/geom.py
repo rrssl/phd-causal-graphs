@@ -2,6 +2,7 @@
 Useful geometric operations for dominoes.
 
 """
+import numpy as np
 from panda3d.bullet import BulletWorld
 from panda3d.core import NodePath, Point3, TransformState, Vec3
 
@@ -47,6 +48,23 @@ def tilt_box_forward(box: NodePath, angle):
     extents = box.node().get_shape(0).get_half_extents_with_margin()
     ctr = Point3(extents[0], 0, -extents[2])
     rotate_around(ctr, Vec3(0, 0, angle), box)
+
+
+def add_wave(x, y, amp, freq):
+    """Add a wave to the original signal. x is supposed strictly increasing.
+
+    y'(x) = y(x) + amp/omega * sin(omega*x)   with omega = freq * pi / x[-1]
+
+    If y is strictly increasing, a differentiable bijective mapping is
+    obtained with
+      1. |amp| < 1  (ensures that dy'/dx is > 0 for all x)
+      2. freq in Z  (ensures that y'[-1] == y[-1])
+
+    """
+    if amp * freq == 0:
+        return y
+    omega = freq * np.pi / x[-1]
+    return y + (amp / omega)*np.sin(omega * x)
 
 
 # TODO. Move outside of dominoes
