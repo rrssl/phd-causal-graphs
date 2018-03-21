@@ -15,7 +15,8 @@ sys.path.insert(0, os.path.abspath("../.."))
 import xp.config as cfg  # noqa: E402
 from core.primitives import Ball, Box, DominoRun, Lever  # noqa: E402
 from xp.dominoes.geom import add_wave, tilt_box_forward  # noqa: E402
-from xp.dominoes.templates import create_branch, create_line  # noqa: E402
+from xp.dominoes.templates import (create_branch, create_line,  # noqa: E402
+                                   create_x_switch)
 from xp.simulate import Simulation  # noqa: E402
 
 from xp.scenarios import (AndTerminationCondition,  # noqa: E402
@@ -64,6 +65,8 @@ RIGHT_ROW_ORIGIN = Point2(
     LEFT_ROW_ORIGIN.x + LEFT_ROW_LENGTH - RIGHT_ROW_LENGTH, -BRANCH_HALF_WIDTH)
 RIGHT_ROW_ANGLE = BRANCH_ANGLE
 RIGHT_ROW_NDOMS = 4
+SWITCH_ORIGIN = LEFT_ROW_ORIGIN + Vec2(LEFT_ROW_LENGTH + .03, 0)
+SWITCH_ANGLE = 0
 
 
 class DominoesBallSync:
@@ -186,6 +189,17 @@ class DominoesBallSync:
         )
         right_row.create()
         right_row.attach_to(scene, world)
+
+        switch = DominoRun(
+            "switch",
+            cfg.DOMINO_EXTENTS,
+            create_x_switch(SWITCH_ORIGIN, SWITCH_ANGLE, 2*BRANCH_HALF_WIDTH,
+                            11),
+            geom=make_geom,
+            mass=cfg.DOMINO_MASS,
+        )
+        switch.create()
+        switch.attach_to(scene, world)
 
         return scene, world
 
