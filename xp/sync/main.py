@@ -13,6 +13,7 @@ from panda3d.core import Point2, Point3, Vec2, Vec3
 
 sys.path.insert(0, os.path.abspath("../.."))
 import xp.config as cfg  # noqa: E402
+from core.export import VectorFile  # noqa: E402
 from core.primitives import Ball, Box, DominoRun, Lever  # noqa: E402
 from xp.dominoes.geom import add_wave, tilt_box_forward  # noqa: E402
 from xp.dominoes.templates import (create_branch, create_line,  # noqa: E402
@@ -202,6 +203,71 @@ class DominoesBallSync:
         switch.attach_to(scene, world)
 
         return scene, world
+
+    @staticmethod
+    def export_scenario(filename, sample, sheetsize):
+        sizes = []
+        branch = create_branch(
+            BRANCH_ORIGIN, BRANCH_ANGLE, BRANCH_HALF_LENGTH,
+            BRANCH_HALF_WIDTH, BRANCH_NDOMS
+        )
+        sizes.extend([
+            [cfg.DOMINO_EXTENTS[0], cfg.DOMINO_EXTENTS[1]]
+        ] * branch.shape[0])
+        left_row = create_line(
+            LEFT_ROW_ORIGIN, LEFT_ROW_ANGLE, LEFT_ROW_LENGTH, int(sample[0])
+        )
+        x = left_row[:, 0] - left_row[0, 0]
+        left_row[:, 0] = add_wave(x, left_row[:, 0], sample[4], sample[1])
+        left_row[:, 1] = add_wave(x, left_row[:, 1], sample[5], sample[2])
+        left_row[:, 2] = add_wave(
+            x, left_row[:, 2], sample[6] * np.pi / LEFT_ROW_LENGTH, sample[3]
+        )
+        sizes.extend([
+            [cfg.DOMINO_EXTENTS[0], cfg.DOMINO_EXTENTS[1]]
+        ] * left_row.shape[0])
+        lever = [[LEVER_POS.x, LEVER_POS.y, 0]]
+        sizes.append([LEVER_EXTENTS[0], LEVER_EXTENTS[1]])
+        preplank = [[
+            sample[7] + PREPLANK_EXTENTS[0]/2 - .005, PREPLANK_POS.y, 0
+        ]]
+        sizes.append([PREPLANK_EXTENTS[0], PREPLANK_EXTENTS[1]])
+        r_rad = math.radians(sample[9])
+        plank = [[
+            preplank[0][0] + PREPLANK_EXTENTS[0]/2
+            + cfg.PLANK_LENGTH/2*math.cos(r_rad)
+            - cfg.PLANK_THICKNESS/2*math.sin(r_rad),
+            PLANK_POS.y,
+            0
+        ]]
+        sizes.append([cfg.PLANK_LENGTH*math.cos(r_rad), cfg.PLANK_EXTENTS[1]])
+        right_row = create_line(
+            RIGHT_ROW_ORIGIN, RIGHT_ROW_ANGLE, RIGHT_ROW_LENGTH,
+            RIGHT_ROW_NDOMS
+        )
+        sizes.extend([
+            [cfg.DOMINO_EXTENTS[0], cfg.DOMINO_EXTENTS[1]]
+        ] * right_row.shape[0])
+        switch = create_x_switch(
+            SWITCH_ORIGIN, SWITCH_ANGLE, 2*BRANCH_HALF_WIDTH, 11
+        )
+        sizes.extend([
+            [cfg.DOMINO_EXTENTS[0], cfg.DOMINO_EXTENTS[1]]
+        ] * switch.shape[0])
+
+        coords = np.vstack(
+            [branch, left_row, lever, preplank, plank, right_row, switch]
+        )
+        sizes = np.array(sizes)
+
+        xy = coords[:, :2] * 100
+        xy = xy - (xy.min(axis=0) + xy.max(axis=0))/2 + np.asarray(sheetsize)/2
+        a = coords[:, 2]
+        sizes *= 100
+
+        vec = VectorFile(filename, sheetsize)
+        vec.add_rectangles(xy, a, sizes)
+        vec.save()
 
     def succeeded(self):
         return self.terminate.status == 'success'
@@ -512,6 +578,11 @@ def main():
 
     # Show the solution.
     model.update(x_best, _visual=True)
+
+    if 0:
+        # Export the solution.
+        DominoesBallSync.export_scenario("base.pdf", x_init, (3*29.7, 1*21))
+        DominoesBallSync.export_scenario("best.pdf", x_best, (3*29.7, 1*21))
 
 
 if __name__ == "__main__":
