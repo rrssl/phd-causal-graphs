@@ -33,7 +33,7 @@ def main():
     goblet.create().set_pos_hpr(Point3(0, .05, .02), Vec3(0, -40, 0))
     goblet.attach_to(app.models, app.world)
 
-    coords = create_circular_arc([-.1, .01], .1, -90, -0, 100)
+    coords = create_circular_arc([-.1, .01], .1, -90, -0, 10)
     run = DominoRun(name="run", extents=[.005, .015, .04], coords=coords,
                     geom=True, mass=.005)
     run.create()

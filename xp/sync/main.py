@@ -30,12 +30,12 @@ BRANCH_ORIGIN = Point2(0)
 BRANCH_ANGLE = 0
 BRANCH_HALF_LENGTH = .1
 BRANCH_HALF_WIDTH = .07
-BRANCH_DENSITY = 6 / BRANCH_HALF_LENGTH
+BRANCH_NDOMS = 5
 LEFT_ROW_ORIGIN = BRANCH_ORIGIN + Vec2(2*BRANCH_HALF_LENGTH + 3 * cfg.t,
                                        BRANCH_HALF_WIDTH)
 LEFT_ROW_ANGLE = BRANCH_ANGLE
 LEFT_ROW_LENGTH = .25
-LEFT_ROW_DENSITY = 8 / LEFT_ROW_LENGTH
+LEFT_ROW_NDOMS = 12
 LEVER_THICKNESS = .005
 LEVER_WIDTH = .02
 LEVER_HEIGHT = .2
@@ -61,7 +61,7 @@ RIGHT_ROW_LENGTH = .05
 RIGHT_ROW_ORIGIN = Point2(
     LEFT_ROW_ORIGIN.x + LEFT_ROW_LENGTH - RIGHT_ROW_LENGTH, -BRANCH_HALF_WIDTH)
 RIGHT_ROW_ANGLE = BRANCH_ANGLE
-RIGHT_ROW_DENSITY = 4 / RIGHT_ROW_LENGTH
+RIGHT_ROW_NDOMS = 4
 
 
 class DominoesBallSync:
@@ -91,7 +91,7 @@ class DominoesBallSync:
             "branch",
             cfg.DOMINO_EXTENTS,
             create_branch(BRANCH_ORIGIN, BRANCH_ANGLE, BRANCH_HALF_LENGTH,
-                          BRANCH_HALF_WIDTH, BRANCH_DENSITY),
+                          BRANCH_HALF_WIDTH, BRANCH_NDOMS),
             geom=make_geom,
             mass=cfg.DOMINO_MASS
         )
@@ -103,7 +103,7 @@ class DominoesBallSync:
             "left_row",
             cfg.DOMINO_EXTENTS,
             create_line(LEFT_ROW_ORIGIN, LEFT_ROW_ANGLE, LEFT_ROW_LENGTH,
-                        LEFT_ROW_DENSITY),
+                        LEFT_ROW_NDOMS),
             geom=make_geom,
             mass=cfg.DOMINO_MASS,
         )
@@ -149,7 +149,7 @@ class DominoesBallSync:
             "right_row",
             cfg.DOMINO_EXTENTS,
             create_line(RIGHT_ROW_ORIGIN, RIGHT_ROW_ANGLE, RIGHT_ROW_LENGTH,
-                        RIGHT_ROW_DENSITY),
+                        RIGHT_ROW_NDOMS),
             geom=make_geom,
             mass=cfg.DOMINO_MASS,
         )
