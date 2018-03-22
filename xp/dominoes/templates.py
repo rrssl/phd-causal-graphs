@@ -94,6 +94,39 @@ def create_circular_arc(center, radius, angle_start, angle_stop, n_doms):
     return coords
 
 
+def create_wave(origin, angle, length, width, n_doms):
+    """Create a wave y = exp(-x**2/2)sin(x)
+
+    Parameters
+    ----------
+    origin : (2,) sequence
+      Position of the first domino.
+    angle : float
+      Global orientation of the wave (in degrees).
+    length : float
+      Length of the row.
+    width : float
+      Width of the row (approximate, within 4 decimals).
+    n_doms : int
+      Number of dominoes.
+
+    """
+    coords = np.zeros((n_doms, 3))
+    x = np.linspace(0, length, n_doms)
+    coords[:, 0] = x
+    x = np.pi * (2*x/length - 1)
+    k = (width/2) / (np.pi/6)  # this is an approximation
+    gauss = np.exp(-x**2 / 2)
+    sin = np.sin(x)
+    cos = np.cos(x)
+    coords[:, 1] = k * gauss * sin
+    coords[:, 2] = np.degrees(
+        np.arctan2(k * gauss * (2*np.pi/length) * (cos - x*sin), 1)
+    )
+    _linear_transform_2D(coords, origin, angle)
+    return coords
+
+
 def create_x_switch(origin, angle, width, n_doms):
     n_turn = 3
     coords = np.zeros((2*n_doms, 3))

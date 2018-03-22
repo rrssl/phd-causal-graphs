@@ -37,8 +37,9 @@ BRANCH_NDOMS = 6
 LEFT_ROW_ORIGIN = BRANCH_ORIGIN + Vec2(BRANCH_LENGTH + 3 * cfg.t,
                                        BRANCH_WIDTH / 2)
 LEFT_ROW_ANGLE = BRANCH_ANGLE
-LEFT_ROW_LENGTH = .4
-LEFT_ROW_NDOMS = 12
+LEFT_ROW_LENGTH = .45
+LEFT_ROW_WIDTH = .06
+LEFT_ROW_NDOMS = 17
 LEVER_THICKNESS = .005
 LEVER_WIDTH = .02
 LEVER_HEIGHT = .29
@@ -61,11 +62,11 @@ PLANK_POS = Point3(PREPLANK_POS.x + PREPLANK_EXTENTS[0]/2
                    BALL_POS.y,
                    PREPLANK_POS.z
                    - cfg.PLANK_LENGTH/2*math.sin(math.radians(PLANK_HPR.z)))
-RIGHT_ROW_LENGTH = .05
+RIGHT_ROW_LENGTH = .1
 RIGHT_ROW_ORIGIN = Point2(
     LEFT_ROW_ORIGIN.x + LEFT_ROW_LENGTH - RIGHT_ROW_LENGTH, -BRANCH_WIDTH / 2)
 RIGHT_ROW_ANGLE = BRANCH_ANGLE
-RIGHT_ROW_NDOMS = 4
+RIGHT_ROW_NDOMS = 5
 SWITCH_ORIGIN = LEFT_ROW_ORIGIN + Vec2(LEFT_ROW_LENGTH + .03, 0)
 SWITCH_ANGLE = 0
 
@@ -112,8 +113,8 @@ class DominoesBallSync:
         tilt_box_forward(branch.path.get_child(0), cfg.TOPPLING_ANGLE+1)
         branch.attach_to(scene, world)
 
-        coords = create_line(LEFT_ROW_ORIGIN, LEFT_ROW_ANGLE, LEFT_ROW_LENGTH,
-                             int(sample[0]))
+        coords = create_wave(LEFT_ROW_ORIGIN, LEFT_ROW_ANGLE, LEFT_ROW_LENGTH,
+                             LEFT_ROW_WIDTH, int(sample[0]))
         x = coords[:, 0] - coords[0, 0]
         coords[:, 0] = add_wave(x, coords[:, 0], sample[4], sample[1])
         coords[:, 1] = add_wave(x, coords[:, 1], sample[5], sample[2])
@@ -214,8 +215,9 @@ class DominoesBallSync:
         sizes.extend([
             [cfg.DOMINO_EXTENTS[0], cfg.DOMINO_EXTENTS[1]]
         ] * branch.shape[0])
-        left_row = create_line(
-            LEFT_ROW_ORIGIN, LEFT_ROW_ANGLE, LEFT_ROW_LENGTH, int(sample[0])
+        left_row = create_wave(
+            LEFT_ROW_ORIGIN, LEFT_ROW_ANGLE, LEFT_ROW_LENGTH, LEFT_ROW_WIDTH,
+            int(sample[0])
         )
         x = left_row[:, 0] - left_row[0, 0]
         left_row[:, 0] = add_wave(x, left_row[:, 0], sample[4], sample[1])
