@@ -31,11 +31,11 @@ OPTIM_SIMU_TIMESTEP = 1/1000
 # TODO. Turn this into a list of dicts.
 BRANCH_ORIGIN = Point2(0)
 BRANCH_ANGLE = 0
-BRANCH_HALF_LENGTH = .1
-BRANCH_HALF_WIDTH = .07
+BRANCH_LENGTH = .2
+BRANCH_WIDTH = .14
 BRANCH_NDOMS = 6
-LEFT_ROW_ORIGIN = BRANCH_ORIGIN + Vec2(2*BRANCH_HALF_LENGTH + 3 * cfg.t,
-                                       BRANCH_HALF_WIDTH)
+LEFT_ROW_ORIGIN = BRANCH_ORIGIN + Vec2(BRANCH_LENGTH + 3 * cfg.t,
+                                       BRANCH_WIDTH / 2)
 LEFT_ROW_ANGLE = BRANCH_ANGLE
 LEFT_ROW_LENGTH = .4
 LEFT_ROW_NDOMS = 12
@@ -45,10 +45,10 @@ LEVER_HEIGHT = .29
 LEVER_EXTENTS = LEVER_THICKNESS, LEVER_WIDTH, LEVER_HEIGHT
 LEVER_MASS = .005
 LEVER_ANGULAR_DAMPING = .3
-LEVER_POS = Point3(LEFT_ROW_ORIGIN.x, -BRANCH_HALF_WIDTH, LEVER_HEIGHT / 2)
+LEVER_POS = Point3(LEFT_ROW_ORIGIN.x, -BRANCH_WIDTH / 2, LEVER_HEIGHT / 2)
 LEVER_PIVOT_POS_HPR = (LEVER_THICKNESS/2, 0, -LEVER_HEIGHT/2, 0, 90, 0)
 BALL_POS = Point3(LEVER_POS.x + LEVER_THICKNESS/2 + cfg.BALL_RADIUS + .001,
-                  -BRANCH_HALF_WIDTH, .2)
+                  -BRANCH_WIDTH / 2, .2)
 PREPLANK_EXTENTS = .01, cfg.PLANK_WIDTH, cfg.PLANK_THICKNESS
 PREPLANK_POS = Point3(BALL_POS.x + PREPLANK_EXTENTS[0]/2 - .005,
                       BALL_POS.y,
@@ -63,7 +63,7 @@ PLANK_POS = Point3(PREPLANK_POS.x + PREPLANK_EXTENTS[0]/2
                    - cfg.PLANK_LENGTH/2*math.sin(math.radians(PLANK_HPR.z)))
 RIGHT_ROW_LENGTH = .05
 RIGHT_ROW_ORIGIN = Point2(
-    LEFT_ROW_ORIGIN.x + LEFT_ROW_LENGTH - RIGHT_ROW_LENGTH, -BRANCH_HALF_WIDTH)
+    LEFT_ROW_ORIGIN.x + LEFT_ROW_LENGTH - RIGHT_ROW_LENGTH, -BRANCH_WIDTH / 2)
 RIGHT_ROW_ANGLE = BRANCH_ANGLE
 RIGHT_ROW_NDOMS = 4
 SWITCH_ORIGIN = LEFT_ROW_ORIGIN + Vec2(LEFT_ROW_LENGTH + .03, 0)
@@ -103,8 +103,8 @@ class DominoesBallSync:
         branch = DominoRun(
             "branch",
             cfg.DOMINO_EXTENTS,
-            create_branch(BRANCH_ORIGIN, BRANCH_ANGLE, BRANCH_HALF_LENGTH,
-                          BRANCH_HALF_WIDTH, BRANCH_NDOMS),
+            create_branch(BRANCH_ORIGIN, BRANCH_ANGLE, BRANCH_LENGTH,
+                          BRANCH_WIDTH, BRANCH_NDOMS),
             geom=make_geom,
             mass=cfg.DOMINO_MASS
         )
@@ -194,7 +194,7 @@ class DominoesBallSync:
         switch = DominoRun(
             "switch",
             cfg.DOMINO_EXTENTS,
-            create_x_switch(SWITCH_ORIGIN, SWITCH_ANGLE, 2*BRANCH_HALF_WIDTH,
+            create_x_switch(SWITCH_ORIGIN, SWITCH_ANGLE, BRANCH_WIDTH,
                             11),
             geom=make_geom,
             mass=cfg.DOMINO_MASS,
@@ -208,8 +208,8 @@ class DominoesBallSync:
     def export_scenario(filename, sample, sheetsize):
         sizes = []
         branch = create_branch(
-            BRANCH_ORIGIN, BRANCH_ANGLE, BRANCH_HALF_LENGTH,
-            BRANCH_HALF_WIDTH, BRANCH_NDOMS
+            BRANCH_ORIGIN, BRANCH_ANGLE, BRANCH_LENGTH,
+            BRANCH_WIDTH, BRANCH_NDOMS
         )
         sizes.extend([
             [cfg.DOMINO_EXTENTS[0], cfg.DOMINO_EXTENTS[1]]
@@ -249,7 +249,7 @@ class DominoesBallSync:
             [cfg.DOMINO_EXTENTS[0], cfg.DOMINO_EXTENTS[1]]
         ] * right_row.shape[0])
         switch = create_x_switch(
-            SWITCH_ORIGIN, SWITCH_ANGLE, 2*BRANCH_HALF_WIDTH, 11
+            SWITCH_ORIGIN, SWITCH_ANGLE, BRANCH_WIDTH, 11
         )
         sizes.extend([
             [cfg.DOMINO_EXTENTS[0], cfg.DOMINO_EXTENTS[1]]

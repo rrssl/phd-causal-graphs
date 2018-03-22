@@ -14,7 +14,7 @@ def _linear_transform_2D(coords, position, angle):
     coords[:, :2] += position
 
 
-def create_branch(origin, angle, half_length, half_width, n_doms):
+def create_branch(origin, angle, length, width, n_doms):
     """Create a Y branching in the domino path.
 
     Parameters
@@ -23,21 +23,23 @@ def create_branch(origin, angle, half_length, half_width, n_doms):
       Position of the base of the Y.
     angle : float
       Global orientation of the Y (in degrees).
-    half_length : float
-      Half length of the branch (or 'half height' of the Y).
-    half_width : float
-      Half width of the branch.
+    length : float
+      Length of the branch (or 'height' of the Y).
+    width : float
+      Width of the branch.
     n_doms : int
       Number of dominoes per half-length.
 
     """
-    coords = np.zeros((3*n_doms-2, 3))
-    coords[:n_doms, 0] = np.linspace(0, half_length, n_doms)
-    coords[n_doms:2*n_doms-1, 0] = np.linspace(
-            coords[n_doms-1, 0], coords[n_doms-1, 0]+half_length, n_doms)[1:]
-    coords[n_doms:2*n_doms-1, 1] = np.linspace(0, half_width, n_doms)[1:]
-    coords[2*n_doms-1:, 0] = coords[n_doms:2*n_doms-1, 0]
-    coords[2*n_doms-1:, 1] = np.linspace(0, -half_width, n_doms)[1:]
+    coords = np.zeros((3*n_doms, 3))
+    # X
+    coords[:2*n_doms, 0] = np.linspace(0, length, 2*n_doms)
+    coords[2*n_doms:, 0] = coords[n_doms:2*n_doms, 0]
+    # Y
+    coords[n_doms:2*n_doms-1, 1] = np.linspace(0, width/2, n_doms)[1:]
+    coords[2*n_doms-1, 1] = width/2
+    coords[2*n_doms:, 1] = -coords[n_doms:2*n_doms, 1]
+    # A
     coords[:, 2] = angle
     _linear_transform_2D(coords, origin, np.radians(angle))
     return coords
