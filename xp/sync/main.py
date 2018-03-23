@@ -6,10 +6,13 @@ import math
 import os
 import sys
 
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.optimize as opt
 from joblib import delayed, Parallel
 from panda3d.core import Point2, Point3, Vec2, Vec3
+from matplotlib.cm import get_cmap
+get_cmap().set_bad(color='red')
 
 sys.path.insert(0, os.path.abspath("../.."))
 import xp.config as cfg  # noqa: E402
@@ -453,9 +456,24 @@ def main():
         np.save(filename, vals)
     print(np.isfinite(vals).sum(), "valid samples after simulation")
     best_id = np.nanargmax(vals)
-    x_best_id = np.unravel_index(best_id, x_grid[0].shape)
     x_best_left = x_grid_vec[best_id]
-    print(objective(fromleft(x_best_left)))
+    print("Objective on the left:", objective(fromleft(x_best_left)))
+    if 0:
+        fig, ax = plt.subplots()
+        extent = [
+            x_grid[0, 0, 0], 2*x_grid[0, -1, -1]-x_grid[0, -2, -1],
+            x_grid[1, 0, 0], 2*x_grid[1, -1, -1]-x_grid[1, -1, -2]
+        ]
+        im = ax.imshow(vals.T, origin='lower', extent=extent, aspect='auto')
+        fig.colorbar(im)
+        ax.scatter(*x_best_left)
+        ax.set_xlim(*extent[:2])
+        ax.set_ylim(*extent[2:])
+        ax.set_title("Time difference left vs. right side (red=invalid).\n"
+                     "Higher values mean that left is slower than right.")
+        ax.set_xlabel("Number of dominoes")
+        ax.set_ylabel("Amplitude of the domino wave")
+        plt.show()
 
     def fromright(xr):
         return [LEFT_ROW_NDOMS, LEFT_ROW_WIDTH] + list(xr)
@@ -481,24 +499,25 @@ def main():
         np.save(filename, vals)
     print(np.isfinite(vals).sum(), "valid samples after simulation")
     best_id = np.nanargmax(vals)
-    x_best_id = np.unravel_index(best_id, x_grid[0].shape)
     x_best_right = x_grid_vec[best_id]
-    print(objective(fromright(x_best_right)))
-
-    if 1:
-        from matplotlib.cm import get_cmap
-        get_cmap().set_bad(color='red')
-        import matplotlib.pyplot as plt
+    print("Objective on the right:", objective(fromright(x_best_right)))
+    if 0:
         fig, ax = plt.subplots()
-        im = ax.imshow(
-            vals[x_best_id[0]].T, origin='lower',
-            extent=np.concatenate(bounds[1:]), aspect='equal'
-        )
+        extent = [
+            x_grid[0, 0, 0, 0], 2*x_grid[0, -1, -1, 0]-x_grid[0, -2, -1, 0],
+            x_grid[1, 0, 0, 0], 2*x_grid[1, -1, -1, 0]-x_grid[1, -1, -2, 0]
+        ]
+        x_best_id = np.unravel_index(best_id, x_grid[0].shape)
+        vals2D = vals[:, :, x_best_id[-1]]
+        im = ax.imshow(vals2D.T, origin='lower', extent=extent, aspect='auto')
         fig.colorbar(im)
-        ax.scatter(*x_best_right[1:])
-        ax.set_title("Time difference left vs. right side (red=invalid)\n")
-        ax.set_xlabel("Plank height (normalized)")
-        ax.set_ylabel("Plank angle (normalized)")
+        ax.scatter(*x_best_right)
+        ax.set_xlim(*extent[:2])
+        ax.set_ylim(*extent[2:])
+        ax.set_title("Time difference left vs. right side (red=invalid).\n"
+                     "Higher values mean that left is slower than right.")
+        ax.set_xlabel("Ball x")
+        ax.set_ylabel("Ball z")
         plt.show()
 
     x_best = np.concatenate([x_best_left, x_best_right])
