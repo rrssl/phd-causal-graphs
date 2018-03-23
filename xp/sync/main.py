@@ -486,13 +486,15 @@ def main():
         vals = np.load(filename)
     except FileNotFoundError:
         cons = constraints[0]['fun']
-        valid = np.array([cons(fromright(x)) >= 0
-                          for x in x_grid_vec], dtype=bool)
+        model.scenario = None  # to avoid serialization issues with BAM
+        valid = Parallel(n_jobs=6)(
+            delayed(cons)(fromright(x)) for x in x_grid_vec
+        )
+        valid = np.array(valid) >= 0
         valid.shape = x_grid[0].shape
         print("Validity tests DONE: ", valid.sum(), "valid samples")
         vals = np.empty(valid.shape)
         vals[~valid] = np.nan
-        model.scenario = None  # to avoid serialization issues with BAM
         vals[valid] = Parallel(n_jobs=6)(
             delayed(objective)(fromright(x)) for x in x_grid_vec[valid.flat]
         )
