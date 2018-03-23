@@ -435,38 +435,38 @@ def main():
     def fromleft(xl):
         return list(xl) + [BALL_POS.x, BALL_POS.z, PLANK_HPR.z]
     # Brute force on the left side.
-    x_grid = Model.get_grid(steps=(1, 20j, 0, 0, 0))
-    x_grid_vec = x_grid.reshape(x_grid.shape[0], -1).T
-    print("Bruteforce:", x_grid_vec.shape[0], "samples")
+    grid_left = Model.get_grid(steps=(1, 20j, 0, 0, 0))
+    grid_left_vec = grid_left.reshape(grid_left.shape[0], -1).T
+    print("Bruteforce:", grid_left_vec.shape[0], "samples")
     filename = "left_side_grid_values.npy"
     try:
         vals = np.load(filename)
     except FileNotFoundError:
         cons = constraints[0]['fun']
         valid = np.array([cons(fromleft(x)) >= 0
-                          for x in x_grid_vec], dtype=bool)
-        valid.shape = x_grid[0].shape
+                          for x in grid_left_vec], dtype=bool)
+        valid.shape = grid_left[0].shape
         print("Validity tests DONE: ", valid.sum(), "valid samples")
         vals = np.empty(valid.shape)
         vals[~valid] = np.nan
         model.scenario = None  # to avoid serialization issues with BAM
         vals[valid] = Parallel(n_jobs=6)(
-            delayed(objective)(fromleft(x)) for x in x_grid_vec[valid.flat]
+            delayed(objective)(fromleft(x)) for x in grid_left_vec[valid.flat]
         )
         np.save(filename, vals)
     print(np.isfinite(vals).sum(), "valid samples after simulation")
     best_id = np.nanargmax(vals)
-    x_best_left = x_grid_vec[best_id]
-    print("Objective on the left:", objective(fromleft(x_best_left)))
+    best_left = grid_left_vec[best_id]
+    print("Objective on the left:", objective(fromleft(best_left)))
     if 0:
         fig, ax = plt.subplots()
         extent = [
-            x_grid[0, 0, 0], 2*x_grid[0, -1, -1]-x_grid[0, -2, -1],
-            x_grid[1, 0, 0], 2*x_grid[1, -1, -1]-x_grid[1, -1, -2]
+            grid_left[0, 0, 0], 2*grid_left[0, -1, -1]-grid_left[0, -2, -1],
+            grid_left[1, 0, 0], 2*grid_left[1, -1, -1]-grid_left[1, -1, -2]
         ]
         im = ax.imshow(vals.T, origin='lower', extent=extent, aspect='auto')
         fig.colorbar(im)
-        ax.scatter(*x_best_left)
+        ax.scatter(*best_left)
         ax.set_xlim(*extent[:2])
         ax.set_ylim(*extent[2:])
         ax.set_title("Time difference left vs. right side (red=invalid).\n"
@@ -478,9 +478,9 @@ def main():
     def fromright(xr):
         return [LEFT_ROW_NDOMS, LEFT_ROW_WIDTH] + list(xr)
     # Brute force on the right side.
-    x_grid = Model.get_grid(steps=(0, 0, 20j, 20j, 20j))
-    x_grid_vec = x_grid.reshape(x_grid.shape[0], -1).T
-    print("Bruteforce:", x_grid_vec.shape[0], "samples")
+    grid_right = Model.get_grid(steps=(0, 0, 20j, 20j, 20j))
+    grid_right_vec = grid_right.reshape(grid_right.shape[0], -1).T
+    print("Bruteforce:", grid_right_vec.shape[0], "samples")
     filename = "right_side_grid_values.npy"
     try:
         vals = np.load(filename)
@@ -488,32 +488,35 @@ def main():
         cons = constraints[0]['fun']
         model.scenario = None  # to avoid serialization issues with BAM
         valid = Parallel(n_jobs=6)(
-            delayed(cons)(fromright(x)) for x in x_grid_vec
+            delayed(cons)(fromright(x)) for x in grid_right_vec
         )
         valid = np.array(valid) >= 0
-        valid.shape = x_grid[0].shape
+        valid.shape = grid_right[0].shape
         print("Validity tests DONE: ", valid.sum(), "valid samples")
         vals = np.empty(valid.shape)
         vals[~valid] = np.nan
         vals[valid] = Parallel(n_jobs=6)(
-            delayed(objective)(fromright(x)) for x in x_grid_vec[valid.flat]
+            delayed(objective)(fromright(x))
+            for x in grid_right_vec[valid.flat]
         )
         np.save(filename, vals)
     print(np.isfinite(vals).sum(), "valid samples after simulation")
     best_id = np.nanargmax(vals)
-    x_best_right = x_grid_vec[best_id]
-    print("Objective on the right:", objective(fromright(x_best_right)))
+    best_right = grid_right_vec[best_id]
+    print("Objective on the right:", objective(fromright(best_right)))
     if 0:
         fig, ax = plt.subplots()
         extent = [
-            x_grid[0, 0, 0, 0], 2*x_grid[0, -1, -1, 0]-x_grid[0, -2, -1, 0],
-            x_grid[1, 0, 0, 0], 2*x_grid[1, -1, -1, 0]-x_grid[1, -1, -2, 0]
+            grid_right[0, 0, 0, 0],
+            2*grid_right[0, -1, -1, 0]-grid_right[0, -2, -1, 0],
+            grid_right[1, 0, 0, 0],
+            2*grid_right[1, -1, -1, 0]-grid_right[1, -1, -2, 0]
         ]
-        x_best_id = np.unravel_index(best_id, x_grid[0].shape)
-        vals2D = vals[:, :, x_best_id[-1]]
+        best_id = np.unravel_index(best_id, grid_right[0].shape)
+        vals2D = vals[:, :, best_id[-1]]
         im = ax.imshow(vals2D.T, origin='lower', extent=extent, aspect='auto')
         fig.colorbar(im)
-        ax.scatter(*x_best_right)
+        ax.scatter(*best_right)
         ax.set_xlim(*extent[:2])
         ax.set_ylim(*extent[2:])
         ax.set_title("Time difference left vs. right side (red=invalid).\n"
@@ -522,7 +525,7 @@ def main():
         ax.set_ylabel("Ball z")
         plt.show()
 
-    x_best = np.concatenate([x_best_left, x_best_right])
+    x_best = np.concatenate([best_left, best_right])
 
     if 0:
         bounds = np.column_stack((x_best*0.9, x_best*1.1))
