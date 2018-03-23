@@ -15,9 +15,9 @@ sys.path.insert(0, os.path.abspath("../.."))
 import xp.config as cfg  # noqa: E402
 from core.export import VectorFile  # noqa: E402
 from core.primitives import Ball, Box, DominoRun, Lever  # noqa: E402
-from xp.dominoes.geom import add_wave, tilt_box_forward  # noqa: E402
+from xp.dominoes.geom import tilt_box_forward  # noqa: E402
 from xp.dominoes.templates import (create_branch, create_line,  # noqa: E402
-                                   create_x_switch)
+                                   create_wave, create_x_switch)
 from xp.simulate import Simulation  # noqa: E402
 
 from xp.scenarios import (AndTerminationCondition,  # noqa: E402
@@ -76,8 +76,8 @@ class DominoesBallSync:
 
     Parameters
     ----------
-    sample : (10,) sequence
-      [ndoms*, fx*, fy*, fa*, ax, ay, aa, bx, bz, pa] (*: integers)
+    sample : (5,) sequence
+      [ndoms*, wd, bx, bz, pa] (*: integers)
 
     """
     def __init__(self, sample, make_geom=False, verbose_cond=False, **kwargs):
@@ -114,12 +114,7 @@ class DominoesBallSync:
         branch.attach_to(scene, world)
 
         coords = create_wave(LEFT_ROW_ORIGIN, LEFT_ROW_ANGLE, LEFT_ROW_LENGTH,
-                             LEFT_ROW_WIDTH, int(sample[0]))
-        x = coords[:, 0] - coords[0, 0]
-        coords[:, 0] = add_wave(x, coords[:, 0], sample[4], sample[1])
-        coords[:, 1] = add_wave(x, coords[:, 1], sample[5], sample[2])
-        coords[:, 2] = add_wave(x, coords[:, 2],
-                                sample[6] * np.pi / LEFT_ROW_LENGTH, sample[3])
+                             sample[1], int(sample[0]))
         left_row = DominoRun(
             "left_row",
             cfg.DOMINO_EXTENTS,
@@ -147,7 +142,7 @@ class DominoesBallSync:
             geom=make_geom,
             mass=cfg.BALL_MASS
         )
-        ball_pos = Point3(sample[7], BALL_POS.y, sample[8])
+        ball_pos = Point3(sample[2], BALL_POS.y, sample[3])
         ball.create().set_pos(ball_pos)
         ball.attach_to(scene, world)
 
@@ -169,7 +164,7 @@ class DominoesBallSync:
             cfg.PLANK_EXTENTS,
             geom=make_geom
         )
-        r_rad = math.radians(sample[9])
+        r_rad = math.radians(sample[4])
         plank_pos = Point3(
             preplank_pos.x + PREPLANK_EXTENTS[0]/2
             + cfg.PLANK_LENGTH/2*math.cos(r_rad)
@@ -177,7 +172,7 @@ class DominoesBallSync:
             PLANK_POS.y,
             preplank_pos.z - cfg.PLANK_LENGTH/2*math.sin(r_rad)
         )
-        plank_hpr = Vec3(PLANK_HPR.x, PLANK_HPR.y, sample[9])
+        plank_hpr = Vec3(PLANK_HPR.x, PLANK_HPR.y, sample[4])
         plank.create().set_pos_hpr(plank_pos, plank_hpr)
         plank.attach_to(scene, world)
 
@@ -216,14 +211,8 @@ class DominoesBallSync:
             [cfg.DOMINO_EXTENTS[0], cfg.DOMINO_EXTENTS[1]]
         ] * branch.shape[0])
         left_row = create_wave(
-            LEFT_ROW_ORIGIN, LEFT_ROW_ANGLE, LEFT_ROW_LENGTH, LEFT_ROW_WIDTH,
-            int(sample[0])
-        )
-        x = left_row[:, 0] - left_row[0, 0]
-        left_row[:, 0] = add_wave(x, left_row[:, 0], sample[4], sample[1])
-        left_row[:, 1] = add_wave(x, left_row[:, 1], sample[5], sample[2])
-        left_row[:, 2] = add_wave(
-            x, left_row[:, 2], sample[6] * np.pi / LEFT_ROW_LENGTH, sample[3]
+            LEFT_ROW_ORIGIN, LEFT_ROW_ANGLE, LEFT_ROW_LENGTH,
+            sample[1], int(sample[0])
         )
         sizes.extend([
             [cfg.DOMINO_EXTENTS[0], cfg.DOMINO_EXTENTS[1]]
@@ -231,10 +220,10 @@ class DominoesBallSync:
         lever = [[LEVER_POS.x, LEVER_POS.y, 0]]
         sizes.append([LEVER_EXTENTS[0], LEVER_EXTENTS[1]])
         preplank = [[
-            sample[7] + PREPLANK_EXTENTS[0]/2 - .005, PREPLANK_POS.y, 0
+            sample[2] + PREPLANK_EXTENTS[0]/2 - .005, PREPLANK_POS.y, 0
         ]]
         sizes.append([PREPLANK_EXTENTS[0], PREPLANK_EXTENTS[1]])
-        r_rad = math.radians(sample[9])
+        r_rad = math.radians(sample[4])
         plank = [[
             preplank[0][0] + PREPLANK_EXTENTS[0]/2
             + cfg.PLANK_LENGTH/2*math.cos(r_rad)
@@ -275,8 +264,13 @@ class DominoesBallSync:
         return self.terminate.status == 'success'
 
 
-class BallRunSubmodel:
+class Model:
+    """Interface between the optimizer and the objects being optimized."""
     # Bounds
+    min_nd = 16
+    max_nd = 25
+    min_wd = 0.
+    max_wd = .06
     min_x = BALL_POS.x
     max_x = BALL_POS.x + cfg.PLANK_LENGTH / 2
     min_z = cfg.BALL_RADIUS + cfg.PLANK_THICKNESS
@@ -284,103 +278,61 @@ class BallRunSubmodel:
     min_r = 0.
     max_r = 75.
 
-    @classmethod
-    def opt2model(cls, X_opt):
-        """Map variables from [0, 1] to their original interval."""
-        x = X_opt[0]*(cls.max_x - cls.min_x) + cls.min_x
-        z = X_opt[1]*(cls.max_z - cls.min_z) + cls.min_z
-        r = X_opt[2]*(cls.max_r - cls.min_r) + cls.min_r
-        return x, z, r
-
-    @classmethod
-    def model2opt(cls, X_model):
-        """Map variables from their original interval to [0, 1]."""
-        x, z, r = X_model
-        X = np.array([
-            (x - cls.min_x) / (cls.max_x - cls.min_x),
-            (z - cls.min_z) / (cls.max_z - cls.min_z),
-            (r - cls.min_r) / (cls.max_r - cls.min_r),
-        ])
-        return X
-
-    @classmethod
-    def update(cls, scene, X):
-        x, z, r = cls.opt2model(X)
-        # Find relevant objects in the scene.
-        ball = scene.find("ball*")
-        preplank = scene.find("preplank*")
-        plank = scene.find("plank*")
-        # Update their coordinates.
-        ball.set_x(x)
-        ball.set_z(z)
-        preplank.set_x(ball.get_x() + PREPLANK_EXTENTS[0]/2 - .005,)
-        preplank.set_z(ball.get_z() - cfg.BALL_RADIUS - PREPLANK_EXTENTS[2]/2)
-        plank.set_r(r)
-        r_rad = math.radians(r)
-        plank.set_x(
-            preplank.get_x() + PREPLANK_EXTENTS[0]/2
-            + cfg.PLANK_LENGTH/2*math.cos(r_rad)
-            - cfg.PLANK_THICKNESS/2*math.sin(r_rad)
-        )
-        plank.set_z(preplank.get_z() - cfg.PLANK_LENGTH/2*math.sin(r_rad))
-        # Update Bullet nodes' transforms.
-        for obj in (ball, preplank, plank):
-            obj.node().set_transform_dirty()
-
-
-class DominoRunSubmodel:
-    # Bounds
-    min_n = 10
-    max_n = 20
-    min_xf = 0
-    max_xf = 2
-    min_yf = 0
-    max_yf = 2
-    min_af = 0
-    max_af = 2
-    min_xa = 0.
-    max_xa = 1.
-    min_ya = 0.
-    max_ya = 1.
-    min_aa = 0.
-    max_aa = 90.
-
-    @classmethod
-    def opt2model(cls, X_opt):
-        """Map continuous variables from [0, 1] to their original interval."""
-        xa = X_opt[0]*(cls.max_xa - cls.min_xa) + cls.min_xa
-        ya = X_opt[0]*(cls.max_ya - cls.min_ya) + cls.min_ya
-        aa = X_opt[1]*(cls.max_aa - cls.min_aa) + cls.min_aa
-        return xa, ya, aa
-
-    @classmethod
-    def model2opt(cls, X_model):
-        """Map continuous variables from their original interval to [0, 1]."""
-        xa, ya, aa = X_model
-        X = np.array([
-            (xa - cls.min_xa) / (cls.max_xa - cls.min_xa),
-            (ya - cls.min_ya) / (cls.max_ya - cls.min_ya),
-            (aa - cls.min_aa) / (cls.max_aa - cls.min_aa),
-        ])
-        return X
-
-
-class Model:
-    """Interface between the optimizer and the objects being optimized."""
     def __init__(self):
         self.scenario = None
         self.left_time = None
         self.right_time = None
 
-    @staticmethod
-    def opt2model(x_opt):
-        """Map variables from [0, 1] to their original interval."""
-        return BallRunSubmodel.opt2model(x_opt)
+    @classmethod
+    def get_bounds(cls):
+        """Get the bounds of each parameter as a list of (min, max) tuples."""
+        return [
+            (cls.min_nd, cls.max_nd),
+            (cls.min_wd, cls.max_wd),
+            (cls.min_x, cls.max_x),
+            (cls.min_z, cls.max_z),
+            (cls.min_r, cls.max_r),
+        ]
 
-    @staticmethod
-    def model2opt(x_model):
-        """Map variables from their original interval to [0, 1]."""
-        return BallRunSubmodel.model2opt(x_model)
+    @classmethod
+    def get_grid(cls, steps):
+        """Get a n-dim grid sampling of the model parameters.
+
+        Parameters
+        ----------
+        steps : (n_params,) int (real or imaginary) sequence
+          Resolution for each parameter/axis of the grid.
+           - 0 means no sampling
+           - otherwise: interpreted as the 'step' part of a numpy slice,
+           meaning that a real integer is a slice step,
+           while an imaginary integer is a number of points.
+
+        """
+        bounds = cls.get_bounds()
+        axes = [np.s_[mi:ma:step]
+                for (mi, ma), step in zip(bounds, steps) if step]
+        return np.mgrid[axes]
+
+    @classmethod
+    def opt2model(cls, X_opt):
+        """Map continuous variables from [0, 1] to their original interval."""
+        wd = X_opt[0]*(cls.max_wd - cls.min_wd) + cls.min_wd
+        x = X_opt[0]*(cls.max_x - cls.min_x) + cls.min_x
+        z = X_opt[1]*(cls.max_z - cls.min_z) + cls.min_z
+        r = X_opt[2]*(cls.max_r - cls.min_r) + cls.min_r
+        return wd, x, z, r
+
+    @classmethod
+    def model2opt(cls, X_model):
+        """Map continuous variables from their original interval to [0, 1]."""
+        wd, x, z, r = X_model
+        X = np.array([
+            (wd - cls.min_wd) / (cls.max_wd - cls.min_wd),
+            (x - cls.min_x) / (cls.max_x - cls.min_x),
+            (z - cls.min_z) / (cls.max_z - cls.min_z),
+            (r - cls.min_r) / (cls.max_r - cls.min_r),
+        ])
+        return X
 
     def update(self, x, run_simu=True, _visual=False):
         if not np.isfinite(x).all():
@@ -392,7 +344,7 @@ class Model:
             simu = Simulation(scenario, timestep=OPTIM_SIMU_TIMESTEP)
             simu.run_visual()
         # Create new scenario.
-        scenario = DominoesBallSync(x, make_geom=_visual)
+        scenario = DominoesBallSync(x)
         self.scenario = scenario
         scene = scenario.scene
         if not run_simu:
@@ -467,7 +419,7 @@ class NonPenetrationConstraint:
 
 
 def main():
-    x_init = [LEFT_ROW_NDOMS, 0, 0, 0, 0, 0, 0,
+    x_init = [LEFT_ROW_NDOMS, LEFT_ROW_WIDTH,
               BALL_POS.x, BALL_POS.z, PLANK_HPR.z]
     model = Model()
     model.update(x_init, _visual=True)
@@ -479,19 +431,8 @@ def main():
 
     def fromleft(xl):
         return list(xl) + [BALL_POS.x, BALL_POS.z, PLANK_HPR.z]
-
-    def fromright(xr):
-        return [LEFT_ROW_NDOMS, 0, 0, 0, 0, 0, 0] + list(xr)
     # Brute force on the left side.
-    x_grid = np.mgrid[
-        np.s_[DominoRunSubmodel.min_n:DominoRunSubmodel.max_n:6j],
-        np.s_[DominoRunSubmodel.min_xf:DominoRunSubmodel.max_xf+1],
-        np.s_[DominoRunSubmodel.min_yf:DominoRunSubmodel.max_yf+1],
-        np.s_[DominoRunSubmodel.min_af:DominoRunSubmodel.max_af+1],
-        np.s_[DominoRunSubmodel.min_xa:DominoRunSubmodel.max_xa:5j],
-        np.s_[DominoRunSubmodel.min_ya:DominoRunSubmodel.max_ya:5j],
-        np.s_[DominoRunSubmodel.min_aa:DominoRunSubmodel.max_aa:5j],
-    ]
+    x_grid = Model.get_grid(steps=(1, 20j, 0, 0, 0))
     x_grid_vec = x_grid.reshape(x_grid.shape[0], -1).T
     print("Bruteforce:", x_grid_vec.shape[0], "samples")
     filename = "left_side_grid_values.npy"
@@ -516,12 +457,10 @@ def main():
     x_best_left = x_grid_vec[best_id]
     print(objective(fromleft(x_best_left)))
 
+    def fromright(xr):
+        return [LEFT_ROW_NDOMS, LEFT_ROW_WIDTH] + list(xr)
     # Brute force on the right side.
-    x_grid = np.mgrid[
-        np.s_[BallRunSubmodel.min_x:BallRunSubmodel.max_x:20j],
-        np.s_[BallRunSubmodel.min_z:BallRunSubmodel.max_z:20j],
-        np.s_[BallRunSubmodel.min_r:BallRunSubmodel.max_r:20j],
-    ]
+    x_grid = Model.get_grid(steps=(0, 0, 20j, 20j, 20j))
     x_grid_vec = x_grid.reshape(x_grid.shape[0], -1).T
     print("Bruteforce:", x_grid_vec.shape[0], "samples")
     filename = "right_side_grid_values.npy"
