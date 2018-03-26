@@ -21,6 +21,7 @@ from core.primitives import Ball, Box, DominoRun, Lever  # noqa: E402
 from xp.dominoes.geom import tilt_box_forward  # noqa: E402
 from xp.dominoes.templates import (create_branch, create_line,  # noqa: E402
                                    create_wave, create_x_switch)
+from xp.domino_predictors import DominoRobustness2  # noqa: E402
 from xp.simulate import Simulation  # noqa: E402
 
 from xp.scenarios import (AndTerminationCondition,  # noqa: E402
@@ -455,24 +456,60 @@ def main():
         )
         np.save(filename, vals)
     print(np.isfinite(vals).sum(), "valid samples after simulation")
-    best_id = np.nanargmax(vals)
-    best_left = grid_left_vec[best_id]
-    print("Objective on the left:", objective(fromleft(best_left)))
     if 0:
         fig, ax = plt.subplots()
+        ax.hist(vals[np.isfinite(vals)].flat)
+        plt.plot()
+
+    rob_left_estimator = DominoRobustness2()
+
+    def get_rob_left(x):
+        coords = create_wave(LEFT_ROW_ORIGIN, LEFT_ROW_ANGLE, LEFT_ROW_LENGTH,
+                             x[1], int(x[0]))
+        return rob_left_estimator(coords).min()
+    rob_left = vals.copy()
+    valid = np.isfinite(vals)
+    rob_left[valid] = [get_rob_left(x) for x in grid_left_vec[valid.flat]]
+
+    good_left = np.logical_and(valid, vals > .1)
+    best_left = np.argmax(rob_left[good_left])
+    best_left = grid_left_vec[good_left.flat][best_left]
+    print("Objective on the left:", objective(fromleft(best_left)))
+
+    if 0:
+        fig, ax = plt.subplots()
+        x = vals[valid].ravel()
+        y = rob_left[valid].ravel()
+        c = y * (x > 0)
+        ax.scatter(x, y, c=c)
+        plt.show()
+
+    if 0:
+        fig, (ax1, ax2) = plt.subplots(1, 2)
         extent = [
             grid_left[0, 0, 0], 2*grid_left[0, -1, -1]-grid_left[0, -2, -1],
             grid_left[1, 0, 0], 2*grid_left[1, -1, -1]-grid_left[1, -1, -2]
         ]
-        im = ax.imshow(vals.T, origin='lower', extent=extent, aspect='auto')
-        fig.colorbar(im)
-        ax.scatter(*best_left)
-        ax.set_xlim(*extent[:2])
-        ax.set_ylim(*extent[2:])
-        ax.set_title("Time difference left vs. right side (red=invalid).\n"
-                     "Higher values mean that left is slower than right.")
-        ax.set_xlabel("Number of dominoes")
-        ax.set_ylabel("Amplitude of the domino wave")
+
+        im = ax1.imshow(vals.T, origin='lower', extent=extent, aspect='auto')
+        # fig.colorbar(im)
+        ax1.scatter(*best_left)
+        ax1.set_xlim(*extent[:2])
+        ax1.set_ylim(*extent[2:])
+        ax1.set_title("Time difference left vs. right side (red=invalid).\n"
+                      "Brighter values mean that left is slower than right.")
+        ax1.set_xlabel("Number of dominoes")
+        ax1.set_ylabel("Amplitude of the domino wave")
+
+        im = ax2.imshow(rob_left.T, origin='lower', extent=extent,
+                        aspect='auto')
+        ax2.scatter(*best_left)
+        ax2.set_xlim(*extent[:2])
+        ax2.set_ylim(*extent[2:])
+        ax2.set_title("Robustness of the left side.\n"
+                      "Brighter values are more robust.")
+        ax2.set_xlabel("Number of dominoes")
+        ax2.set_ylabel("Amplitude of the domino wave")
         plt.show()
 
     def fromright(xr):
