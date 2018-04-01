@@ -6,7 +6,7 @@ from panda3d.core import NodePath, Point3, Vec3
 
 import core.primitives as prim
 import xp.ifelse.config as cfg
-from xp.scenarios import DummyTerminationCondition
+from xp.scenarios import DummyTerminationCondition, Scenario
 from core.export import VectorFile
 
 
@@ -21,7 +21,7 @@ def init_scene():
     return Scene(graph, world)
 
 
-class ConditionalBallRun:
+class ConditionalBallRun(Scenario):
     """Scenario
 
     Parameters
@@ -31,11 +31,11 @@ class ConditionalBallRun:
 
     """
     def __init__(self, sample, make_geom=False, **kwargs):
-        self.scene = self.init_scene(sample, make_geom)
-        self.causal_graph = self.init_causal_graph(self.scene)
+        self._scene = self.init_scene(sample, make_geom)
+        self.causal_graph = self.init_causal_graph(self._scene)
         # LEGACY
-        self.world = self.scene.world
-        self.scene = self.scene.graph
+        self.world = self._scene.world
+        self.scene = self._scene.graph
         self.terminate = self.causal_graph
 
     @staticmethod
@@ -238,6 +238,3 @@ class ConditionalBallRun:
             pos = Point3(sample[5], 0, sample[6])
             hpr = Vec3(0, 0, sample[7])
         return pos, hpr
-
-    def succeeded(self):
-        return self.causal_graph.status == 'success'

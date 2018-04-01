@@ -385,7 +385,16 @@ class Samplable:
         return samples
 
 
-class TwoDominoesLastRadial(Samplable):
+class Scenario:
+    """Base class for all scenarios."""
+    def check_physically_valid(self):
+        return self.check_valid(self.scene, self.world)
+
+    def succeeded(self):
+        return self.terminate.status == 'success'
+
+
+class TwoDominoesLastRadial(Samplable, Scenario):
     """The center of D2 lies on the line orthogonal to D1's largest face and
     going through D1's center. Here for demos, not interesting otherwise.
 
@@ -432,11 +441,8 @@ class TwoDominoesLastRadial(Samplable):
         add_domino_run("domino_run", coords, scene, world, True, make_geom)
         return scene, world
 
-    def succeeded(self):
-        return self.terminate.status == 'success'
 
-
-class TwoDominoesLastFree(Samplable):
+class TwoDominoesLastFree(Samplable, Scenario):
     """D2 can be wherever wrt D1 (within config bounds).
 
     Samplable with 3 parameters (relative position in the XY plane and
@@ -495,11 +501,8 @@ class TwoDominoesLastFree(Samplable):
         add_domino_run("domino_run", coords, scene, world, True, make_geom)
         return scene, world
 
-    def succeeded(self):
-        return self.terminate.status == 'success'
 
-
-class DominoesStraightLastFree(Samplable):
+class DominoesStraightLastFree(Samplable, Scenario):
     """Any number of dominoes on a straight line, the last being free.
 
     Samplable with 4 DoFs (relative position in the XY plane,
@@ -579,11 +582,8 @@ class DominoesStraightLastFree(Samplable):
         add_domino_run("domino_run", coords, scene, world, True, make_geom)
         return scene, world
 
-    def succeeded(self):
-        return self.terminate.status == 'success'
 
-
-class DominoesStraightTwoLastFree(Samplable):
+class DominoesStraightTwoLastFree(Samplable, Scenario):
     """Any number of dominoes in a straight line, the last two being free.
 
     Samplable with 6 DoFs (relative transforms of domino 2 vs 1 and 3 vs 2.)
@@ -670,11 +670,8 @@ class DominoesStraightTwoLastFree(Samplable):
         add_domino_run("domino_run", coords, scene, world, True, make_geom)
         return scene, world
 
-    def succeeded(self):
-        return self.terminate.status == 'success'
 
-
-class CustomDominoRun:
+class CustomDominoRun(Scenario):
     """A custom domino run.
 
     Not samplable.
@@ -700,11 +697,8 @@ class CustomDominoRun:
         add_domino_run("domino_run", sample, scene, world, True, make_geom)
         return scene, world
 
-    def succeeded(self):
-        return self.terminate.status == 'success'
 
-
-class BallPlankDominoes(Samplable):
+class BallPlankDominoes(Samplable, Scenario):
     """A ball rolls on a plank and hits a straight row of dominoes.
 
     Samplable with 3 DoFs (x, y (of lower right corner wrt the 1st domino)
@@ -782,9 +776,6 @@ class BallPlankDominoes(Samplable):
         coords[:, 0] = np.linspace(0, length, ndoms)
         add_domino_run("domino_run", coords, scene, world, False, make_geom)
         return scene, world
-
-    def succeeded(self):
-        return self.terminate.status == 'success'
 
 
 SCENARIOS = (
