@@ -38,9 +38,40 @@ class ConditionalBallRun(Scenario):
         self.scene = self._scene.graph
         self.terminate = self.causal_graph
 
+    def check_physically_valid(self):
+        return self._check_physically_valid_scene(self._scene)
+
+    @classmethod
+    def check_physically_valid_sample(cls, sample):
+        scene = cls.init_scene(sample, make_geom=False)
+        return cls._check_physically_valid_scene(scene)
+
     @staticmethod
-    def check_valid(scene):
-        return True
+    def _check_physically_valid_scene(scene):
+        graph = scene.graph
+        top_track = graph.find("top_track*").node()
+        bottom_track = graph.find("bottom_track*").node()
+        high_plank = graph.find("high_plank*").node()
+        low_plank = graph.find("low_plank*").node()
+        base_plank = graph.find("base_plank*").node()
+        goblet = graph.find("goblet*").node()
+        # Enable collisions for static objects
+        for body in (top_track, bottom_track, goblet):
+            body.set_static(False)
+            body.set_active(True)
+        test_pairs = [
+            (top_track, bottom_track),
+            (top_track, high_plank),
+            (top_track, low_plank),
+            (top_track, goblet),
+            (bottom_track, base_plank),
+            (bottom_track, goblet),
+            (low_plank, goblet),
+            (base_plank, goblet)
+        ]
+        world = scene.world
+        return not any(world.contact_test_pair(a, b).get_num_contacts()
+                       for a, b in test_pairs)
 
     @staticmethod
     def get_distribution():
