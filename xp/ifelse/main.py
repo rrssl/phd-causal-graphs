@@ -12,6 +12,7 @@ def main():
     scenario = ConditionalBallRun(x_init, make_geom=True)
     simu = Simulation(scenario)
     simu.run_visual()
+    scenario.export_scene_to_pdf("test", x_init, (3*21, 2*29.7))
 
 
 if __name__ == "__main__":

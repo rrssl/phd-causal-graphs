@@ -86,18 +86,60 @@ class ConditionalBallRun(Samplable, Scenario):
     def get_robustness(sample, alpha):
         return 0
 
-    @staticmethod
-    def export_scenario(filename, sample, sheetsize):
-        coords = np.array([])
-        sizes = np.array([])
+    @classmethod
+    def export_scene_to_pdf(cls, filename, sample, sheetsize):
+        coords = []
+        sizes = []
+        shapes = []
+        pos, hpr = cls.sample2coords(sample, "top_track")
+        coords.append([pos.x, pos.z, hpr.z])
+        sizes.append([cfg.TOP_TRACK_LWH[0], cfg.TOP_TRACK_LWH[2]])
+        shapes.append('rect')
+        pos, hpr = cls.sample2coords(sample, "bottom_track")
+        coords.append([pos.x, pos.z, hpr.z])
+        sizes.append([cfg.BOTTOM_TRACK_LWH[0], cfg.BOTTOM_TRACK_LWH[2]])
+        shapes.append('rect')
+        pos, hpr = cls.sample2coords(sample, "high_plank")
+        coords.append([pos.x, pos.z, hpr.z])
+        sizes.append([cfg.HIGH_PLANK_LWH[0], cfg.HIGH_PLANK_LWH[2]])
+        shapes.append('rect')
+        pos, hpr = cls.sample2coords(sample, "low_plank")
+        coords.append([pos.x, pos.z, hpr.z])
+        sizes.append([cfg.LOW_PLANK_LWH[0], cfg.LOW_PLANK_LWH[2]])
+        shapes.append('rect')
+        pos, hpr = cls.sample2coords(sample, "base_plank")
+        coords.append([pos.x, pos.z, hpr.z])
+        sizes.append([cfg.BASE_PLANK_LWH[0], cfg.BASE_PLANK_LWH[2]])
+        shapes.append('rect')
+        pos, hpr = cls.sample2coords(sample, "flat_support")
+        coords.append([pos.x, pos.z, hpr.z])
+        sizes.append([cfg.FLAT_SUPPORT_LWH[0], cfg.FLAT_SUPPORT_LWH[2]])
+        shapes.append('rect')
+        pos, _ = cls.sample2coords(sample, "round_support")
+        coords.append([pos.x, pos.z, 0])
+        sizes.append([cfg.ROUND_SUPPORT_RADIUS, 0])
+        shapes.append('circ')
+        pos, hpr = cls.sample2coords(sample, "goblet")
+        angle = math.radians(hpr.z)
+        coords.append([pos.x + math.sin(angle)*cfg.GOBLET_HEIGHT/2,
+                       pos.z + math.cos(angle)*cfg.GOBLET_HEIGHT/2,
+                       hpr.z])
+        sizes.append([cfg.GOBLET_R1*2, cfg.GOBLET_HEIGHT])
+        shapes.append('rect')
+        coords = np.asarray(coords)
+        sizes = np.asarray(sizes)
+        rects = np.array([shape == 'rect' for shape in shapes])
+        circles = np.array([shape == 'circ' for shape in shapes])
 
         xy = coords[:, :2] * 100
+        xy[:, 1] *= -1
         xy = xy - (xy.min(axis=0) + xy.max(axis=0))/2 + np.asarray(sheetsize)/2
         a = coords[:, 2]
         sizes *= 100
 
         vec = VectorFile(filename, sheetsize)
-        vec.add_rectangles(xy, a, sizes)
+        vec.add_rectangles(xy[rects], a[rects], sizes[rects])
+        vec.add_circles(xy[circles], sizes[circles, 0])
         vec.save()
 
     @staticmethod
