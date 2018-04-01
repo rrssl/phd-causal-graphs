@@ -437,7 +437,7 @@ class FutureViewer(PhysicsViewer):
 class ScenarioViewer(PhysicsViewer):
     """Physics viewer with additional scenario semantics.
 
-    Colors the objects according to the scenario status.
+    Colors the objects according to the scenario validity and status.
 
     Parameters
     ----------
@@ -451,6 +451,9 @@ class ScenarioViewer(PhysicsViewer):
         super().__init__(frame_rate=frame_rate, world=scenario.world)
         self.scenario = scenario
         scenario.scene.reparent_to(self.models)
+        if not scenario.check_physically_valid():
+            scenario.scene.set_render_mode_filled_wireframe(
+                Vec4(*cfg.SCENARIO_INVALID_COLOR))
         self.status = None
         self.task_mgr.add(self.update_status, "update_status")
         self.accept('r', self.reset_scenario)
