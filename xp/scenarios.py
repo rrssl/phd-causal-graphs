@@ -315,6 +315,22 @@ class AndTerminationCondition:
         return self.terminated
 
 
+class DummyTerminationCondition:
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.status = None
+        self.terminated = False
+        self.last_event_time = 0
+
+    def has_started(self):
+        return True
+
+    def update_and_check(self, time):
+        return False
+
+
 class DominoRunTopplingTimeObserver:
     """Observes the toppling time of each domino in a run.
 

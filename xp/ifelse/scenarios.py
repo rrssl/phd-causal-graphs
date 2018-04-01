@@ -6,6 +6,7 @@ from panda3d.core import NodePath, Point3, Vec3
 
 import core.primitives as prim
 import xp.ifelse.config as cfg
+from xp.scenarios import DummyTerminationCondition
 from core.export import VectorFile
 
 
@@ -18,17 +19,6 @@ def init_scene():
     world = prim.World()
     world.set_gravity(cfg.GRAVITY)
     return Scene(graph, world)
-
-
-class DummyCausalGraph:
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.status = None
-
-    def update_and_check(self, time):
-        return False
 
 
 class ConditionalBallRun:
@@ -76,7 +66,7 @@ class ConditionalBallRun:
 
     @staticmethod
     def init_causal_graph(scene):
-        return DummyCausalGraph()
+        return DummyTerminationCondition()
 
     @classmethod
     def init_scene(cls, sample, make_geom=False):
