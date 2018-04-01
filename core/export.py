@@ -10,10 +10,11 @@ import svgwrite
 
 class VectorFile:
 
-    def __init__(self, filename, dims_cm):
+    def __init__(self, filename, dims_cm, stroke_width=.05):
         self.filename = filename
         width = str(dims_cm[0])
         height = str(dims_cm[1])
+        self.stroke_width = stroke_width
         # Define viewBox with the same dimensions as 'size' to get units in cm
         # https://mpetroff.net/2013/08/analysis-of-svg-units/
         self.cont = svgwrite.Drawing(
@@ -22,14 +23,16 @@ class VectorFile:
 
     def add_circles(self, positions, radii):
         cont = self.cont
-        group = cont.add(cont.g(fill='none', stroke='black', stroke_width=.02))
+        group = cont.add(cont.g(fill='none', stroke='black',
+                         stroke_width=self.stroke_width))
         for pos, radius in zip(positions, radii):
             circle = cont.circle(center=(pos[0], pos[1]), r=radius)
             group.add(circle)
 
     def add_rectangles(self, positions, angles, sizes):
         cont = self.cont
-        group = cont.add(cont.g(fill='none', stroke='black', stroke_width=.02))
+        group = cont.add(cont.g(fill='none', stroke='black',
+                         stroke_width=self.stroke_width))
         for pos, angle, size in zip(positions, angles, sizes):
             rect = cont.rect(insert=(pos[0]-size[0]/2, pos[1]-size[1]/2),
                              size=size)
@@ -39,7 +42,9 @@ class VectorFile:
     def add_polyline(self, points):
         cont = self.cont
         cont.add(cont.polyline(
-            points=points, fill='none', stroke='black', stroke_width=.02))
+            points=points, fill='none', stroke='black',
+            stroke_width=self.stroke_width
+        ))
 
     def add_text(self, text, position):
         cont = self.cont
