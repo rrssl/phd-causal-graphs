@@ -8,6 +8,7 @@ from xp.simulate import Simulation  # noqa: E402
 
 def main():
     x_init = [0.1, 0.3, -20, 0.1, 10, 0.35, -0.05, -45]
+    # x_init = ConditionalBallRun.sample_valid(9)[6]
     scenario = ConditionalBallRun(x_init, make_geom=True)
     simu = Simulation(scenario)
     simu.run_visual()

@@ -1,12 +1,13 @@
 from collections import namedtuple
 import math
 
+import chaospy as cp
 import numpy as np
 from panda3d.core import NodePath, Point3, Vec3
 
 import core.primitives as prim
 import xp.ifelse.config as cfg
-from xp.scenarios import DummyTerminationCondition, Scenario
+from xp.scenarios import DummyTerminationCondition, Samplable, Scenario
 from core.export import VectorFile
 
 
@@ -21,7 +22,7 @@ def init_scene():
     return Scene(graph, world)
 
 
-class ConditionalBallRun(Scenario):
+class ConditionalBallRun(Samplable, Scenario):
     """Scenario
 
     Parameters
@@ -75,7 +76,11 @@ class ConditionalBallRun(Scenario):
 
     @staticmethod
     def get_distribution():
-        return None
+        distributions = [
+            cp.Truncnorm(xmin, xmax, (xmin+xmax)/2, (xmax-xmin)/4)
+            for xmin, xmax in cfg.SCENARIO_PARAMETERS_BOUNDS
+        ]
+        return cp.J(*distributions)
 
     @staticmethod
     def get_robustness(sample, alpha):
@@ -269,3 +274,10 @@ class ConditionalBallRun(Scenario):
             pos = Point3(sample[5], 0, sample[6])
             hpr = Vec3(0, 0, sample[7])
         return pos, hpr
+
+    # LEGACY
+    @classmethod
+    def check_valid(cls, scene, world):
+        return cls._check_physically_valid_scene(Scene(scene, world))
+
+    init_scenario = init_scene
