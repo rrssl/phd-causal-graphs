@@ -1,3 +1,5 @@
+from math import atan, degrees
+
 from xp.config import *
 
 BALL_RADIUS = 0.015 / 1  # [m]
@@ -27,3 +29,7 @@ SCENARIO_PARAMETERS_BOUNDS = (
     (-LOW_PLANK_LWH[0], LOW_PLANK_LWH[0]),
     (-60, 0),
 )
+
+PIVOTING_ANGULAR_VELOCITY = 1
+ROLLING_ANGLE = 90
+HIGH_PLANK_TOPPLING_ANGLE = degrees(atan(HIGH_PLANK_LWH[2]/HIGH_PLANK_LWH[0]))

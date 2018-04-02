@@ -331,6 +331,32 @@ class DummyTerminationCondition:
         return False
 
 
+class CausalGraphTerminationCondition:
+    def __init__(self, causal_graph):
+        self.causal_graph = causal_graph
+        self.reset()
+
+    def reset(self):
+        self.status = None
+        self.terminated = False
+        self.last_event_time = 0
+        self.causal_graph.reset()
+
+    def update_and_check(self, time):
+        # Avoid checking if already terminated.
+        if self.terminated:
+            return True
+        self.causal_graph.update(time)
+        self.last_event_time = self.causal_graph.last_wake_time
+        if self.causal_graph.state == 1:
+            self.status = 'success'
+            self.terminated = True
+        elif self.causal_graph.state == 2:
+            self.status = 'failure'
+            self.terminated = True
+        return self.terminated
+
+
 class DominoRunTopplingTimeObserver:
     """Observes the toppling time of each domino in a run.
 

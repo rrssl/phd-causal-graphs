@@ -6,8 +6,9 @@ import numpy as np
 from panda3d.core import NodePath, Point3, Vec3
 
 import core.primitives as prim
+import xp.causal as causal
 import xp.ifelse.config as cfg
-from xp.scenarios import DummyTerminationCondition, Samplable, Scenario
+from xp.scenarios import CausalGraphTerminationCondition, Samplable, Scenario
 from core.export import VectorFile
 
 
@@ -20,6 +21,87 @@ def init_scene():
     world = prim.World()
     world.set_gravity(cfg.GRAVITY)
     return Scene(graph, world)
+
+
+class RollingOn:
+    def __init__(self, rolling, support, world):
+        self.rolling = rolling
+        self.support = support
+        self.world = world
+        self.start_angle = None
+
+    def __call__(self):
+        contact = self.world.contact_test_pair(
+            self.rolling.node(), self.support.node()
+        ).get_num_contacts()
+        if contact:
+            if self.start_angle is None:
+                self.start_angle = self.rolling.get_quat().get_angle()
+        else:
+            self.start_angle = None
+            return False
+        angle = abs(self.rolling.get_quat().get_angle() - self.start_angle)
+        return angle >= cfg.ROLLING_ANGLE and contact
+
+
+class Contact:
+    def __init__(self, first, second, world):
+        self.first = first
+        self.second = second
+        self.world = world
+
+    def __call__(self):
+        contact = self.world.contact_test_pair(
+            self.first.node(), self.second.node()
+        ).get_num_contacts()
+        return contact
+
+
+class NoContact:
+    def __init__(self, first, second, world):
+        self.first = first
+        self.second = second
+        self.world = world
+
+    def __call__(self):
+        contact = self.world.contact_test_pair(
+            self.first.node(), self.second.node()
+        ).get_num_contacts()
+        return not contact
+
+
+class Inclusion:
+    def __init__(self, inside, outside):
+        self.inside = inside
+        self.outside = outside
+
+    def __call__(self):
+        in_bounds = self.inside.node().get_shape_bounds()
+        out_bounds = self.outside.node().get_shape_bounds()
+        in_center = in_bounds.get_center() + self.inside.get_pos()
+        out_center = out_bounds.get_center() + self.outside.get_pos()
+        include = ((in_center - out_center).length()
+                   + in_bounds.get_radius()) <= out_bounds.get_radius()
+        return include
+
+
+class Toppling:
+    def __init__(self, body, angle):
+        self.body = body
+        self.angle = angle
+        self.start_angle = body.get_r()
+
+    def __call__(self):
+        return abs(self.body.get_r() - self.start_angle) >= self.angle + 1
+
+
+class Pivoting:
+    def __init__(self, body):
+        self.body = body
+
+    def __call__(self):
+        angvel = self.body.node().get_angular_velocity().length_squared()
+        return angvel > cfg.PIVOTING_ANGULAR_VELOCITY
 
 
 class ConditionalBallRun(Samplable, Scenario):
@@ -37,7 +119,7 @@ class ConditionalBallRun(Samplable, Scenario):
         # LEGACY
         self.world = self._scene.world
         self.scene = self._scene.graph
-        self.terminate = self.causal_graph
+        self.terminate = CausalGraphTerminationCondition(self.causal_graph)
 
     def check_physically_valid(self):
         return self._check_physically_valid_scene(self._scene)
@@ -144,7 +226,77 @@ class ConditionalBallRun(Samplable, Scenario):
 
     @staticmethod
     def init_causal_graph(scene):
-        return DummyTerminationCondition()
+        scene_graph = scene.graph
+        world = scene.world
+        ball = scene_graph.find("ball*")
+        top_track = scene_graph.find("top_track*")
+        bottom_track = scene_graph.find("bottom_track*")
+        high_plank = scene_graph.find("high_plank*")
+        low_plank = scene_graph.find("low_plank*")
+        base_plank = scene_graph.find("base_plank*")
+        goblet = scene_graph.find("goblet*")
+
+        ball_rolls_on_top_track = causal.Event(
+            "ball_rolls_on_top_track",
+            RollingOn(ball, top_track, world),
+            None,
+            causal.AllAfter(verbose=True),
+            verbose=True
+        )
+        ball_hits_high_plank = causal.Event(
+            "ball_hits_high_plank",
+            Contact(ball, high_plank, world),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=True),
+            verbose=True
+        )
+        high_plank_topples = causal.Event(
+            "high_plank_topples",
+            Toppling(high_plank, cfg.HIGH_PLANK_TOPPLING_ANGLE),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=True),
+            verbose=True
+        )
+        ball_rolls_on_bottom_track = causal.Event(
+            "ball_rolls_on_bottom_track",
+            RollingOn(ball, bottom_track, world),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=True),
+            verbose=True
+        )
+        base_plank_moves = causal.Event(
+            "base_plank_moves",
+            Pivoting(base_plank),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=True),
+            verbose=True
+        )
+        low_plank_falls = causal.Event(
+            "low_plank_falls",
+            NoContact(low_plank, base_plank, world),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=True),
+            verbose=True
+        )
+        ball_enters_goblet = causal.Event(
+            "ball_enters_goblet",
+            Inclusion(ball, goblet),
+            causal.AllBefore(),
+            None,
+            verbose=True
+        )
+        causal.connect(ball_rolls_on_top_track, ball_hits_high_plank),
+        causal.connect(ball_hits_high_plank, high_plank_topples),
+        causal.connect(ball_hits_high_plank, ball_rolls_on_bottom_track),
+        causal.connect(ball_rolls_on_bottom_track, ball_enters_goblet),
+        causal.connect(high_plank_topples, base_plank_moves),
+        causal.connect(base_plank_moves, low_plank_falls),
+        causal.connect(low_plank_falls, ball_enters_goblet)
+
+        graph = causal.CausalGraphTraverser(
+            root=ball_rolls_on_top_track, verbose=True
+        )
+        return graph
 
     @classmethod
     def init_scene(cls, sample, make_geom=False):
