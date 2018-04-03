@@ -104,6 +104,17 @@ class Pivoting:
         return angvel > cfg.PIVOTING_ANGULAR_VELOCITY
 
 
+class Stopping:
+    def __init__(self, body):
+        self.body = body
+
+    def __call__(self):
+        linvel = self.body.node().get_linear_velocity().length_squared()
+        angvel = self.body.node().get_angular_velocity().length_squared()
+        return (linvel < cfg.STOPPING_LINEAR_VELOCITY
+                and angvel < cfg.STOPPING_ANGULAR_VELOCITY)
+
+
 class ConditionalBallRun(Samplable, Scenario):
     """Scenario
 
@@ -283,6 +294,13 @@ class ConditionalBallRun(Samplable, Scenario):
             "ball_enters_goblet",
             Inclusion(ball, goblet),
             causal.AllBefore(),
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
+        )
+        ball_stops = causal.Event(
+            "ball_stops",
+            Stopping(ball),
+            causal.AllBefore(),
             None,
             verbose=verbose
         )
@@ -293,9 +311,10 @@ class ConditionalBallRun(Samplable, Scenario):
         causal.connect(high_plank_topples, base_plank_moves),
         causal.connect(base_plank_moves, low_plank_falls),
         causal.connect(low_plank_falls, ball_enters_goblet)
+        causal.connect(ball_enters_goblet, ball_stops)
 
         graph = causal.CausalGraphTraverser(
-            root=ball_rolls_on_top_track, verbose=True
+            root=ball_rolls_on_top_track, verbose=verbose
         )
         return graph
 
