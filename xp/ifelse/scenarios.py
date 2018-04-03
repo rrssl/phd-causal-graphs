@@ -115,7 +115,8 @@ class ConditionalBallRun(Samplable, Scenario):
     """
     def __init__(self, sample, make_geom=False, **kwargs):
         self._scene = self.init_scene(sample, make_geom)
-        self.causal_graph = self.init_causal_graph(self._scene)
+        self.causal_graph = self.init_causal_graph(self._scene,
+                                                   verbose=make_geom)
         # LEGACY
         self.world = self._scene.world
         self.scene = self._scene.graph
@@ -225,7 +226,7 @@ class ConditionalBallRun(Samplable, Scenario):
         vec.save()
 
     @staticmethod
-    def init_causal_graph(scene):
+    def init_causal_graph(scene, verbose=False):
         scene_graph = scene.graph
         world = scene.world
         ball = scene_graph.find("ball*")
@@ -240,50 +241,50 @@ class ConditionalBallRun(Samplable, Scenario):
             "ball_rolls_on_top_track",
             RollingOn(ball, top_track, world),
             None,
-            causal.AllAfter(verbose=True),
-            verbose=True
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
         )
         ball_hits_high_plank = causal.Event(
             "ball_hits_high_plank",
             Contact(ball, high_plank, world),
             causal.AllBefore(),
-            causal.AllAfter(verbose=True),
-            verbose=True
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
         )
         high_plank_topples = causal.Event(
             "high_plank_topples",
             Toppling(high_plank, cfg.HIGH_PLANK_TOPPLING_ANGLE),
             causal.AllBefore(),
-            causal.AllAfter(verbose=True),
-            verbose=True
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
         )
         ball_rolls_on_bottom_track = causal.Event(
             "ball_rolls_on_bottom_track",
             RollingOn(ball, bottom_track, world),
             causal.AllBefore(),
-            causal.AllAfter(verbose=True),
-            verbose=True
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
         )
         base_plank_moves = causal.Event(
             "base_plank_moves",
             Pivoting(base_plank),
             causal.AllBefore(),
-            causal.AllAfter(verbose=True),
-            verbose=True
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
         )
         low_plank_falls = causal.Event(
             "low_plank_falls",
             NoContact(low_plank, base_plank, world),
             causal.AllBefore(),
-            causal.AllAfter(verbose=True),
-            verbose=True
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
         )
         ball_enters_goblet = causal.Event(
             "ball_enters_goblet",
             Inclusion(ball, goblet),
             causal.AllBefore(),
             None,
-            verbose=True
+            verbose=verbose
         )
         causal.connect(ball_rolls_on_top_track, ball_hits_high_plank),
         causal.connect(ball_hits_high_plank, high_plank_topples),
