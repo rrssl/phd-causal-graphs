@@ -7,7 +7,7 @@ from math import atan, degrees
 from config import *
 
 # Number of cores to use for parallelization.
-NCORES = 7
+NCORES = 6
 
 # Whether to reduce symmetries when learning robustness.
 REDUCE_SYM = True
@@ -15,16 +15,20 @@ REDUCE_SYM = True
 # Simulation parameters.
 TIMESTEP = 1/500            # [s]
 TIMEOUT = 10                # [s]
-MAX_WAIT_TIME = 2.          # [s]
+MAX_WAIT_TIME = 2           # [s]
+
+# Learning parameters.
+SVC_C_RANGE = (-4, 4, 9)  # in logspace
+SVC_GAMMA_RANGE = (-4, 4, 9)  # in logspace
 
 # Floor properties.
 FLOOR_MATERIAL_FRICTION = 0.50447012
 FLOOR_MATERIAL_RESTITUTION = 0.
 
 # Domino properties.
-h = .044
-w = .02
-t = .007
+h = .04  # Legacy.
+w = .02  # Legacy.
+t = .00  # Legacy.
 DOMINO_EXTENTS = (t, w, h)
 MASS = .00305  # Legacy.
 DOMINO_MASS = MASS
