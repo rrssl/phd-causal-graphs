@@ -573,7 +573,11 @@ def main():
         )
         np.save(filename, vals)
     print(np.isfinite(vals).sum(), "valid samples after simulation")
-    best_id = np.nanargmax(vals)
+    # TODO. Use a cleaner algorithm instead of this disgraceful hack.
+    bad = ~np.isfinite(vals)
+    vals[bad] = -1
+    best_id = np.argsort(vals.ravel())[-2]
+    vals[bad] = np.nan
     best_right = grid_right_vec[best_id]
     print("Objective on the right:", objective(fromright(best_right)))
     if 0:
