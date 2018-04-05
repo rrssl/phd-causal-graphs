@@ -31,7 +31,7 @@ from xp.scenarios import (AndTerminationCondition,  # noqa: E402
                           init_scene)
 
 
-OPTIM_SIMU_TIMESTEP = 1/1000
+OPTIM_SIMU_TIMESTEP = 1/2000
 # TODO. Turn this into a list of dicts.
 BRANCH_ORIGIN = Point2(0)
 BRANCH_ANGLE = 0
@@ -274,7 +274,7 @@ class Model:
     min_nd = 16
     max_nd = 25
     min_wd = 0.
-    max_wd = .06
+    max_wd = .1
     min_x = BALL_POS.x
     max_x = BALL_POS.x + cfg.PLANK_LENGTH / 2
     min_z = cfg.BALL_RADIUS + cfg.PLANK_THICKNESS
