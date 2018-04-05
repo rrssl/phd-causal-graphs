@@ -361,12 +361,12 @@ class Model:
         # Create and run simulation.
         simu = Simulation(scenario, observers, timestep=OPTIM_SIMU_TIMESTEP)
         simu.run()
+        print("Observed times -- left:", observers[0].times)
+        print("Observed times -- right:", observers[1].times)
         if not scenario.succeeded():
             self.left_time = math.nan
             self.right_time = math.nan
             return
-        # print("Observed times -- left:", observers[0].times)
-        # print("Observed times -- right:", observers[1].times)
         # Update output variables.
         self.left_time = observers[0].times[-1]
         self.right_time = observers[1].times[-1]
@@ -378,6 +378,7 @@ class Objective:
         self.err_val = err_val
 
     def __call__(self, x):
+        print("Starting", x)
         self.model.update(x, _visual=0)
         f = (self.model.left_time - self.model.right_time) ** 2
         if not np.isfinite(f):
@@ -426,7 +427,8 @@ def main():
     x_init = [LEFT_ROW_NDOMS, LEFT_ROW_WIDTH,
               BALL_POS.x, BALL_POS.z, PLANK_HPR.z]
     model = Model()
-    model.update(x_init, _visual=True)
+    print("Bounds:", Model.get_bounds())
+    # model.update(x_init, _visual=True)
     objective = Objective(model)
     bounds = [(.0, 1)] * len(x_init)
     constraints = (
@@ -579,6 +581,8 @@ def main():
         print(objective(x_best))
 
     # Show the solution.
+    print("Constraint:", constraints[0]['fun'](x_best))
+    print("Overall objective:", objective(x_best))
     model.update(x_best, _visual=True)
 
     if 0:
