@@ -176,10 +176,6 @@ class ConditionalBallRun(Samplable, Scenario):
         ]
         return cp.J(*distributions)
 
-    @staticmethod
-    def get_robustness(sample, alpha):
-        return 0
-
     @classmethod
     def export_scene_to_pdf(cls, filename, sample, sheetsize):
         coords = []
