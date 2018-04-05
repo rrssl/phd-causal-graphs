@@ -343,7 +343,7 @@ class MyApp(Tileable, Focusable, Drawable, Pickerable, PhysicsViewer):
         floor.create()
         floor.attach_to(self.models, self.world)
 
-        self.font = self.loader.load_font("../assets/Roboto_regular.ttf")
+        self.font = self.loader.load_font("../../assets/Roboto_regular.ttf")
         bt_shape = NodePath(make_rectangle(4, 2, 0.2, 4))
         bt_shape.set_color(Vec4(65, 105, 225, 255)/255)
         self.add_modes = ("DOMINO RUN", "TODO")

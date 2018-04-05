@@ -1,6 +1,7 @@
 __pycache__/
-*.np[yz]
+.cache/
+*.np[yz]*
 *.pkl
-.vim_session
+*.pdf
 *.swp
-assets/
+.vim_session
