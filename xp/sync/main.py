@@ -423,6 +423,40 @@ class NonPenetrationConstraint:
         return penetration
 
 
+class ConstrainedObjectiveMetaheuristic:
+    """Simple integration of constraints into an objective function.
+
+    Designed for metaheuristic search algorithms that do not accept explicit
+    constraints. Not suitable for continuous optimization.
+
+    """
+    def __init__(self, objective, constraints, errval=1):
+        self.objective = objective
+        self.constraints = constraints
+        self.errval = errval
+
+    def __call__(self, x):
+        if any(c(x) < 0 for c in self.constraints):
+            return self.errval
+        return self.objective(x)
+
+
+class ConstrainedObjectivePenalty:
+    """Adds constraints to the objective with a coefficient.
+
+    Suited for a penalty method.
+
+    """
+    def __init__(self, objective, constraints, coeff=1):
+        self.objective = objective
+        self.constraints = constraints
+        self.coeff = coeff
+
+    def __call__(self, x):
+        penalty = sum(c(x) for c in self.constraints)
+        return self.objective(x) + self.coeff * penalty
+
+
 def main():
     x_init = [LEFT_ROW_NDOMS, LEFT_ROW_WIDTH,
               BALL_POS.x, BALL_POS.z, PLANK_HPR.z]
