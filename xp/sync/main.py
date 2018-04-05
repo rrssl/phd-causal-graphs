@@ -380,7 +380,7 @@ class Objective:
     def __call__(self, x):
         print("Starting", x)
         self.model.update(x, _visual=0)
-        f = (self.model.left_time - self.model.right_time) ** 2
+        f = self.model.left_time - self.model.right_time
         if not np.isfinite(f):
             f = self.err_val
         print("Internal call to objective -- x = {}, f = {}".format(x, f))
@@ -430,7 +430,6 @@ def main():
     print("Bounds:", Model.get_bounds())
     # model.update(x_init, _visual=True)
     objective = Objective(model)
-    bounds = [(.0, 1)] * len(x_init)
     constraints = (
         {'type': 'ineq', 'fun': NonPenetrationConstraint(model)},
     )
@@ -587,8 +586,8 @@ def main():
 
     if 0:
         # Export the solution.
-        DominoesBallSync.export_scenario("base.pdf", x_init, (3*29.7, 1*21))
-        DominoesBallSync.export_scenario("best.pdf", x_best, (3*29.7, 1*21))
+        DominoesBallSync.export_scenario("base.pdf", x_init, (5*21, 1*29.7))
+        DominoesBallSync.export_scenario("best.pdf", x_best, (5*21, 1*29.7))
 
 
 if __name__ == "__main__":
