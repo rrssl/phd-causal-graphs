@@ -19,56 +19,56 @@ def trimesh2panda(vertices, triangles, vertex_normals=None, face_normals=None,
     # Choose the correct vertex data format
     if has_normals:
         if has_colors:
-            fmt = GeomVertexFormat.getV3n3c4()
+            fmt = GeomVertexFormat.get_v3n3c4()
         else:
-            fmt = GeomVertexFormat.getV3n3()
+            fmt = GeomVertexFormat.get_v3n3()
     elif has_colors:
-        fmt = GeomVertexFormat.getV3c4()
+        fmt = GeomVertexFormat.get_v3c4()
     else:
-        fmt = GeomVertexFormat.getV3()
+        fmt = GeomVertexFormat.get_v3()
 
     # For a proper rendering of flat shading, duplicate all vertices.
     if flat_shading:
         vertices = [vertices[i] for tri in triangles for i in tri]
         triangles = [[3*i, 3*i+1, 3*i+2] for i in range(len(triangles))]
 
-    vdata = GeomVertexData("vertices", fmt, Geom.UHStatic)
+    vdata = GeomVertexData("vertices", fmt, Geom.UH_static)
     vdata.setNumRows(len(vertices))
 
     # Add vertex position
-    writer = GeomVertexWriter(vdata, "vertex")  # 1.Name is not arbitrary here!
+    writer = GeomVertexWriter(vdata, 'vertex')  # 1.Name is not arbitrary here!
     for vertex in vertices:
-        writer.addData3f(*vertex)
+        writer.add_data3f(*vertex)
 
     # Add vertex normals
     if has_normals:
-        writer = GeomVertexWriter(vdata, "normal")  # Same as (1)
+        writer = GeomVertexWriter(vdata, 'normal')  # Same as (1)
         if flat_shading:
             for normal in normals:
-                writer.addData3f(0, 0, 0)
-                writer.addData3f(0, 0, 0)
-                writer.addData3f(*normal)
+                writer.add_data3f(0, 0, 0)
+                writer.add_data3f(0, 0, 0)
+                writer.add_data3f(*normal)
         else:
             for normal in normals:
-                writer.addData3f(*normal)
+                writer.add_data3f(*normal)
 
     # Add vertex color
     if has_colors:
-        writer = GeomVertexWriter(vdata, "color")  # Same as (1)
+        writer = GeomVertexWriter(vdata, 'color')  # Same as (1)
         for color in colors:
-            writer.addData4i(*color)
+            writer.add_data4i(*color)
 
     # Make primitives and assign vertices to them
-    gtris = GeomTriangles(Geom.UHStatic)
+    gtris = GeomTriangles(Geom.UH_static)
     if flat_shading:
-        gtris.setShadeModel(Geom.SM_flat_last_vertex)
+        gtris.set_shade_model(Geom.SM_flat_last_vertex)
     for triangle in triangles:
-        gtris.addVertices(*triangle)
-        gtris.closePrimitive()
+        gtris.add_vertices(*triangle)
+        gtris.close_primitive()
 
     # Make a Geom object to hold the primitives.
     geom = Geom(vdata)
-    geom.addPrimitive(gtris)
+    geom.add_primitive(gtris)
 
     return geom
 
