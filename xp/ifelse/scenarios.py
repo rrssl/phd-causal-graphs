@@ -1,5 +1,8 @@
 from collections import namedtuple
 import math
+import os
+import pickle
+import subprocess
 
 import chaospy as cp
 import numpy as np
@@ -115,6 +118,37 @@ class Stopping:
                 and angvel < cfg.STOPPING_ANGULAR_VELOCITY)
 
 
+class StateObserver:
+    """Keeps track of the full state of each non-static object in the scene."""
+    def __init__(self, scene):
+        self.graph_root = scene.graph
+        self.paths = []
+        self.states = dict()
+        # Find and tag any GeomNode child of a non-static BulletRigidBodyNode.
+        for body in scene.world.get_rigid_bodies():
+            if not body.is_static():
+                child = body.get_child(0)
+                if child.is_geom_node():
+                    path = NodePath.any_path(child)
+                    anim_id = str(path.get_key())
+                    path.set_tag('anim_id', anim_id)
+                    self.states[anim_id] = []
+                    self.paths.append(path)
+
+    def __call__(self, time):
+        for path in self.paths:
+            anim_id = path.get_tag('anim_id')
+            x, y, z = path.get_pos(self.graph_root)
+            w, i, j, k = path.get_quat(self.graph_root)
+            self.states[anim_id].append([time, x, y, z, w, i, j, k])
+
+    def export(self, filename):
+        if filename[-4:] != ".pkl":
+            filename += ".pkl"
+        with open(filename, 'wb') as f:
+            pickle.dump(self.states, f)
+
+
 class ConditionalBallRun(Samplable, Scenario):
     """Scenario
 
@@ -175,6 +209,13 @@ class ConditionalBallRun(Samplable, Scenario):
             for xmin, xmax in cfg.SCENARIO_PARAMETERS_BOUNDS
         ]
         return cp.J(*distributions)
+
+    def export_scene_to_egg(self, filename):
+        if filename[-4:] == ".egg":
+            filename = filename[:-4]
+        self._scene.graph.write_bam_file(filename + ".bam")
+        subprocess.run(["bam2egg", "-o", filename + ".egg", filename + ".bam"])
+        os.remove(filename + ".bam")
 
     @classmethod
     def export_scene_to_pdf(cls, filename, sample, sheetsize):
