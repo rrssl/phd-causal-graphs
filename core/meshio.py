@@ -73,11 +73,10 @@ def trimesh2panda(vertices, triangles, vertex_normals=None, face_normals=None,
     return geom
 
 
-# TODO: Rather than using being hackish with trimesh, implement a proper
-# method that generates a STL tempfile, converts it to an EGG tempfile, then
-# loads it.
 def solid2panda(model):
     scad = solid.scad_render(model).replace('$', '$$')
+    # Hackish, but I'd rather let trimesh deal with the tempfile and
+    # subprocess call.
     data = trimesh.interfaces.scad.interface_scad([], scad)
     return trimesh2panda(data.vertices, data.faces,
                          face_normals=data.face_normals, flat_shading=True)
