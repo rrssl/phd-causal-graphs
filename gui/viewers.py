@@ -2,6 +2,8 @@
 Custom classes to improve on the basic Panda3D viewer.
 
 """
+import math
+
 from direct.showbase.ShowBase import ShowBase
 from panda3d.bullet import BulletDebugNode
 from panda3d.core import (AmbientLight, DirectionalLight, LineSegs, NodePath,
@@ -21,9 +23,7 @@ class TurntableViewer(ShowBase):
     - Rotate around pivot (head and pan)
     - Move pivot
     - Zoom
-
-    TODO:
-        - add view reset
+    - Center view on node
 
     Notes
     -----
@@ -35,6 +35,7 @@ class TurntableViewer(ShowBase):
 
     Source:
         'camera/free.py' in https://launchpad.net/panda3dcodecollection
+
     """
 
     def __init__(self):
@@ -55,6 +56,7 @@ class TurntableViewer(ShowBase):
         self.accept("wheel_down", self.zoom, [False])
         self.accept_once("+", self.zoom, [True, True])
         self.accept_once("-", self.zoom, [False, True])
+        self.accept_once("home", self.center_view_on, [self.render])
 
         # Control parameters
         self.cam_distance = cfg.INIT_CAM_DISTANCE
@@ -68,8 +70,7 @@ class TurntableViewer(ShowBase):
         self.pivot.set_pos(0, 0, 0)
         self.camera.reparent_to(self.pivot)
 
-        # TODO rationalize inconsistent use of priorities
-        self.task_mgr.add(self.update_cam, "update_cam", priority=-4)
+        self.task_mgr.add(self.update_cam, "update_cam")
 
         # Framerate
         self.video_frame_rate = cfg.VIDEO_FRAME_RATE
@@ -77,6 +78,18 @@ class TurntableViewer(ShowBase):
         clock.set_mode(clock.M_limited)
         clock.set_frame_rate(self.video_frame_rate)
         self.set_frame_rate_meter(True)  # show framerate
+
+    def center_view_on(self, nodepath):
+        bounds = nodepath.get_bounds()
+        center = bounds.get_center()
+        radius = bounds.get_radius()
+        fov = math.radians(
+            min(self.camLens.get_fov()))  # min between X and Z axes
+        distance = radius / math.tan(fov / 2)
+        self.pivot.set_pos(center)
+        self.cam_distance = distance
+        self.update_lens_near_plane()
+        self.accept_once("home", self.center_view_on, [nodepath])
 
     def reset_default_mouse_controls(self):
         self.accept("mouse1", self.set_move_camera, [True])
@@ -111,16 +124,13 @@ class TurntableViewer(ShowBase):
             if self.cam_distance > self.min_cam_distance:
                 self.cam_distance *= 1 - self.zoom_factor
                 if from_key:
-                    self.acceptOnce("+", self.zoom, [True, True])
+                    self.accept_once("+", self.zoom, [True, True])
         else:
             if self.cam_distance < self.max_cam_distance:
                 self.cam_distance *= 1 + self.zoom_factor
                 if from_key:
-                    self.acceptOnce("-", self.zoom, [False, True])
-        self.camLens.set_near_far(
-            self.cam_distance * cfg.CAM_LENS_NEAR_FACTOR,
-            self.cam_distance * cfg.CAM_LENS_FAR_FACTOR
-        )
+                    self.accept_once("-", self.zoom, [False, True])
+        self.update_lens_near_plane()
 
     def update_cam(self, task):
         if self.mouseWatcherNode.has_mouse():
@@ -129,9 +139,9 @@ class TurntableViewer(ShowBase):
 
             # Move the camera if a mouse key is pressed and the mouse moved
             if self.mouse_pos is not None and self.start_camera_movement:
-                move_move_x = (self.mouse_pos.get_x() - x) * (
+                move_x = (self.mouse_pos.get_x() - x) * (
                         self.mouse_speed + self.task_mgr.globalClock.get_dt())
-                move_move_y = (self.mouse_pos.get_y() - y) * (
+                move_y = (self.mouse_pos.get_y() - y) * (
                         self.mouse_speed + self.task_mgr.globalClock.get_dt())
                 self.mouse_pos = Point2(x, y)
 
@@ -139,21 +149,23 @@ class TurntableViewer(ShowBase):
                     # Rotate the pivot point
                     pre_p = self.pivot.get_p()
                     self.pivot.set_p(0)
-                    self.pivot.set_h(self.pivot, move_move_x)
+                    self.pivot.set_h(self.pivot, move_x)
                     self.pivot.set_p(pre_p)
-                    self.pivot.set_p(self.pivot, move_move_y)
+                    self.pivot.set_p(self.pivot, move_y)
                 else:
                     # Move the pivot point
                     ratio = self.cam_distance / self.max_cam_distance
-                    self.pivot.set_x(self.pivot, -move_move_x * ratio)
-                    self.pivot.set_z(self.pivot,  move_move_y * ratio)
-
+                    self.pivot.set_x(self.pivot, -move_x * ratio)
+                    self.pivot.set_z(self.pivot,  move_y * ratio)
         # Set the camera zoom
         self.camera.set_y(self.cam_distance)
         # Always look at the pivot point
         self.camera.look_at(self.pivot)
 
         return task.cont
+
+    def update_lens_near_plane(self):
+        self.camLens.set_near(self.cam_distance * cfg.CAM_LENS_NEAR_FACTOR)
 
 
 def create_axes():
@@ -187,9 +199,6 @@ class Modeler(TurntableViewer):
     - Directional light towards the object
     - Axes and 'ground' indicator
 
-    TODO:
-        - add option to place the camera s.t. all objects are visible
-        - (optional) add a shaded background
     """
 
     def __init__(self):
@@ -225,13 +234,15 @@ class Modeler(TurntableViewer):
         axes.set_bin("fixed", 0)
         # Now make sure it will stay in the correct rotation to render.
         self.axes = axes
-        self.task_mgr.add(self.update_axes, "update_axes", priority=-4)
+        self.task_mgr.add(self.update_axes, "update_axes")
         # Ground plane
         grid_maker = ThreeAxisGrid(xsize=1, ysize=1, zsize=0, gridstep=1)
         grid_maker.gridColor = grid_maker.subdivColor = cfg.GRID_COLOR
         grid_maker.create().reparent_to(self.visual)
         # Save scene
         self.accept('s', self.models.write_bam_file, ["scene.bam"])
+        # Center view on the entire scene
+        self.accept_once("home", self.center_view_on, [self.models])
 
     def update_axes(self, task):
         # Point of reference for each rotation is super important here.
