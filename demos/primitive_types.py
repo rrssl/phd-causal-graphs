@@ -3,7 +3,7 @@ import sys
 from panda3d.core import Point3, Vec3
 
 sys.path.insert(0, os.path.abspath(".."))
-from core.primitives import Plane, Ball, Goblet, Lever, DominoRun  # noqa:E402
+import core.primitives as prim  # noqa:E402
 from xp.dominoes.templates import create_circular_arc  # noqa:E402
 from gui.viewers import PhysicsViewer  # noqa:E402
 
@@ -15,27 +15,34 @@ def main():
     app.camLens.set_near(.01)
     app.zoom_speed = .01
 
-    floor = Plane(name="floor")
+    floor = prim.Plane(name="floor")
     floor.create()
     floor.attach_to(app.models, app.world)
 
-    ball = Ball(name="ball", radius=.01, geom=True, mass=.01)
+    ball = prim.Ball(name="ball", radius=.01, geom=True, mass=.01)
     ball.create().set_pos(Point3(0, 0, .4))
     ball.attach_to(app.models, app.world)
 
-    lever = Lever(name="lever", extents=[.05, .1, .01],
-                  pivot_pos_hpr=[0, 0, 0, 0, 0, 90],
-                  geom=True, mass=.1, angular_damping=.1)
+    lever = prim.Lever(
+        name="lever", extents=[.05, .1, .01],
+        pivot_pos_hpr=[0, 0, 0, 0, 0, 90],
+        geom=True, mass=.1, angular_damping=.1
+    )
     lever.create().set_pos(Point3(0, -.03, .3))
     lever.attach_to(app.models, app.world)
 
-    goblet = Goblet(name="goblet", extents=[.1, .05, .03], geom=True, mass=.1)
+    goblet = prim.Goblet(
+        name="goblet", extents=[.1, .05, .03],
+        geom=True, mass=.1
+    )
     goblet.create().set_pos_hpr(Point3(0, .05, .02), Vec3(0, -40, 0))
     goblet.attach_to(app.models, app.world)
 
     coords = create_circular_arc([-.1, .01], .1, -90, -0, 10)
-    run = DominoRun(name="run", extents=[.005, .015, .04], coords=coords,
-                    geom=True, mass=.005)
+    run = prim.DominoRun(
+        name="run", extents=[.005, .015, .04], coords=coords,
+        geom=True, mass=.005
+    )
     run.create()
     run.attach_to(app.models, app.world)
 
