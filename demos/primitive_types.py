@@ -46,6 +46,26 @@ def main():
     run.create()
     run.attach_to(app.models, app.world)
 
+    pulley_ball = prim.Ball(
+        name="ball", radius=.01, geom=True, mass=.02
+    )
+    pulley_ball.create().set_pos(Point3(0, .15, .2))
+    pulley_ball.attach_to(app.models, app.world)
+    pulley_cube = prim.Box(
+        name="box", extents=[.02, .02, .02], geom=True, mass=.01
+    )
+    pulley_cube.create().set_pos(Point3(0, .27, .2))
+    pulley_cube.attach_to(app.models, app.world)
+    rope_pulley = prim.RopePulley(
+        name="rope-pulley",
+        first_object=pulley_ball, second_object=pulley_cube,
+        rope_length=.30, pulley_coords=[[0, .16, .25], [0, .25, .3]],
+        geom=True
+    )
+    rope_pulley.create()
+    rope_pulley.attach_to(app.models, app.world)
+    app.models.ls()
+
     app.run()
 
 

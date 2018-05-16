@@ -2,16 +2,17 @@
 Basic primitives for the RGMs.
 
 """
-from functools import partial
 import math
+from functools import partial
 
 import numpy as np
-from panda3d.core import GeomNode, NodePath, Point3, TransformState, Vec3
 import panda3d.bullet as bt
 import solid as sl
 import solid.utils as slu
+from panda3d.core import (GeomNode, NodePath, Point3, PythonCallbackObject,
+                          TransformState, Vec3)
 
-from .meshio import solid2panda, trimesh2panda
+from core.meshio import solid2panda, trimesh2panda
 
 
 class World(bt.BulletWorld):
@@ -69,6 +70,7 @@ class PrimitiveBase:
         self.path = None
         self.bodies = []
         self.constraints = []
+        self.physics_callbacks = []
 
     def attach_to(self, path: NodePath, world: bt.BulletWorld):
         """Attach the object to the scene.
@@ -86,6 +88,9 @@ class PrimitiveBase:
             world.attach(body)
         for cs in self.constraints:
             world.attach_constraint(cs, linked_collision=True)
+            cs.set_debug_draw_size(.05)
+        for pc in self.physics_callbacks:
+            world.set_tick_callback(PythonCallbackObject(pc), is_pretick=True)
 
     def create(self):
         raise NotImplementedError
@@ -592,4 +597,143 @@ class DominoRun(PrimitiveBase):
             # Geometry
             if self.geom:
                 geom_path.instance_to(dom_path)
+        return self.path
+
+
+class RopePulley(PrimitiveBase):
+    """Create a rope-pulley system connecting two primitives.
+
+    Parameters
+    ----------
+    name : string
+      Name of the primitive.
+    first_object : PrimitiveBase
+      Primitive connected to the first end of the rope.
+    second_object : PrimitiveBase
+      Primitive connected to the second end of the rope.
+    rope_length : float
+      Length of the rope.
+    pulley_coords : (n,3) ndarray
+      (x, y, z) of each pulley.
+    geom : bool
+      Whether to generate a geometry for visualization.
+    bt_props : dict
+      Dictionary of Bullet properties (mass, restitution, etc.). Basically
+      the method set_key is called for the Bullet body, where "key" is each
+      key of the dictionary.
+
+    """
+
+    def __init__(self, name,
+                 first_object: PrimitiveBase, second_object: PrimitiveBase,
+                 rope_length, pulley_coords,
+                 geom=False, **bt_props):
+        super().__init__(name=name, geom=geom, **bt_props)
+        self.first_object = first_object
+        self.second_object = second_object
+        self.rope_length = rope_length
+        self.pulley_coords = [Point3(*c) for c in pulley_coords]
+
+        self.rope_length_between_pulleys = sum(
+            (c2 - c1).length()
+            for c2, c1 in zip(self.pulley_coords[1:], self.pulley_coords[:-1])
+        )
+        assert self.rope_length > self.rope_length_between_pulleys
+        self.max_dist = self.rope_length - self.rope_length_between_pulleys
+
+    def _attach_pulley(self, target, target_coords, pulley_coords):
+        target_name = target.path.get_name()
+        object_hook_coords = target.path.get_pos() + target_coords
+        # Each pulley connection is a combination of three constraints:
+        # One point-to-point at the pulley, another at the target, and a slider
+        # between them.
+        # Pulley base (static)
+        pulley_base = Empty(name=target_name + "_pulley-base")
+        pulley_base.create().set_pos(pulley_coords)
+        self.bodies += pulley_base.bodies
+        pulley_base.path.reparent_to(self.path)
+        # Pulley hook (can rotate on the base)
+        pulley_hook = Empty(name=target_name + "_pulley-hook")
+        pulley_hook.create().set_pos(pulley_coords)
+        pulley_hook.path.look_at(object_hook_coords)  # Y looks at
+        pulley_hook.path.set_hpr(pulley_hook.path, Vec3(90, 0, 0))  # now X
+        pulley_hook.bodies[0].set_mass(1e-2)  # to make it dynamic
+        pulley_hook.bodies[0].set_inertia(1e-4)  # to allow rotation
+        self.bodies += pulley_hook.bodies
+        pulley_hook.path.reparent_to(self.path)
+        # Object hook (can rotate on the object)
+        object_hook = Empty(name=target_name + "_object-hook")
+        object_hook.create().set_pos(object_hook_coords)
+        object_hook.path.look_at(pulley_hook.path.get_pos())  # Y looks at
+        object_hook.path.set_hpr(object_hook.path, Vec3(-90, 0, 0))  # now -X
+        object_hook.bodies[0].set_mass(1e-3)  # to make it dynamic
+        object_hook.bodies[0].set_inertia(1e-4)  # to allow rotation
+        self.bodies += object_hook.bodies
+        object_hook.path.reparent_to(self.path)
+        # Constraints
+        cs1 = bt.BulletSphericalConstraint(
+            pulley_base.bodies[0], pulley_hook.bodies[0],
+            Point3(0), Point3(0)
+        )
+        self.constraints.append(cs1)
+        cs2 = bt.BulletSliderConstraint(  # along the X-axis by default
+            pulley_hook.bodies[0], object_hook.bodies[0],
+            TransformState.make_pos(0), TransformState.make_pos(0), True
+        )
+        cs2.set_lower_linear_limit(0)
+        cs2.set_upper_linear_limit(self.max_dist)
+        cs2.set_max_linear_motor_force(1e6)
+        self.constraints.append(cs2)
+        cs3 = bt.BulletSphericalConstraint(
+            object_hook.bodies[0], target.bodies[0],
+            Point3(0), target_coords
+        )
+        self.constraints.append(cs3)
+
+    def _apply_rope_tension(self, callback_data):
+        slider1 = self.constraints[1]
+        dist1 = slider1.get_linear_pos()
+        slider2 = self.constraints[4]
+        dist2 = slider2.get_linear_pos()
+        current_length = self.rope_length_between_pulleys + dist1 + dist2
+        if current_length > self.rope_length:
+            if not slider1.get_powered_linear_motor():
+                # Turn on the motors
+                slider1.set_powered_linear_motor(True)
+                slider2.set_powered_linear_motor(True)
+            step = callback_data.get_timestep()
+            old_velocity = slider1.get_target_linear_motor_velocity()
+            velocity = old_velocity + self._pulley_acc * step
+            slider1.set_target_linear_motor_velocity(velocity)
+            slider2.set_target_linear_motor_velocity(-velocity)
+        else:
+            if slider1.get_powered_linear_motor():
+                # Turn off the motors
+                slider1.set_powered_linear_motor(False)
+                slider2.set_powered_linear_motor(False)
+                slider1.set_target_linear_motor_velocity(0)
+                slider2.set_target_linear_motor_velocity(0)
+        callback_data.upcall()  # just to be safe
+
+    def _get_pulley_acc(self):
+        gravity = 9.81
+        mass1 = self.first_object.bodies[0].get_mass()
+        mass2 = self.second_object.bodies[0].get_mass()
+        return gravity * (mass1-mass2) / (mass1+mass2)
+
+    def create(self):
+        # Scene graph
+        self.path = NodePath(self.name)
+        # Physics
+        # First pulley
+        self._attach_pulley(self.first_object, Point3(0),
+                            self.pulley_coords[0])
+        # Last pulley
+        self._attach_pulley(self.second_object, Point3(0),
+                            self.pulley_coords[-1])
+        self._pulley_acc = self._get_pulley_acc()
+        self.physics_callbacks.append(self._apply_rope_tension)
+        # Geometry
+        if self.geom:
+            pass
         return self.path
