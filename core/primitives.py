@@ -9,8 +9,8 @@ import numpy as np
 import panda3d.bullet as bt
 import solid as sl
 import solid.utils as slu
-from panda3d.core import (GeomNode, NodePath, Point3, PythonCallbackObject,
-                          TransformState, Vec3)
+from panda3d.core import (GeomNode, LineSegs, NodePath, Point3,
+                          PythonCallbackObject, TransformState, Vec3)
 
 from core.meshio import solid2panda, trimesh2panda
 
@@ -70,7 +70,7 @@ class PrimitiveBase:
         self.path = None
         self.bodies = []
         self.constraints = []
-        self.physics_callbacks = []
+        self.physics_callback = None
 
     def attach_to(self, path: NodePath, world: bt.BulletWorld):
         """Attach the object to the scene.
@@ -89,8 +89,11 @@ class PrimitiveBase:
         for cs in self.constraints:
             world.attach_constraint(cs, linked_collision=True)
             cs.set_debug_draw_size(.05)
-        for pc in self.physics_callbacks:
-            world.set_tick_callback(PythonCallbackObject(pc), is_pretick=True)
+        if self.physics_callback is not None:
+            world.set_tick_callback(
+                PythonCallbackObject(self.physics_callback),
+                is_pretick=True
+            )
 
     def create(self):
         raise NotImplementedError
@@ -634,12 +637,12 @@ class RopePulley(PrimitiveBase):
         self.rope_length = rope_length
         self.pulley_coords = [Point3(*c) for c in pulley_coords]
 
-        self.rope_length_between_pulleys = sum(
+        self.dist_between_pulleys = sum(
             (c2 - c1).length()
             for c2, c1 in zip(self.pulley_coords[1:], self.pulley_coords[:-1])
         )
-        assert self.rope_length > self.rope_length_between_pulleys
-        self.max_dist = self.rope_length - self.rope_length_between_pulleys
+        assert self.rope_length > self.dist_between_pulleys
+        self.max_dist = self.rope_length - self.dist_between_pulleys
 
     def _attach_pulley(self, target, target_coords, pulley_coords):
         target_name = target.path.get_name()
@@ -695,7 +698,7 @@ class RopePulley(PrimitiveBase):
         dist1 = slider1.get_linear_pos()
         slider2 = self.constraints[4]
         dist2 = slider2.get_linear_pos()
-        current_length = self.rope_length_between_pulleys + dist1 + dist2
+        current_length = self.dist_between_pulleys + dist1 + dist2
         if current_length > self.rope_length:
             if not slider1.get_powered_linear_motor():
                 # Turn on the motors
@@ -713,6 +716,8 @@ class RopePulley(PrimitiveBase):
                 slider2.set_powered_linear_motor(False)
                 slider1.set_target_linear_motor_velocity(0)
                 slider2.set_target_linear_motor_velocity(0)
+        if self.geom:
+            self._update_visual_rope()
         callback_data.upcall()  # just to be safe
 
     def _get_pulley_acc(self):
@@ -720,6 +725,38 @@ class RopePulley(PrimitiveBase):
         mass1 = self.first_object.bodies[0].get_mass()
         mass2 = self.second_object.bodies[0].get_mass()
         return gravity * (mass1-mass2) / (mass1+mass2)
+
+    def _update_visual_rope(self):
+        P1 = self.bodies[2].get_transform().get_pos()
+        P2 = self.bodies[0].get_transform().get_pos()
+        Pn_1 = self.bodies[3].get_transform().get_pos()
+        Pn = self.bodies[-1].get_transform().get_pos()
+        free_rope_length = max(
+            self.rope_length - (self.dist_between_pulleys + (P2 - P1).length()
+                                + (Pn - Pn_1).length()),
+            0
+        )
+        vertices = [P1, P2]
+        if free_rope_length:
+            t = np.linspace(0, 1, 51)[1:-1]
+            for ti in t:
+                p = P2 * (1-ti) + Pn_1 * ti
+                p[2] -= free_rope_length * .5 * math.sin(math.pi * ti)
+                vertices.append(p)
+        vertices += [Pn_1, Pn]
+        vertiter = iter(vertices)
+        # Replace old rope with new
+        name = "rope"
+        old = self.path.find(name)
+        if not old.is_empty():
+            old.remove_node()
+        ls = LineSegs(name)
+        ls.set_thickness(5)
+        ls.set_color(0)
+        ls.move_to(next(vertiter))
+        for v in vertiter:
+            ls.draw_to(v)
+        self.path.attach_new_node(ls.create())
 
     def create(self):
         # Scene graph
@@ -732,8 +769,8 @@ class RopePulley(PrimitiveBase):
         self._attach_pulley(self.second_object, Point3(0),
                             self.pulley_coords[-1])
         self._pulley_acc = self._get_pulley_acc()
-        self.physics_callbacks.append(self._apply_rope_tension)
+        self.physics_callback = self._apply_rope_tension
         # Geometry
         if self.geom:
-            pass
+            self._update_visual_rope()
         return self.path
