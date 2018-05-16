@@ -352,8 +352,8 @@ class PhysicsViewer(Modeler):
         except AttributeError:
             dn = BulletDebugNode("debug")
             dn.show_wireframe(True)
-            #  dn.show_constraints(True)
-            # dn.show_bounding_boxes(True)
+            dn.show_constraints(True)
+            dn.show_bounding_boxes(True)
             #  dn.show_normals(True)
             self._debug_np = self.render.attach_new_node(dn)
             self._debug_np.show()
