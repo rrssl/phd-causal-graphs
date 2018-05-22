@@ -613,7 +613,7 @@ class TeapotAdventure(Samplable, Scenario):
         nail_lever = prim.Lever(
             "nail_lever",
             cfg.PLANK_LWH,
-            (0, 0, 0, 0, 0, 0),
+            (-cfg.PLANK_LWH[0]*3/8, 0, 0, 0, 90, 0),
             geom=make_geom,
             mass=cfg.PLANK_MASS
         )
@@ -708,89 +708,106 @@ class TeapotAdventure(Samplable, Scenario):
             pos = Point3(0)
             hpr = Vec3(0)
         if name == "left_track1":
-            pos = Point3(sample[3], 0, sample[4])
-            hpr = Vec3(0, 0, sample[5])
+            at = math.radians(sample[3])
+            sin_at = math.sin(at)
+            cos_at = math.cos(at)
+            pos = Point3(
+                - cfg.SHORT_TRACK_LWH[0]/2
+                - cfg.LONG_TRACK_LWH[0]/2 * cos_at,
+                0,
+                cfg.LONG_TRACK_LWH[0]/2 * sin_at
+            )
+            hpr = Vec3(0, 0, sample[3])
         if name == "left_track2":
-            pos = Point3(sample[6], 0, sample[7])
-            hpr = Vec3(0, 0, sample[8])
+            pos = Point3(sample[4], 0, sample[5])
+            hpr = Vec3(0, 0, sample[6])
         if name == "left_track3":
-            pos = Point3(sample[9], 0, sample[10])
-            hpr = Vec3(0, 0, sample[11])
+            pos = Point3(sample[7], 0, sample[8])
+            hpr = Vec3(0, 0, sample[9])
         if name == "left_track4":
-            pos = Point3(sample[12], 0, sample[13])
-            hpr = Vec3(0, 0, sample[14])
+            pos = Point3(sample[10], 0, sample[11])
+            hpr = Vec3(0, 0, sample[12])
         if name == "right_track1":
-            pos = Point3(sample[15], 0, sample[16])
-            hpr = Vec3(0, 0, sample[17])
+            at = math.radians(sample[13])
+            sin_at = math.sin(at)
+            cos_at = math.cos(at)
+            pos = Point3(
+                cfg.SHORT_TRACK_LWH[0]/2
+                + cfg.LONG_TRACK_LWH[0]/2 * cos_at,
+                0,
+                - cfg.LONG_TRACK_LWH[0]/2 * sin_at
+            )
+            hpr = Vec3(0, 0, sample[13])
         if name == "right_track2":
-            pos = Point3(sample[18], 0, sample[19])
-            hpr = Vec3(0, 0, sample[20])
+            pos = Point3(sample[14], 0, sample[15])
+            hpr = Vec3(0, 0, sample[16])
         if name == "right_track3":
-            pos = Point3(sample[21], 0, sample[22])
-            hpr = Vec3(0, 0, sample[23])
+            pos = Point3(sample[17], 0, sample[18])
+            hpr = Vec3(0, 0, sample[19])
         if name == "right_track4":
-            pos = Point3(sample[24], 0, sample[25])
-            hpr = Vec3(0, 0, sample[26])
+            pos = Point3(sample[20], 0, sample[21])
+            hpr = Vec3(0, 0, sample[22])
         if name == "left_pulley_weight":
-            pos = Point3(sample[27], 0, sample[28])
-            hpr = Vec3(0)
+            pos = Point3(sample[23], 0, sample[24])
+            hpr = Vec3(0, 0, 90)
         if name == "left_weight_support":
             pos = Point3(
-                sample[27] + cfg.FLAT_SUPPORT_LWH[1]/2,
+                sample[23] + cfg.FLAT_SUPPORT_LWH[1]/2,
                 0,
-                sample[28]
+                sample[24]
                 - (cfg.QUAD_PLANK_LWH[0] + cfg.FLAT_SUPPORT_LWH[2]) / 2
             )
             hpr = Vec3(0)
         if name == "right_pulley_weight":
-            pos = Point3(sample[29], 0, sample[30])
+            pos = Point3(sample[25], 0, sample[26])
             hpr = Vec3(0)
         if name == "right_weight_support":
             pos = Point3(
-                sample[29] - cfg.FLAT_SUPPORT_LWH[1]/2,
+                sample[25] - cfg.FLAT_SUPPORT_LWH[0]/2 + 0.0009,
                 0,
-                sample[30]
+                sample[26]
                 - (cfg.RIGHT_WEIGHT_HEIGHT + cfg.FLAT_SUPPORT_LWH[2]) / 2
             )
             hpr = Vec3(0)
         if name == "top_pulley_weight":
-            pos = Point3(sample[31], 0, sample[32])
-            hpr = Vec3(0)
+            pos = Point3(sample[27], 0, sample[28])
+            hpr = Vec3(0, 0, 90)
         if name == "top_weight_support":
             pos = Point3(
-                sample[31] + cfg.PLANK_LWH[1]/2 + cfg.TINY_TRACK_LWH[0]/2,
+                sample[27] + cfg.PLANK_LWH[2]/2
+                + cfg.TINY_TRACK_LWH[0]/2 - .001,
                 0,
-                sample[32] - cfg.PLANK_LWH[0]/2 - cfg.TINY_TRACK_LWH[1]/2,
+                sample[28] - cfg.PLANK_LWH[0]/2 - cfg.TINY_TRACK_LWH[2]/2,
             )
             hpr = Vec3(0)
         if name == "sliding_plank":
             pos = Point3(
-                sample[31] + cfg.PLANK_LWH[1]/2 + cfg.PLANK_LWH[0]/2,
+                sample[27] + cfg.PLANK_LWH[2]/2 + cfg.PLANK_LWH[0]/2,
                 0,
-                sample[32] - cfg.PLANK_LWH[0]/2 + cfg.TINY_TRACK_LWH[1]/2,
+                sample[28] - cfg.PLANK_LWH[0]/2 + cfg.PLANK_LWH[1]/2,
             )
-            hpr = Vec3(0)
+            hpr = Vec3(0, 90, 0)
         if name == "nail_lever":
             pos = Point3(
-                sample[31] + cfg.PLANK_LWH[1]/2 + cfg.PLANK_LWH[0],
+                sample[27] + cfg.PLANK_LWH[2] + cfg.PLANK_LWH[0] + .001,
                 0,
-                sample[32] - cfg.PLANK_LWH[0]/2,
+                sample[28] - cfg.PLANK_LWH[0]*7/8,
             )
-            hpr = Vec3(0)
+            hpr = Vec3(0, 0, 90)
         if name == "bottom_pulley_track":
-            pos = Point3(sample[33], 0, sample[34])
-            hpr = Vec3(0)
+            pos = Point3(sample[29], 0, sample[30])
+            hpr = Vec3(0, 0, 90)
         if name == "bottom_goblet":
-            pos = Point3(sample[35], 0, sample[36])
+            pos = Point3(sample[31], 0, sample[32])
             hpr = Vec3(0)
         if name == "teapot_base":
-            pos = Point3(sample[37], 0, sample[36])
+            pos = Point3(sample[33], 0, sample[32])
             hpr = Vec3(0)
         if name == "teapot_lid":
             pos = Point3(
-                sample[37],
+                sample[33],
                 0,
-                sample[36] + cfg.GOBLET_HEIGHT + cfg.TEAPOT_LID_HEIGHT/2
+                sample[32] + cfg.GOBLET_HEIGHT + cfg.TEAPOT_LID_HEIGHT/2
             )
             hpr = Vec3(0)
         if name == "top_pulley":
@@ -802,17 +819,17 @@ class TeapotAdventure(Samplable, Scenario):
                 - cfg.TOP_TRACK_LWH[0]/2 * cos_at
                 - cfg.TOP_TRACK_LWH[2]/2 * sin_at,
                 0,
-                sample[38]
+                sample[34]
             )
-            pos2 = Point3(sample[31], 0, sample[38])
+            pos2 = Point3(sample[27], 0, sample[34])
             return pos1, pos2
         if name == "left_pulley":
-            pos1 = Point3(sample[27], 0, sample[39])
-            pos2 = Point3(sample[37], 0, sample[39])
+            pos1 = Point3(sample[23], 0, sample[35])
+            pos2 = Point3(sample[33], 0, sample[35])
             return pos1, pos2
         if name == "right_pulley":
-            pos1 = Point3(sample[29], 0, sample[40])
-            pos2 = Point3(sample[41], 0, sample[34])
+            pos1 = Point3(sample[25], 0, sample[36])
+            pos2 = Point3(sample[37], 0, sample[30])
             return pos1, pos2
         return pos, hpr
 

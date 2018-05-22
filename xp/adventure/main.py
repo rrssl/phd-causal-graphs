@@ -47,25 +47,25 @@ def export(x, name):
 
 def main():
     x_manual = [
-        -.3, .1, 15,        # top track
-        -.3, -.05, -15,     # left track 1
-        -.45, -.1, 15,      # left track 2
-        -.3, -.15, -15,     # left track 3
-        -.3, -.2, 15,       # left track 4
-        .3, -.05, 15,       # right track 1
-        .45, -.1, -15,      # right track 2
-        .3, -.15, 15,       # right track 3
-        .45, -.2, -20,      # right track 4
-        -.6, -.075,         # left pulley weight
-        .6, -.075,          # right pulley weight
-        -.05, .15,          # top pulley weight
-        0., -.25,           # bottom pulley track
-        -.05, -.4,          # bottom goblet
-        .05,                # teapot x
-        .3,                # top pulley p1 & p2 y
-        -.05,               # left pulley p1 & p2 y
+        -.30, .10, 15,        # top track
+        -15,                # left track 1
+        -.32, -.13, 15,      # left track 2
+        -.25, -.20, -15,     # left track 3
+        -.24, -.27, 15,       # left track 4
+        15,                 # right track 1
+        .33, -.13, -15,      # right track 2
+        .25, -.20, 15,       # right track 3
+        .32, -.27, -20,      # right track 4
+        -.42, -.12,         # left pulley weight
+        .43, -.09,          # right pulley weight
+        -.05, .19,          # top pulley weight
+        -.02, -.35,           # bottom pulley track
+        -.05, -.52,         # bottom goblet
+        .10,                # teapot x
+        .3,                 # top pulley p1 & p2 y
+        -.03,               # left pulley p1 & p2 y
         0.,                 # right pulley p1 y
-        .7                  # right pulley p2 x
+        .5                  # right pulley p2 x
     ]
     view_solution(x_manual)
     # x_random = search_random_solution()
