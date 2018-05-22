@@ -43,9 +43,10 @@ class Simulation:
             world.do_physics(ts, 2, ts)
             time += ts
 
-    def run_visual(self):
+    def run_visual(self, **viewer_kwargs):
         """Run the simulation in visual mode."""
-        app = ScenarioViewer(self.scenario, frame_rate=1/self.timestep)
+        app = ScenarioViewer(self.scenario, frame_rate=1/self.timestep,
+                             **viewer_kwargs)
         try:
             app.run()
         except SystemExit:

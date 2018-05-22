@@ -192,6 +192,12 @@ def create_axes():
 class Modeler(TurntableViewer):
     """Provides the look and feel of a basic 3D modeler.
 
+    Parameters
+    ----------
+    grid : str or None, optional
+        If not None, grid axes are specified by 'x', 'y' and 'z' (no matter
+        the order). Defaults to 'xy'.
+
     Features
     --------
     - Flat shading
@@ -201,7 +207,7 @@ class Modeler(TurntableViewer):
 
     """
 
-    def __init__(self):
+    def __init__(self, grid='xy'):
         super().__init__()
 
         self.models = self.render.attach_new_node("models")
@@ -236,9 +242,13 @@ class Modeler(TurntableViewer):
         self.axes = axes
         self.task_mgr.add(self.update_axes, "update_axes")
         # Ground plane
-        grid_maker = ThreeAxisGrid(xsize=1, ysize=1, zsize=0, gridstep=1)
-        grid_maker.gridColor = grid_maker.subdivColor = cfg.GRID_COLOR
-        grid_maker.create().reparent_to(self.visual)
+        if grid is not None:
+            grid_maker = ThreeAxisGrid(
+                xsize=('x' in grid), ysize=('y' in grid), zsize=('z' in grid),
+                gridstep=1
+            )
+            grid_maker.gridColor = grid_maker.subdivColor = cfg.GRID_COLOR
+            grid_maker.create().reparent_to(self.visual)
         # Save scene
         self.accept('s', self.models.write_bam_file, ["scene.bam"])
         # Center view on the entire scene
@@ -269,8 +279,9 @@ class PhysicsViewer(Modeler):
 
     """
 
-    def __init__(self, frame_rate=cfg.PHYSICS_FRAME_RATE, world=None):
-        super().__init__()
+    def __init__(self, frame_rate=cfg.PHYSICS_FRAME_RATE, world=None,
+                 **viewer_kwargs):
+        super().__init__(**viewer_kwargs)
         self.physics_frame_rate = frame_rate
 
         if world is None:
@@ -420,7 +431,7 @@ class FutureViewer(PhysicsViewer):
             for pos in trajectory[1:]:
                 polyline.draw_to(pos)
         self.future_vision.attach_new_node(polyline.create())
-#        print(self.future_vision.get_children())
+        # print(self.future_vision.get_children())
 
     def toggle_future(self):
         if self.future_vision.is_hidden():
@@ -458,8 +469,10 @@ class ScenarioViewer(PhysicsViewer):
       Same as PhysicsViewer.
 
     """
-    def __init__(self, scenario, frame_rate=cfg.PHYSICS_FRAME_RATE):
-        super().__init__(frame_rate=frame_rate, world=scenario.world)
+    def __init__(self, scenario, frame_rate=cfg.PHYSICS_FRAME_RATE,
+                 **viewer_kwargs):
+        super().__init__(frame_rate=frame_rate, world=scenario.world,
+                         **viewer_kwargs)
         self.scenario = scenario
         scenario.scene.reparent_to(self.models)
         if not scenario.check_physically_valid():
