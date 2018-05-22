@@ -20,6 +20,16 @@ class World(bt.BulletWorld):
 
     def __init__(self):
         super().__init__()
+        # Trick to have several physics callbacks.
+        self._callbacks = []
+        self.set_tick_callback(
+            PythonCallbackObject(self._run_callbacks),
+            is_pretick=True
+        )
+
+    def _run_callbacks(self, callback_data):
+        for cb in self._callbacks:
+            cb(callback_data)
 
     def set_gravity(self, gravity):
         gravity = Vec3(*gravity)
@@ -72,15 +82,15 @@ class PrimitiveBase:
         self.constraints = []
         self.physics_callback = None
 
-    def attach_to(self, path: NodePath, world: bt.BulletWorld):
+    def attach_to(self, path: NodePath, world: World):
         """Attach the object to the scene.
 
         Parameters
         ----------
         path : NodePath
             Path of the node in the scene tree where where objects are added.
-        world : BulletWorld
-            Physical world where the Bullet nodes are added.
+        world : World
+            Physical world where the rigid bodies and constraints are added.
 
         """
         self.path.reparent_to(path)
@@ -90,10 +100,7 @@ class PrimitiveBase:
             world.attach_constraint(cs, linked_collision=True)
             cs.set_debug_draw_size(.05)
         if self.physics_callback is not None:
-            world.set_tick_callback(
-                PythonCallbackObject(self.physics_callback),
-                is_pretick=True
-            )
+            world._callbacks.append(self.physics_callback)
 
     def create(self):
         raise NotImplementedError
