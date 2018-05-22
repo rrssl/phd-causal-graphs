@@ -625,6 +625,7 @@ class TeapotAdventure(Samplable, Scenario):
         top_pulley = prim.RopePulley(
             "top_pulley",
             top_goblet, top_pulley_weight,
+            Point3(0), Point3(-cfg.PLANK_LWH[0]/2, 0, 0),
             cfg.TOP_PULLEY_ROPE_LENGTH,
             cls.sample2coords(sample, "top_pulley"),
             geom=make_geom
@@ -635,6 +636,8 @@ class TeapotAdventure(Samplable, Scenario):
         left_pulley = prim.RopePulley(
             "left_pulley",
             left_pulley_weight, teapot_lid,
+            Point3(-cfg.PLANK_LWH[0]/2, 0, 0),
+            Point3(0, 0, cfg.TEAPOT_LID_HEIGHT)/2,
             cfg.LEFT_PULLEY_ROPE_LENGTH,
             cls.sample2coords(sample, "left_pulley"),
             geom=make_geom
@@ -645,6 +648,7 @@ class TeapotAdventure(Samplable, Scenario):
         right_pulley = prim.RopePulley(
             "right_pulley",
             right_pulley_weight, bottom_pulley_track,
+            Point3(0, 0, cfg.RIGHT_WEIGHT_HEIGHT/2), Point3(0),
             cfg.RIGHT_PULLEY_ROPE_LENGTH,
             cls.sample2coords(sample, "right_pulley"),
             geom=make_geom

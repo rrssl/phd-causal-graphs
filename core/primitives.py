@@ -610,13 +610,17 @@ class RopePulley(PrimitiveBase):
     ----------
     name : string
       Name of the primitive.
-    first_object : PrimitiveBase
+    obj1 : PrimitiveBase
       Primitive connected to the first end of the rope.
-    second_object : PrimitiveBase
+    obj2 : PrimitiveBase
       Primitive connected to the second end of the rope.
+    obj1_pos : (3,) float sequence
+      Relative position of the hook on obj1.
+    obj2_pos : (3,) float sequence
+      Relative position of the hook on obj2.
     rope_length : float
       Length of the rope.
-    pulley_coords : (n,3) ndarray
+    pulley_coords : (n,3) float array
       (x, y, z) of each pulley.
     geom : bool
       Whether to generate a geometry for visualization.
@@ -628,12 +632,15 @@ class RopePulley(PrimitiveBase):
     """
 
     def __init__(self, name,
-                 first_object: PrimitiveBase, second_object: PrimitiveBase,
+                 obj1: PrimitiveBase, obj2: PrimitiveBase,
+                 obj1_pos, obj2_pos,
                  rope_length, pulley_coords,
                  geom=False, **bt_props):
         super().__init__(name=name, geom=geom, **bt_props)
-        self.first_object = first_object
-        self.second_object = second_object
+        self.obj1 = obj1
+        self.obj2 = obj2
+        self.obj1_pos = Point3(*obj1_pos)
+        self.obj2_pos = Point3(*obj2_pos)
         self.rope_length = rope_length
         self.pulley_coords = [Point3(*c) for c in pulley_coords]
 
@@ -646,7 +653,8 @@ class RopePulley(PrimitiveBase):
 
     def _attach_pulley(self, target, target_coords, pulley_coords):
         target_name = target.path.get_name()
-        object_hook_coords = target.path.get_pos() + target_coords
+        object_hook_coords = target.path.get_transform(
+        ).get_mat().xform_point(target_coords)
         # Each pulley connection is a combination of three constraints:
         # One point-to-point at the pulley, another at the target, and a slider
         # between them.
@@ -722,8 +730,8 @@ class RopePulley(PrimitiveBase):
 
     def _get_pulley_acc(self):
         gravity = 9.81
-        mass1 = self.first_object.bodies[0].get_mass()
-        mass2 = self.second_object.bodies[0].get_mass()
+        mass1 = self.obj1.bodies[0].get_mass()
+        mass2 = self.obj2.bodies[0].get_mass()
         return gravity * (mass1-mass2) / (mass1+mass2)
 
     def _update_visual_rope(self):
@@ -763,20 +771,24 @@ class RopePulley(PrimitiveBase):
         self.path = NodePath(self.name)
         # Physics
         # First pulley
-        self._attach_pulley(self.first_object, Point3(0),
-                            self.pulley_coords[0])
+        self._attach_pulley(self.obj1, self.obj1_pos, self.pulley_coords[0])
         # Last pulley
-        self._attach_pulley(self.second_object, Point3(0),
-                            self.pulley_coords[-1])
+        self._attach_pulley(self.obj2, self.obj2_pos, self.pulley_coords[-1])
         self._pulley_acc = self._get_pulley_acc()
         self.physics_callback = self._apply_rope_tension
         # Geometry
         if self.geom:
             self._update_visual_rope()
-        for i, coords in enumerate(self.pulley_coords):
-            pulley = self.path.attach_new_node(
-                Cylinder.make_geom("pulley"+str(i)+"_geom", (.003, .05))
-            )
-            pulley.set_pos(coords)
-            pulley.set_p(90)
+            # Pulley geometry
+            pulley_line = self.pulley_coords[-1] - self.pulley_coords[0]
+            if pulley_line[0]:
+                pulley_hpr = Vec3(0, 90, 0)
+            else:
+                pulley_hpr = Vec3(0, 0, 90)
+            for i, coords in enumerate(self.pulley_coords):
+                pulley = self.path.attach_new_node(
+                    Cylinder.make_geom("pulley"+str(i)+"_geom", (.003, .05))
+                )
+                pulley.set_pos(coords)
+                pulley.set_hpr(pulley_hpr)
         return self.path

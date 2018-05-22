@@ -58,13 +58,13 @@ def main():
     pulley_cube.attach_to(app.models, app.world)
     rope_pulley = prim.RopePulley(
         name="rope-pulley",
-        first_object=pulley_ball, second_object=pulley_cube,
+        obj1=pulley_ball, obj2=pulley_cube,
+        obj1_pos=Point3(0, 0, .01), obj2_pos=Point3(0, 0, .01),
         rope_length=.30, pulley_coords=[[0, .16, .25], [0, .25, .3]],
         geom=True
     )
     rope_pulley.create()
     rope_pulley.attach_to(app.models, app.world)
-    app.models.ls()
 
     app.run()
 
