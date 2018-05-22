@@ -18,6 +18,13 @@ class TurntableViewer(ShowBase):
     """Provides a Blender-like 'turntable' viewer, more convenient than
     Panda3D's default trackball viewer.
 
+    Parameters
+    ----------
+    view_h : float, optional
+      Initial heading angle from which the scene is viewed. Defaults to 0.
+    view_p : float, optional
+      Initial pitch angle from which the scene is viewed. Defaults to 0.
+
     Features
     --------
     - Rotate around pivot (head and pan)
@@ -38,7 +45,7 @@ class TurntableViewer(ShowBase):
 
     """
 
-    def __init__(self):
+    def __init__(self, view_h=0, view_p=0):
         super().__init__()
 
         self.disable_mouse()
@@ -68,6 +75,8 @@ class TurntableViewer(ShowBase):
         # Pivot node
         self.pivot = self.render.attach_new_node("Pivot point")
         self.pivot.set_pos(0, 0, 0)
+        self.pivot.set_h(self.pivot, view_h)
+        self.pivot.set_p(self.pivot, view_p)
         self.camera.reparent_to(self.pivot)
 
         self.task_mgr.add(self.update_cam, "update_cam")
@@ -207,8 +216,8 @@ class Modeler(TurntableViewer):
 
     """
 
-    def __init__(self, grid='xy'):
-        super().__init__()
+    def __init__(self, grid='xy', **viewer_kwargs):
+        super().__init__(**viewer_kwargs)
 
         self.models = self.render.attach_new_node("models")
         self.visual = self.render.attach_new_node("visual")

@@ -37,7 +37,7 @@ def search_most_robust_solution(estimator: ScenarioRobustnessEstimator):
 def view_solution(x):
     scenario = TeapotAdventure(x, make_geom=True)
     simu = Simulation(scenario, timestep=1/500)
-    simu.run_visual(grid='xz')
+    simu.run_visual(grid='xz', view_h=180)
 
 
 def export(x, name):
