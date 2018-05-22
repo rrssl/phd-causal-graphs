@@ -773,4 +773,10 @@ class RopePulley(PrimitiveBase):
         # Geometry
         if self.geom:
             self._update_visual_rope()
+        for i, coords in enumerate(self.pulley_coords):
+            pulley = self.path.attach_new_node(
+                Cylinder.make_geom("pulley"+str(i)+"_geom", (.003, .05))
+            )
+            pulley.set_pos(coords)
+            pulley.set_p(90)
         return self.path
