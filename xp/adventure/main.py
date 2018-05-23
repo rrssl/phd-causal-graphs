@@ -58,7 +58,7 @@ def main():
         .32, -.27, -20,      # right track 4
         -.42, -.12,         # left pulley weight
         .43, -.09,          # right pulley weight
-        -.05, .19,          # top pulley weight
+        -.05, .18,          # top pulley weight
         -.02, -.35,           # bottom pulley track
         -.05, -.52,         # bottom goblet
         .10,                # teapot x

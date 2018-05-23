@@ -2,13 +2,13 @@ from math import atan, degrees
 
 from xp.config import *  # noqa: F401,F403
 
-BALL_RADIUS = 0.015 / 1  # [m]
+BALL_RADIUS = 0.01  # [m]
 BALL_MASS = 0.01 / 6  # [kg]
-TOP_TRACK_LWH = (0.35, 0.025, 0.005)  # [m]
+TOP_TRACK_LWHT = (0.35, 0.025, 0.005, .002)  # [m]
 TINY_TRACK_LWH = (0.1, 0.025, 0.005)  # [m]
 TINY_TRACK_MASS = .01  # [kg] TODO
-SHORT_TRACK_LWH = (0.15, 0.025, 0.005)  # [m]
-LONG_TRACK_LWH = (0.3, 0.025, 0.005)  # [m]
+SHORT_TRACK_LWHT = (0.15, 0.025, 0.005, .002)  # [m]
+LONG_TRACK_LWHT = (0.3, 0.025, 0.005, .002)  # [m]
 FLAT_SUPPORT_LWH = (.02, .025, .005)  # [m]
 GOBLET_HEIGHT = 0.11  # [m]
 GOBLET_R1 = 0.036  # [m]

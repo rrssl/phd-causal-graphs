@@ -1,19 +1,19 @@
-from collections import namedtuple
 import math
 import os
 import pickle
 import subprocess
+from collections import namedtuple
 
 import chaospy as cp
 import numpy as np
 from panda3d.core import NodePath, Point3, Vec3
 
 import core.primitives as prim
-import xp.causal as causal
 import xp.adventure.config as cfg
-from xp.scenarios import CausalGraphTerminationCondition, Samplable, Scenario, DummyTerminationCondition
+import xp.causal as causal
 from core.export import VectorFile
-
+from xp.scenarios import (CausalGraphTerminationCondition,
+                          DummyTerminationCondition, Samplable, Scenario)
 
 Scene = namedtuple('Scene', ['graph', 'world'])
 
@@ -226,7 +226,7 @@ class TeapotAdventure(Samplable, Scenario):
         shapes = []
         pos, hpr = cls.sample2coords(sample, "top_track")
         coords.append([pos.x, pos.z, hpr.z])
-        sizes.append([cfg.TOP_TRACK_LWH[0], cfg.TOP_TRACK_LWH[2]])
+        sizes.append([cfg.TOP_TRACK_LWHT[0], cfg.TOP_TRACK_LWH[2]])
         shapes.append('rect')
         pos, hpr = cls.sample2coords(sample, "bottom_track")
         coords.append([pos.x, pos.z, hpr.z])
@@ -383,9 +383,9 @@ class TeapotAdventure(Samplable, Scenario):
         )
         ball2.attach_to(scene.graph, scene.world)
 
-        top_track = prim.Box(
+        top_track = prim.Track(
             "top_track",
-            cfg.TOP_TRACK_LWH,
+            cfg.TOP_TRACK_LWHT,
             geom=make_geom
         )
         top_track.create().set_pos_hpr(
@@ -393,9 +393,9 @@ class TeapotAdventure(Samplable, Scenario):
         )
         top_track.attach_to(scene.graph, scene.world)
 
-        middle_track = prim.Box(
+        middle_track = prim.Track(
             "middle_track",
-            cfg.SHORT_TRACK_LWH,
+            cfg.SHORT_TRACK_LWHT,
             geom=make_geom
         )
         middle_track.create().set_pos_hpr(
@@ -403,9 +403,9 @@ class TeapotAdventure(Samplable, Scenario):
         )
         middle_track.attach_to(scene.graph, scene.world)
 
-        left_track1 = prim.Box(
+        left_track1 = prim.Track(
             "left_track1",
-            cfg.LONG_TRACK_LWH,
+            cfg.LONG_TRACK_LWHT,
             geom=make_geom
         )
         left_track1.create().set_pos_hpr(
@@ -413,9 +413,9 @@ class TeapotAdventure(Samplable, Scenario):
         )
         left_track1.attach_to(scene.graph, scene.world)
 
-        left_track2 = prim.Box(
+        left_track2 = prim.Track(
             "left_track2",
-            cfg.SHORT_TRACK_LWH,
+            cfg.SHORT_TRACK_LWHT,
             geom=make_geom
         )
         left_track2.create().set_pos_hpr(
@@ -423,9 +423,9 @@ class TeapotAdventure(Samplable, Scenario):
         )
         left_track2.attach_to(scene.graph, scene.world)
 
-        left_track3 = prim.Box(
+        left_track3 = prim.Track(
             "left_track3",
-            cfg.SHORT_TRACK_LWH,
+            cfg.SHORT_TRACK_LWHT,
             geom=make_geom
         )
         left_track3.create().set_pos_hpr(
@@ -433,9 +433,9 @@ class TeapotAdventure(Samplable, Scenario):
         )
         left_track3.attach_to(scene.graph, scene.world)
 
-        left_track4 = prim.Box(
+        left_track4 = prim.Track(
             "left_track4",
-            cfg.LONG_TRACK_LWH,
+            cfg.LONG_TRACK_LWHT,
             geom=make_geom
         )
         left_track4.create().set_pos_hpr(
@@ -443,9 +443,9 @@ class TeapotAdventure(Samplable, Scenario):
         )
         left_track4.attach_to(scene.graph, scene.world)
 
-        right_track1 = prim.Box(
+        right_track1 = prim.Track(
             "right_track1",
-            cfg.LONG_TRACK_LWH,
+            cfg.LONG_TRACK_LWHT,
             geom=make_geom
         )
         right_track1.create().set_pos_hpr(
@@ -453,9 +453,9 @@ class TeapotAdventure(Samplable, Scenario):
         )
         right_track1.attach_to(scene.graph, scene.world)
 
-        right_track2 = prim.Box(
+        right_track2 = prim.Track(
             "right_track2",
-            cfg.SHORT_TRACK_LWH,
+            cfg.SHORT_TRACK_LWHT,
             geom=make_geom
         )
         right_track2.create().set_pos_hpr(
@@ -463,9 +463,9 @@ class TeapotAdventure(Samplable, Scenario):
         )
         right_track2.attach_to(scene.graph, scene.world)
 
-        right_track3 = prim.Box(
+        right_track3 = prim.Track(
             "right_track3",
-            cfg.SHORT_TRACK_LWH,
+            cfg.SHORT_TRACK_LWHT,
             geom=make_geom
         )
         right_track3.create().set_pos_hpr(
@@ -473,9 +473,9 @@ class TeapotAdventure(Samplable, Scenario):
         )
         right_track3.attach_to(scene.graph, scene.world)
 
-        right_track4 = prim.Box(
+        right_track4 = prim.Track(
             "right_track4",
-            cfg.SHORT_TRACK_LWH,
+            cfg.SHORT_TRACK_LWHT,
             geom=make_geom
         )
         right_track4.create().set_pos_hpr(
@@ -671,12 +671,12 @@ class TeapotAdventure(Samplable, Scenario):
             cos_at = math.cos(at)
             pos = Point3(
                 sample[0] + .005
-                - cfg.TOP_TRACK_LWH[0]/2 * cos_at
-                - cfg.TOP_TRACK_LWH[2]/2 * sin_at,
+                - cfg.TOP_TRACK_LWHT[0]/2 * cos_at
+                - cfg.TOP_TRACK_LWHT[2]/2 * sin_at,
                 0,
                 sample[1]
-                + cfg.TOP_TRACK_LWH[0]/2 * sin_at
-                + cfg.TOP_TRACK_LWH[2]/2 * cos_at
+                + cfg.TOP_TRACK_LWHT[0]/2 * sin_at
+                + cfg.TOP_TRACK_LWHT[2]/2 * cos_at
                 + cfg.BALL_RADIUS
             )
             hpr = Vec3(0)
@@ -686,12 +686,12 @@ class TeapotAdventure(Samplable, Scenario):
             cos_at = math.cos(at)
             pos = Point3(
                 sample[0] + .005
-                - cfg.TOP_TRACK_LWH[0]/3 * cos_at
-                - cfg.TOP_TRACK_LWH[2]/3 * sin_at,
+                - cfg.TOP_TRACK_LWHT[0]/3 * cos_at
+                - cfg.TOP_TRACK_LWHT[2]/3 * sin_at,
                 0,
                 sample[1]
-                + cfg.TOP_TRACK_LWH[0]/3 * sin_at
-                + cfg.TOP_TRACK_LWH[2]/3 * cos_at
+                + cfg.TOP_TRACK_LWHT[0]/3 * sin_at
+                + cfg.TOP_TRACK_LWHT[2]/3 * cos_at
                 + cfg.BALL_RADIUS
             )
             hpr = Vec3(0)
@@ -701,12 +701,12 @@ class TeapotAdventure(Samplable, Scenario):
             cos_at = math.cos(at)
             pos = Point3(
                 sample[0] + .005
-                - cfg.TOP_TRACK_LWH[0]/2 * cos_at
-                - cfg.TOP_TRACK_LWH[2]/2 * sin_at,
+                - cfg.TOP_TRACK_LWHT[0]/2 * cos_at
+                - cfg.TOP_TRACK_LWHT[2]/2 * sin_at,
                 0,
                 sample[1]
-                + cfg.TOP_TRACK_LWH[0]/2 * sin_at
-                + cfg.TOP_TRACK_LWH[2]/2 * cos_at
+                + cfg.TOP_TRACK_LWHT[0]/2 * sin_at
+                + cfg.TOP_TRACK_LWHT[2]/2 * cos_at
                 + cfg.GOBLET_HEIGHT
             )
             hpr = Vec3(0, 0, 180)
@@ -718,10 +718,10 @@ class TeapotAdventure(Samplable, Scenario):
             sin_at = math.sin(at)
             cos_at = math.cos(at)
             pos = Point3(
-                - cfg.SHORT_TRACK_LWH[0]/2
-                - cfg.LONG_TRACK_LWH[0]/2 * cos_at,
+                - cfg.SHORT_TRACK_LWHT[0]/2
+                - cfg.LONG_TRACK_LWHT[0]/2 * cos_at,
                 0,
-                cfg.LONG_TRACK_LWH[0]/2 * sin_at
+                cfg.LONG_TRACK_LWHT[0]/2 * sin_at
             )
             hpr = Vec3(0, 0, sample[3])
         if name == "left_track2":
@@ -738,10 +738,10 @@ class TeapotAdventure(Samplable, Scenario):
             sin_at = math.sin(at)
             cos_at = math.cos(at)
             pos = Point3(
-                cfg.SHORT_TRACK_LWH[0]/2
-                + cfg.LONG_TRACK_LWH[0]/2 * cos_at,
+                cfg.SHORT_TRACK_LWHT[0]/2
+                + cfg.LONG_TRACK_LWHT[0]/2 * cos_at,
                 0,
-                - cfg.LONG_TRACK_LWH[0]/2 * sin_at
+                - cfg.LONG_TRACK_LWHT[0]/2 * sin_at
             )
             hpr = Vec3(0, 0, sample[13])
         if name == "right_track2":
@@ -758,7 +758,7 @@ class TeapotAdventure(Samplable, Scenario):
             hpr = Vec3(0, 0, 90)
         if name == "left_weight_support":
             pos = Point3(
-                sample[23] + cfg.FLAT_SUPPORT_LWH[1]/2,
+                sample[23] + cfg.FLAT_SUPPORT_LWH[1]/2 - 0.003,
                 0,
                 sample[24]
                 - (cfg.QUAD_PLANK_LWH[0] + cfg.FLAT_SUPPORT_LWH[2]) / 2
@@ -769,7 +769,7 @@ class TeapotAdventure(Samplable, Scenario):
             hpr = Vec3(0)
         if name == "right_weight_support":
             pos = Point3(
-                sample[25] - cfg.FLAT_SUPPORT_LWH[0]/2 + 0.0009,
+                sample[25] - cfg.FLAT_SUPPORT_LWH[0]/2 + 0.001,
                 0,
                 sample[26]
                 - (cfg.RIGHT_WEIGHT_HEIGHT + cfg.FLAT_SUPPORT_LWH[2]) / 2
@@ -822,8 +822,8 @@ class TeapotAdventure(Samplable, Scenario):
             cos_at = math.cos(at)
             pos1 = Point3(
                 sample[0]
-                - cfg.TOP_TRACK_LWH[0]/2 * cos_at
-                - cfg.TOP_TRACK_LWH[2]/2 * sin_at,
+                - cfg.TOP_TRACK_LWHT[0]/2 * cos_at
+                - cfg.TOP_TRACK_LWHT[2]/2 * sin_at,
                 0,
                 sample[34]
             )
