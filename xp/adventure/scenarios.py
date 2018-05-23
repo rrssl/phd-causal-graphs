@@ -645,12 +645,14 @@ class TeapotAdventure(Samplable, Scenario):
         left_pulley.create()
         left_pulley.attach_to(scene.graph, scene.world)
 
-        right_pulley = prim.RopePulley(
+        right_pulley = prim.RopePulleyPivot(
             "right_pulley",
             right_pulley_weight, bottom_pulley_track,
-            Point3(0, 0, cfg.RIGHT_WEIGHT_HEIGHT/2), Point3(0),
+            Point3(0, 0, cfg.RIGHT_WEIGHT_HEIGHT/2), Point3(0, 0, 0.015),
             cfg.RIGHT_PULLEY_ROPE_LENGTH,
             cls.sample2coords(sample, "right_pulley"),
+            (cfg.RIGHT_PULLEY_PIVOT_HEIGHT, cfg.RIGHT_PULLEY_PIVOT_RADIUS),
+            -1, cfg.RIGHT_PULLEY_PIVOT_COILED,
             geom=make_geom
         )
         right_pulley.create()
