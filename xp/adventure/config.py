@@ -3,17 +3,23 @@ from math import atan, degrees
 from xp.config import *  # noqa: F401,F403
 
 BALL_RADIUS = 0.01  # [m]
-BALL_MASS = 0.01 / 6  # [kg]
+BALL_MASS = 0.01  # [kg] TODO
+BALL_FRICTION = .1
 TOP_TRACK_LWHT = (0.35, 0.025, 0.005, .002)  # [m]
+TOP_TRACK_FRICTION = 1
 TINY_TRACK_LWH = (0.1, 0.025, 0.005)  # [m]
 TINY_TRACK_MASS = .01  # [kg] TODO
-SHORT_TRACK_LWHT = (0.15, 0.025, 0.005, .002)  # [m]
-LONG_TRACK_LWHT = (0.3, 0.025, 0.005, .002)  # [m]
+SHORT_TRACK_LWHT = (0.15, 0.025, 0.008, .002)  # [m]
+LONG_TRACK_LWHT = (0.3, 0.025, 0.008, .002)  # [m]
 FLAT_SUPPORT_LWH = (.02, .025, .005)  # [m]
 GOBLET_HEIGHT = 0.11  # [m]
 GOBLET_R1 = 0.036  # [m]
 GOBLET_R2 = 0.025  # [m]
-GOBLET_MASS = .01  # [g]
+GOBLET_MASS = .003  # [g]
+GOBLET_FRICTION = 1
+GOBLET_ANGULAR_DAMPING = 1
+NAIL_LEVER_LWH = (0.11, 0.005, 0.002)  # [m]
+NAIL_LEVER_MASS = 0.005  # [kg]
 PLANK_LWH = (0.1175, 0.023, 0.008)  # [m]
 PLANK_MASS = 0.01  # [kg]
 QUAD_PLANK_LWH = (0.1175, 0.023, 0.031)  # [m]
