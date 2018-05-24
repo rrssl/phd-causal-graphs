@@ -659,7 +659,7 @@ class RopePulley(PrimitiveBase):
         self.max_dist = self.rope_length - self.dist_between_pulleys
         assert self.max_dist > 0
         # Hardcoded physical properties.
-        self.hook_inertia = 1e-4
+        self.hook_inertia = 1e-3
         self.max_slider_force = 1e6
 
     def _attach_objects(self):
@@ -667,6 +667,7 @@ class RopePulley(PrimitiveBase):
         self._attach_pulley(self.obj2, self.obj2_pos, self.pulley_coords[-1])
 
     def _attach_pulley(self, target, target_coords, pulley_coords):
+        target.bodies[0].set_deactivation_enabled(False)
         target_name = target.path.get_name()
         object_hook_coords = target.path.get_transform(
         ).get_mat().xform_point(target_coords)
@@ -719,23 +720,43 @@ class RopePulley(PrimitiveBase):
     def _apply_rope_tension(self, callback_data):
         slider1 = self.constraints[1]
         slider2 = self.constraints[4]
+        # If in tension now
         if self._get_loose_rope_length() <= 0:
-            if not slider1.get_powered_linear_motor():
-                # Turn on the motors
-                slider1.set_powered_linear_motor(True)
-                slider2.set_powered_linear_motor(True)
-            step = callback_data.get_timestep()
-            old_velocity = slider1.get_target_linear_motor_velocity()
-            velocity = old_velocity + self._pulley_acc * step
-            slider1.set_target_linear_motor_velocity(velocity)
-            slider2.set_target_linear_motor_velocity(-velocity)
-        else:
-            if slider1.get_powered_linear_motor():
-                # Turn off the motors
-                slider1.set_powered_linear_motor(False)
-                slider2.set_powered_linear_motor(False)
-                slider1.set_target_linear_motor_velocity(0)
-                slider2.set_target_linear_motor_velocity(0)
+            # If in tension before
+            if self._in_tension:
+                mass1 = self.obj1.bodies[0].get_mass()
+                mass2 = self.obj2.bodies[0].get_mass()
+                hook1 = self.constraints[2]
+                hook2 = self.constraints[5]
+                imp1 = -hook1.get_applied_impulse()
+                imp2 = -hook2.get_applied_impulse()
+                step = callback_data.get_timestep()
+                # No idea why this formula works.
+                delta = 9.81 * step * (imp1 - imp2) / (mass1 + mass2)
+                new_dist1 = slider1.get_upper_linear_limit() + delta
+                # Clamp value between hard limits.
+                if new_dist1 < 0:
+                    new_dist1 = 0
+                elif new_dist1 > self.max_dist:
+                    new_dist1 = self.max_dist
+                new_dist2 = slider2.get_upper_linear_limit() - delta
+                # Clamp value between hard limits.
+                if new_dist2 < 0:
+                    new_dist2 = 0
+                elif new_dist2 > self.max_dist:
+                    new_dist2 = self.max_dist
+            else:
+                self._in_tension = True
+                new_dist1 = slider1.get_linear_pos()
+                new_dist2 = slider2.get_linear_pos()
+            slider1.set_upper_linear_limit(new_dist1)
+            slider2.set_upper_linear_limit(new_dist2)
+        # If in tension before but not anymore
+        elif self._in_tension:
+            self._in_tension = False
+            slider1.set_upper_linear_limit(self.max_dist)
+            slider2.set_upper_linear_limit(self.max_dist)
+        # (If not in tension now or before, don't update anything.)
         if self.geom:
             self._update_visual_rope()
 
@@ -801,6 +822,7 @@ class RopePulley(PrimitiveBase):
         # Physics
         self._attach_objects()
         self._pulley_acc = self._get_pulley_acc()
+        self._in_tension = False
         self.physics_callback = self._apply_rope_tension
         # Geometry
         if self.geom:
@@ -879,6 +901,7 @@ class RopePulleyPivot(RopePulley):
         self._attach_pivot(self.obj2, self.obj2_pos)
 
     def _attach_pivot(self, target, target_coords):
+        target.bodies[0].set_deactivation_enabled(False)
         target_name = target.path.get_name()
         pivot_pos = target.path.get_transform(
         ).get_mat().xform_point(target_coords)
