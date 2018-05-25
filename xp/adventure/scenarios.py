@@ -12,8 +12,7 @@ import core.primitives as prim
 import xp.adventure.config as cfg
 import xp.causal as causal
 from core.export import VectorFile
-from xp.scenarios import (CausalGraphTerminationCondition,
-                          DummyTerminationCondition, Samplable, Scenario)
+from xp.scenarios import CausalGraphTerminationCondition, Samplable, Scenario
 
 Scene = namedtuple('Scene', ['graph', 'world'])
 
@@ -118,6 +117,24 @@ class Stopping:
                 and angvel < cfg.STOPPING_ANGULAR_VELOCITY)
 
 
+class Falling:
+    def __init__(self, body):
+        self.body = body
+
+    def __call__(self):
+        linvel = self.body.node().get_linear_velocity()[2]
+        return linvel < cfg.FALLING_LINEAR_VELOCITY
+
+
+class Rising:
+    def __init__(self, body):
+        self.body = body
+
+    def __call__(self):
+        linvel = self.body.node().get_linear_velocity()[2]
+        return linvel > cfg.RISING_LINEAR_VELOCITY
+
+
 class StateObserver:
     """Keeps track of the full state of each non-static object in the scene."""
     def __init__(self, scene):
@@ -126,7 +143,7 @@ class StateObserver:
         self.states = dict()
         # Find and tag any GeomNode child of a non-static BulletRigidBodyNode.
         for body in scene.world.get_rigid_bodies():
-            if not body.is_static():
+            if not body.is_static() and body.get_num_children():
                 child = body.get_child(0)
                 if child.is_geom_node():
                     path = NodePath.any_path(child)
@@ -160,13 +177,12 @@ class TeapotAdventure(Samplable, Scenario):
     """
     def __init__(self, sample, make_geom=False, **kwargs):
         self._scene = self.init_scene(sample, make_geom)
-        # self.causal_graph = self.init_causal_graph(self._scene,
-        #                                            verbose=make_geom)
+        self.causal_graph = self.init_causal_graph(self._scene,
+                                                   verbose=make_geom)
         # LEGACY
         self.world = self._scene.world
         self.scene = self._scene.graph
-        # self.terminate = CausalGraphTerminationCondition(self.causal_graph)
-        self.terminate = DummyTerminationCondition()
+        self.terminate = CausalGraphTerminationCondition(self.causal_graph)
 
     def check_physically_valid(self):
         return self._check_physically_valid_scene(self._scene)
@@ -181,22 +197,22 @@ class TeapotAdventure(Samplable, Scenario):
         return True
         # graph = scene.graph
         # top_track = graph.find("top_track*").node()
-        # bottom_track = graph.find("bottom_track*").node()
+        # bridge = graph.find("bridge*").node()
         # high_plank = graph.find("high_plank*").node()
         # low_plank = graph.find("low_plank*").node()
         # base_plank = graph.find("base_plank*").node()
         # goblet = graph.find("goblet*").node()
         # # Enable collisions for static objects
-        # for body in (top_track, bottom_track, goblet):
+        # for body in (top_track, bridge, goblet):
         #     body.set_static(False)
         #     body.set_active(True)
         # test_pairs = [
-        #     (top_track, bottom_track),
+        #     (top_track, bridge),
         #     (top_track, high_plank),
         #     (top_track, low_plank),
         #     (top_track, goblet),
-        #     (bottom_track, base_plank),
-        #     (bottom_track, goblet),
+        #     (bridge, base_plank),
+        #     (bridge, goblet),
         #     (low_plank, goblet),
         #     (base_plank, goblet)
         # ]
@@ -228,7 +244,7 @@ class TeapotAdventure(Samplable, Scenario):
         coords.append([pos.x, pos.z, hpr.z])
         sizes.append([cfg.TOP_TRACK_LWHT[0], cfg.TOP_TRACK_LWH[2]])
         shapes.append('rect')
-        pos, hpr = cls.sample2coords(sample, "bottom_track")
+        pos, hpr = cls.sample2coords(sample, "bridge")
         coords.append([pos.x, pos.z, hpr.z])
         sizes.append([cfg.BOTTOM_TRACK_LWH[0], cfg.BOTTOM_TRACK_LWH[2]])
         shapes.append('rect')
@@ -279,81 +295,236 @@ class TeapotAdventure(Samplable, Scenario):
     def init_causal_graph(scene, verbose=False):
         scene_graph = scene.graph
         world = scene.world
-        ball = scene_graph.find("ball*")
+        ball1 = scene_graph.find("ball1*")
+        ball2 = scene_graph.find("ball2*")
         top_track = scene_graph.find("top_track*")
-        bottom_track = scene_graph.find("bottom_track*")
-        high_plank = scene_graph.find("high_plank*")
-        low_plank = scene_graph.find("low_plank*")
-        base_plank = scene_graph.find("base_plank*")
-        goblet = scene_graph.find("goblet*")
+        middle_track = scene_graph.find("middle_track*")
+        nail = scene_graph.find("nail_lever*").get_child(0)
+        gate = scene_graph.find("gate*")
+        top_goblet = scene_graph.find("top_goblet*")
+        right_track1 = scene_graph.find("right_track1*")
+        right_track2 = scene_graph.find("right_track2*")
+        right_track3 = scene_graph.find("right_track3*")
+        right_track4 = scene_graph.find("right_track4*")
+        right_weight = scene_graph.find("right_weight*")
+        left_track1 = scene_graph.find("left_track1*")
+        left_track2 = scene_graph.find("left_track2*")
+        left_track3 = scene_graph.find("left_track3*")
+        left_track4 = scene_graph.find("left_track4*")
+        left_weight = scene_graph.find("left_weight*")
+        bridge = scene_graph.find("bridge*")
+        teapot_base = scene_graph.find("teapot_base*")
+        teapot_lid = scene_graph.find("teapot_lid*")
 
-        ball_rolls_on_top_track = causal.Event(
-            "ball_rolls_on_top_track",
-            RollingOn(ball, top_track, world),
+        ball2_rolls_on_top_track = causal.Event(
+            "ball2_rolls_on_top_track",
+            RollingOn(ball2, top_track, world),
             None,
             causal.AllAfter(verbose=verbose),
             verbose=verbose
         )
-        ball_hits_high_plank = causal.Event(
-            "ball_hits_high_plank",
-            Contact(ball, high_plank, world),
+        ball2_falls_on_middle_track = causal.Event(
+            "ball2_falls_on_middle_track",
+            Contact(ball2, middle_track, world),
             causal.AllBefore(),
             causal.AllAfter(verbose=verbose),
             verbose=verbose
         )
-        high_plank_topples = causal.Event(
-            "high_plank_topples",
-            Toppling(high_plank, cfg.HIGH_PLANK_TOPPLING_ANGLE),
+        ball2_hits_nail = causal.Event(
+            "ball2_hits_nail",
+            Contact(ball2, nail, world),
             causal.AllBefore(),
             causal.AllAfter(verbose=verbose),
             verbose=verbose
         )
-        ball_rolls_on_bottom_track = causal.Event(
-            "ball_rolls_on_bottom_track",
-            RollingOn(ball, bottom_track, world),
+        ball2_falls_on_right_track1 = causal.Event(
+            "ball2_falls_on_right_track1",
+            Contact(ball2, right_track1, world),
             causal.AllBefore(),
             causal.AllAfter(verbose=verbose),
             verbose=verbose
         )
-        base_plank_moves = causal.Event(
-            "base_plank_moves",
-            Pivoting(base_plank),
+        ball2_hits_right_weight = causal.Event(
+            "ball2_hits_right_weight",
+            Contact(ball2, right_weight, world),
             causal.AllBefore(),
             causal.AllAfter(verbose=verbose),
             verbose=verbose
         )
-        low_plank_falls = causal.Event(
-            "low_plank_falls",
-            NoContact(low_plank, base_plank, world),
+        ball2_falls_on_right_track2 = causal.Event(
+            "ball2_falls_on_right_track2",
+            Contact(ball2, right_track2, world),
             causal.AllBefore(),
             causal.AllAfter(verbose=verbose),
             verbose=verbose
         )
-        ball_enters_goblet = causal.Event(
-            "ball_enters_goblet",
-            Inclusion(ball, goblet),
+        ball2_falls_on_right_track3 = causal.Event(
+            "ball2_falls_on_right_track3",
+            Contact(ball2, right_track3, world),
             causal.AllBefore(),
             causal.AllAfter(verbose=verbose),
             verbose=verbose
         )
-        ball_stops = causal.Event(
+        ball2_falls_on_right_track4 = causal.Event(
+            "ball2_falls_on_right_track4",
+            Contact(ball2, right_track4, world),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
+        )
+        ball2_enters_teapot = causal.Event(
+            "ball2_enters_teapot",
+            Inclusion(ball2, teapot_base),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
+        )
+        right_weight_falls = causal.Event(
+            "right_weight_falls",
+            Falling(right_weight),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
+        )
+        brige_pivots = causal.Event(
+            "brige_pivots",
+            Pivoting(bridge),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
+        )
+        gate_falls = causal.Event(
+            "gate_falls",
+            Falling(gate),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
+        )
+        top_goblet_rises = causal.Event(
+            "top_goblet_rises",
+            Rising(top_goblet),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
+        )
+        ball1_rolls_on_top_track = causal.Event(
+            "ball1_rolls_on_top_track",
+            RollingOn(ball1, top_track, world),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
+        )
+        ball1_hits_gate = causal.Event(
+            "ball1_hits_gate",
+            Contact(ball1, gate, world),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
+        )
+        ball1_falls_on_left_track1 = causal.Event(
+            "ball1_falls_on_left_track1",
+            Contact(ball1, left_track1, world),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
+        )
+        ball1_hits_left_weight = causal.Event(
+            "ball1_hits_left_weight",
+            Contact(ball1, left_weight, world),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
+        )
+        left_weight_falls = causal.Event(
+            "left_weight_falls",
+            Falling(left_weight),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
+        )
+        teapot_lid_rises = causal.Event(
+            "teapot_lid_rises",
+            Rising(teapot_lid),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
+        )
+        ball1_falls_on_left_track2 = causal.Event(
+            "ball1_falls_on_left_track2",
+            Contact(ball1, left_track2, world),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
+        )
+        ball1_falls_on_left_track3 = causal.Event(
+            "ball1_falls_on_left_track3",
+            Contact(ball1, left_track3, world),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
+        )
+        ball1_falls_on_left_track4 = causal.Event(
+            "ball1_falls_on_left_track4",
+            Contact(ball1, left_track4, world),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
+        )
+        ball1_falls_on_bridge = causal.Event(
+            "ball1_falls_on_bridge",
+            Contact(ball1, bridge, world),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
+        )
+        ball1_enters_teapot = causal.Event(
+            "ball1_enters_teapot",
+            Inclusion(ball1, teapot_base),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
+        )
+        ball1_stops = causal.Event(
             "ball_stops",
-            Stopping(ball),
+            Stopping(ball1),
             causal.AllBefore(),
             None,
             verbose=verbose
         )
-        causal.connect(ball_rolls_on_top_track, ball_hits_high_plank),
-        causal.connect(ball_hits_high_plank, high_plank_topples),
-        causal.connect(ball_hits_high_plank, ball_rolls_on_bottom_track),
-        causal.connect(ball_rolls_on_bottom_track, ball_enters_goblet),
-        causal.connect(high_plank_topples, base_plank_moves),
-        causal.connect(base_plank_moves, low_plank_falls),
-        causal.connect(low_plank_falls, ball_enters_goblet)
-        causal.connect(ball_enters_goblet, ball_stops)
+
+        # First branch
+        causal.connect(ball2_rolls_on_top_track, ball2_falls_on_middle_track),
+        causal.connect(ball2_falls_on_middle_track, ball2_hits_nail),
+        causal.connect(ball2_hits_nail, ball2_falls_on_right_track1),
+        causal.connect(ball2_falls_on_right_track1, ball2_hits_right_weight),
+        causal.connect(ball2_hits_right_weight, ball2_falls_on_right_track2),
+        causal.connect(ball2_falls_on_right_track2,
+                       ball2_falls_on_right_track3),
+        causal.connect(ball2_falls_on_right_track3,
+                       ball2_falls_on_right_track4),
+        causal.connect(ball2_falls_on_right_track4, ball2_enters_teapot),
+        # Second branch
+        causal.connect(ball2_hits_nail, gate_falls),
+        causal.connect(gate_falls, top_goblet_rises),
+        causal.connect(top_goblet_rises, ball1_rolls_on_top_track),
+        causal.connect(ball1_rolls_on_top_track, ball1_hits_gate),
+        causal.connect(ball1_hits_gate, ball1_falls_on_left_track1),
+        causal.connect(ball1_falls_on_left_track1, ball1_hits_left_weight),
+        causal.connect(ball1_hits_left_weight, ball1_falls_on_left_track2),
+        causal.connect(ball1_falls_on_left_track2, ball1_falls_on_left_track3),
+        causal.connect(ball1_falls_on_left_track3, ball1_falls_on_left_track4),
+        causal.connect(ball1_falls_on_left_track4, ball1_falls_on_bridge),
+        causal.connect(ball1_rolls_on_top_track, ball1_enters_teapot),
+        causal.connect(ball1_enters_teapot, ball1_stops)
+        # Sub-branch 1
+        causal.connect(ball2_hits_right_weight, right_weight_falls),
+        causal.connect(right_weight_falls, brige_pivots),
+        # Sub-branch 2
+        causal.connect(ball1_hits_left_weight, right_weight_falls),
+        causal.connect(left_weight_falls, teapot_lid_rises),
 
         graph = causal.CausalGraphTraverser(
-            root=ball_rolls_on_top_track, verbose=verbose
+            root=ball2_rolls_on_top_track, verbose=verbose
         )
         return graph
 
@@ -579,49 +750,49 @@ class TeapotAdventure(Samplable, Scenario):
         )
         sliding_plank.attach_to(scene.graph, scene.world)
 
-        top_pulley_weight = prim.Box(
-            "top_pulley_weight",
+        gate = prim.Box(
+            "gate",
             cfg.PLANK_LWH,
             geom=make_geom,
             mass=cfg.PLANK_MASS
         )
-        top_pulley_weight.create().set_pos_hpr(
-            *cls.sample2coords(sample, "top_pulley_weight")
+        gate.create().set_pos_hpr(
+            *cls.sample2coords(sample, "gate")
         )
-        top_pulley_weight.attach_to(scene.graph, scene.world)
+        gate.attach_to(scene.graph, scene.world)
 
-        left_pulley_weight = prim.Box(
-            "left_pulley_weight",
+        left_weight = prim.Box(
+            "left_weight",
             cfg.QUAD_PLANK_LWH,
             geom=make_geom,
             mass=4*cfg.PLANK_MASS,
         )
-        left_pulley_weight.create().set_pos_hpr(
-            *cls.sample2coords(sample, "left_pulley_weight")
+        left_weight.create().set_pos_hpr(
+            *cls.sample2coords(sample, "left_weight")
         )
-        left_pulley_weight.attach_to(scene.graph, scene.world)
+        left_weight.attach_to(scene.graph, scene.world)
 
-        right_pulley_weight = prim.Cylinder(
-            "right_pulley_weight",
+        right_weight = prim.Cylinder(
+            "right_weight",
             (cfg.RIGHT_WEIGHT_RADIUS, cfg.RIGHT_WEIGHT_HEIGHT),
             geom=make_geom,
             mass=cfg.RIGHT_WEIGHT_MASS
         )
-        right_pulley_weight.create().set_pos_hpr(
-            *cls.sample2coords(sample, "right_pulley_weight")
+        right_weight.create().set_pos_hpr(
+            *cls.sample2coords(sample, "right_weight")
         )
-        right_pulley_weight.attach_to(scene.graph, scene.world)
+        right_weight.attach_to(scene.graph, scene.world)
 
-        bottom_pulley_track = prim.Box(
-            "bottom_pulley_track",
+        bridge = prim.Box(
+            "bridge",
             cfg.TINY_TRACK_LWH,
             geom=make_geom,
             mass=cfg.TINY_TRACK_MASS
         )
-        bottom_pulley_track.create().set_pos_hpr(
-            *cls.sample2coords(sample, "bottom_pulley_track")
+        bridge.create().set_pos_hpr(
+            *cls.sample2coords(sample, "bridge")
         )
-        bottom_pulley_track.attach_to(scene.graph, scene.world)
+        bridge.attach_to(scene.graph, scene.world)
 
         teapot_base = prim.Goblet(
             "teapot_base",
@@ -658,7 +829,7 @@ class TeapotAdventure(Samplable, Scenario):
 
         top_pulley = prim.RopePulley(
             "top_pulley",
-            top_goblet, top_pulley_weight,
+            top_goblet, gate,
             Point3(0), Point3(-cfg.PLANK_LWH[0]/2, 0, 0),
             cfg.TOP_PULLEY_ROPE_LENGTH,
             cls.sample2coords(sample, "top_pulley"),
@@ -669,7 +840,7 @@ class TeapotAdventure(Samplable, Scenario):
 
         left_pulley = prim.RopePulley(
             "left_pulley",
-            left_pulley_weight, teapot_lid,
+            left_weight, teapot_lid,
             Point3(-cfg.PLANK_LWH[0]/2, 0, 0),
             Point3(0, 0, cfg.TEAPOT_LID_HEIGHT)/2,
             cfg.LEFT_PULLEY_ROPE_LENGTH,
@@ -681,7 +852,7 @@ class TeapotAdventure(Samplable, Scenario):
 
         right_pulley = prim.RopePulleyPivot(
             "right_pulley",
-            right_pulley_weight, bottom_pulley_track,
+            right_weight, bridge,
             Point3(0, 0, cfg.RIGHT_WEIGHT_HEIGHT/2),
             Point3(0, cfg.PLANK_LWH[1], 0.015),  # magical
             cfg.RIGHT_PULLEY_ROPE_LENGTH,
@@ -821,7 +992,7 @@ class TeapotAdventure(Samplable, Scenario):
         if name == "right_track4":
             pos = Point3(sample[20], 0, sample[21])
             hpr = Vec3(0, 0, sample[22])
-        if name == "left_pulley_weight":
+        if name == "left_weight":
             pos = Point3(sample[23], 0, sample[24])
             hpr = Vec3(0, 0, 90)
         if name == "left_weight_support":
@@ -832,7 +1003,7 @@ class TeapotAdventure(Samplable, Scenario):
                 - (cfg.QUAD_PLANK_LWH[0] + cfg.FLAT_SUPPORT_LWH[2]) / 2
             )
             hpr = Vec3(0)
-        if name == "right_pulley_weight":
+        if name == "right_weight":
             pos = Point3(sample[25], 0, sample[26])
             hpr = Vec3(0)
         if name == "right_weight_support":
@@ -843,7 +1014,7 @@ class TeapotAdventure(Samplable, Scenario):
                 - (cfg.RIGHT_WEIGHT_HEIGHT + cfg.FLAT_SUPPORT_LWH[2]) / 2
             )
             hpr = Vec3(0)
-        if name == "top_pulley_weight":
+        if name == "gate":
             pos = Point3(sample[27], 0, sample[28])
             hpr = Vec3(0, 0, 90)
         if name == "top_weight_support":
@@ -876,7 +1047,7 @@ class TeapotAdventure(Samplable, Scenario):
                 sample[28] - cfg.NAIL_LEVER_LWH[0]*.8,  # magical
             )
             hpr = Vec3(0, 0, 90)
-        if name == "bottom_pulley_track":
+        if name == "bridge":
             pos = Point3(sample[29], 0, sample[30])
             hpr = Vec3(0, 0, 90)
         if name == "bottom_goblet":
