@@ -845,19 +845,31 @@ class RopePulley(PrimitiveBase):
                 p[2] -= loose_rope_length * .5 * math.sin(math.pi * ti)
                 vertices.append(p)
         vertices += [Pn_1, Pn]
-        vertiter = iter(vertices)
-        # Replace old rope with new
+        # Update rope
         name = "rope"
-        old = self.path.find(name)
-        if not old.is_empty():
-            old.remove_node()
-        ls = LineSegs(name)
-        ls.set_thickness(5)
-        ls.set_color(0)
-        ls.move_to(next(vertiter))
-        for v in vertiter:
-            ls.draw_to(v)
-        self.path.attach_new_node(ls.create())
+        path = self.path.find(name)
+        redraw = False
+        if path.is_empty():
+            redraw = True
+        else:
+            ls = path.get_python_tag('LineSegs')
+            if ls.get_num_vertices() != len(vertices):
+                redraw = True
+                path.clear_python_tag('LineSegs')
+                path.remove_node()
+        if redraw:
+            ls = LineSegs(name)
+            ls.set_thickness(5)
+            ls.set_color(0)
+            vertiter = iter(vertices)
+            ls.move_to(next(vertiter))
+            for v in vertiter:
+                ls.draw_to(v)
+            path = self.path.attach_new_node(ls.create(dynamic=True))
+            path.set_python_tag('LineSegs', ls)
+        else:
+            for i, v in enumerate(vertices):
+                ls.set_vertex(i, v)
 
     def create(self):
         # Scene graph
