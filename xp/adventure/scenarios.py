@@ -299,7 +299,7 @@ class TeapotAdventure(Samplable, Scenario):
         ball2 = scene_graph.find("ball2*")
         top_track = scene_graph.find("top_track*")
         middle_track = scene_graph.find("middle_track*")
-        nail = scene_graph.find("nail_lever*").get_child(0)
+        nail = scene_graph.find("nail*")
         gate = scene_graph.find("gate*")
         top_goblet = scene_graph.find("top_goblet*")
         right_track1 = scene_graph.find("right_track1*")
@@ -815,17 +815,26 @@ class TeapotAdventure(Samplable, Scenario):
         )
         teapot_lid.attach_to(scene.graph, scene.world)
 
-        nail_lever = prim.Lever(
-            "nail_lever",
+        nail = prim.Box(
+            "nail",
             cfg.NAIL_LEVER_LWH,
-            (-cfg.NAIL_LEVER_LWH[0]*.2, 0, 0, 0, 90, 0),  # magical
             geom=make_geom,
             mass=cfg.NAIL_LEVER_MASS
         )
-        nail_lever.create().set_pos_hpr(
-            *cls.sample2coords(sample, "nail_lever")
+        nail.create().set_pos_hpr(
+            *cls.sample2coords(sample, "nail")
         )
-        nail_lever.attach_to(scene.graph, scene.world)
+        nail.attach_to(scene.graph, scene.world)
+
+        nail_pivot = prim.Pivot(
+            "pivot",
+            nail,
+            (-cfg.NAIL_LEVER_LWH[0]*.2, 0, 0),  # magical
+            (0, 90, 0),
+            geom=make_geom
+        )
+        nail_pivot.create()
+        nail_pivot.attach_to(scene.graph, scene.world)
 
         top_pulley = prim.RopePulley(
             "top_pulley",
@@ -1040,7 +1049,7 @@ class TeapotAdventure(Samplable, Scenario):
                 sample[28] - cfg.PLANK_LWH[0]/2 + cfg.PLANK_LWH[1]/2,
             )
             hpr = Vec3(0, 90, 0)
-        if name == "nail_lever":
+        if name == "nail":
             pos = Point3(  # magical
                 sample[27] + cfg.PLANK_LWH[2]/2 + cfg.PLANK_LWH[0] + .0005,
                 0,

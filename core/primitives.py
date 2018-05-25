@@ -406,6 +406,49 @@ class Capsule(PrimitiveBase):
         return geom_node
 
 
+class Pivot(PrimitiveBase):
+    """Attach a pivot constraint to a primitive.
+
+    Parameters
+    ----------
+    name : string
+      Name of the primitive.
+    obj : PrimitiveBase
+      Primitive attached to the pivot.
+    pivot_pos : (3,) float sequence
+      Relative position of the pivot wrt the primitive.
+    pivot_hpr : (3,) float sequence
+      Relative orientation of the pivot wrt the primitive.
+    geom : bool
+      Whether to generate a geometry for visualization.
+    bt_props : dict
+      Dictionary of Bullet properties (mass, restitution, etc.). Basically
+      the method set_key is called for the Bullet body, where "key" is each
+      key of the dictionary.
+
+    """
+
+    def __init__(self, name, obj: PrimitiveBase, pivot_pos, pivot_hpr,
+                 geom=False, **bt_props):
+        super().__init__(name=name, geom=geom, **bt_props)
+        self.obj = obj
+        self.pivot_xform = TransformState.make_pos_hpr(pivot_pos, pivot_hpr)
+
+    def create(self):
+        # Physics
+        pivot = Empty(name=self.name)
+        pivot.create().set_transform(self.obj.path, self.pivot_xform)
+        self.bodies += pivot.bodies
+        cs = bt.BulletHingeConstraint(
+            pivot.bodies[0], self.obj.bodies[0],
+            TransformState.make_identity(), self.pivot_xform
+        )
+        self.constraints.append(cs)
+        # Scene graph
+        self.path = pivot.path
+        return self.path
+
+
 class Lever(PrimitiveBase):
     """Create a lever.
 
