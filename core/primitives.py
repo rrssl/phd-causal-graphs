@@ -15,22 +15,28 @@ from panda3d.core import (GeomNode, LineSegs, NodePath, Point3,
 from core.meshio import solid2panda, trimesh2panda
 
 
+class CallbackSequence(list):
+    """Allows to define a sequence of callbacks to give to BulletWorld"""
+    def __call__(self, callback_data):
+        for cb in self:
+            cb(callback_data)
+        callback_data.upcall()  # just to be safe
+
+
 class World(bt.BulletWorld):
     """The world in which the primitives live."""
 
     def __init__(self):
         super().__init__()
-        # Trick to have several physics callbacks.
-        self._callbacks = []
+        # Trick to have several physics callbacks. Note that the callback
+        # object must not be a method of World, otherwise you get a circular
+        # reference leading to a memory leak when you instantiate many worlds
+        # at once.
+        self._callbacks = CallbackSequence()
         self.set_tick_callback(
-            PythonCallbackObject(self._run_callbacks),
+            PythonCallbackObject(self._callbacks),
             is_pretick=True
         )
-
-    def _run_callbacks(self, callback_data):
-        for cb in self._callbacks:
-            cb(callback_data)
-        callback_data.upcall()  # just to be safe
 
     def set_gravity(self, gravity):
         gravity = Vec3(*gravity)
