@@ -3,11 +3,12 @@ Custom classes to improve on the basic Panda3D viewer.
 
 """
 import math
+import pickle
 
 from direct.showbase.ShowBase import ShowBase
 from panda3d.bullet import BulletDebugNode
 from panda3d.core import (AmbientLight, DirectionalLight, LineSegs, NodePath,
-                          Point2, ShadeModelAttrib, Vec4)
+                          Point2, Point3, Quat, ShadeModelAttrib, Vec4)
 
 import gui.config as cfg
 from gui.coord_grid import ThreeAxisGrid
@@ -510,4 +511,88 @@ class ScenarioViewer(PhysicsViewer):
 
     def shutdown(self):
         self.task_mgr.remove("update_status")
+        super().shutdown()
+
+
+class Replayer(Modeler):
+    """Replay a sequence captured with a StateObserver.
+
+    The original (simulator) frame rate is automatically remapped to the
+    current video frame rate.
+
+    Parameters
+    ----------
+    scene : string
+      Filename of the .bam or .egg scene (.bam keeps more data).
+    frames : string
+      Filename of the .pkl dict of frames.
+
+    """
+    def __init__(self, scene, frames, **viewer_kwargs):
+        super().__init__(**viewer_kwargs)
+        self.scene = self.loader.load_model(scene)
+        self.scene.reparent_to(self.models)
+        self.nodepaths_and_frames = self.import_frames(frames)
+        first_frames = self.nodepaths_and_frames[0][1]
+        step = first_frames[1][0] - first_frames[0][0]
+        self.remapping_factor = 1 / (step * self.video_frame_rate)
+        self.frame_start = 0
+        self.frame_end = int((len(first_frames) - 1) / self.remapping_factor)
+
+        self.play = False
+        self.current_frame = 0
+        self.task_mgr.add(self.update_frame, "update_frame")
+        self.accept('r', self.reset_frame)
+        self.accept('space', self.toggle_play)
+        self.accept('n', self.go_to_next_frame)
+        self.accept('p', self.go_to_previous_frame)
+
+    def go_to_frame(self, fi):
+        # Clip fi
+        fs = self.frame_start
+        fe = self.frame_end
+        fi = fs if fi < fs else fe if fi > fe else fi
+        self.current_frame = fi
+        # Update transforms
+        scene = self.scene
+        fi_original = self.remap_frame(fi)
+        for nopa, frames in self.nodepaths_and_frames:
+            _, x, y, z, r, i, j, k = frames[fi_original]
+            nopa.set_pos(scene, Point3(x, y, z))
+            nopa.set_quat(scene, Quat(r, i, j, k))
+
+    def go_to_next_frame(self):
+        self.go_to_frame(self.current_frame + 1)
+
+    def go_to_previous_frame(self):
+        self.go_to_frame(self.current_frame - 1)
+
+    def import_frames(self, filename):
+        with open(filename, 'rb') as f:
+            frames = pickle.load(f)
+        nodepaths = self.scene.find_all_matches("**/=anim_id")
+        nodepaths_and_frames = []
+        for nopa in nodepaths:
+            nodepaths_and_frames.append(
+                (nopa, frames[nopa.get_tag('anim_id')])
+            )
+        return nodepaths_and_frames
+
+    def remap_frame(self, fi):
+        return int(fi * self.remapping_factor)
+
+    def reset_frame(self):
+        self.go_to_frame(0)
+
+    def toggle_play(self):
+        self.play = not self.play
+
+    def update_frame(self, task):
+        if self.play:
+            fi = (self.current_frame + 1) % (self.frame_end + 1)
+            self.go_to_frame(fi)
+        return task.cont
+
+    def shutdown(self):
+        self.task_mgr.remove("update_frame")
         super().shutdown()

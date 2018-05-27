@@ -1,5 +1,4 @@
 import math
-import os
 import pickle
 import subprocess
 from collections import namedtuple
@@ -233,7 +232,6 @@ class TeapotAdventure(Samplable, Scenario):
             filename = filename[:-4]
         self._scene.graph.write_bam_file(filename + ".bam")
         subprocess.run(["bam2egg", "-o", filename + ".egg", filename + ".bam"])
-        os.remove(filename + ".bam")
 
     @classmethod
     def export_scene_to_pdf(cls, filename, sample, sheetsize):

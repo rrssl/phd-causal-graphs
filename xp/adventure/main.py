@@ -5,17 +5,20 @@ import numpy as np
 from joblib import Memory, dump, load
 
 sys.path.insert(0, os.path.abspath("../.."))
-from xp.adventure.scenarios import TeapotAdventure  # noqa: E402
+from gui.viewers import Replayer  # noqa: E402
 from xp.robustness import ScenarioRobustnessEstimator  # noqa: E402
 from xp.simulate import Simulation  # noqa: E402
 
 memory = Memory(cachedir=".cache")
 
 
-@memory.cache
-def search_random_solution(n_cand=200):
-    candidates = TeapotAdventure.sample_valid(n_cand, max_trials=3*n_cand,
-                                              rule='R')
+def replay_solution(name):
+    app = Replayer(name+".bam", name+"_frames.pkl", grid='xz', view_h=180)
+    try:
+        app.run()
+    except SystemExit:
+        app.destroy()
+
 
     def run_and_check(x):
         scenario = TeapotAdventure(x)
@@ -38,6 +41,16 @@ def view_solution(x):
     scenario = TeapotAdventure(x, make_geom=True)
     simu = Simulation(scenario, timestep=1/500)
     simu.run_visual(grid='xz', view_h=180)
+
+
+def export_animation(x, filename="scene"):
+    scenario = TeapotAdventure(x, make_geom=True)
+    observer = StateObserver(scenario._scene)
+
+    scenario.export_scene_to_egg(filename)
+    simu = Simulation(scenario, [observer], timestep=1/500)
+    simu.run()
+    observer.export(filename+"_frames.pkl")
 
 
 def export(x, name):
