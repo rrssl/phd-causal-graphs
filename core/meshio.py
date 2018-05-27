@@ -73,10 +73,15 @@ def trimesh2panda(vertices, triangles, vertex_normals=None, face_normals=None,
     return geom
 
 
-def solid2panda(model):
+def solid2panda(model, _cache={}):
     scad = solid.scad_render(model).replace('$', '$$')
-    # Hackish, but I'd rather let trimesh deal with the tempfile and
-    # subprocess call.
-    data = trimesh.interfaces.scad.interface_scad([], scad)
-    return trimesh2panda(data.vertices, data.faces,
-                         face_normals=data.face_normals, flat_shading=True)
+    try:
+        geom = _cache[scad]
+    except KeyError:
+        # Hackish, but I'd rather let trimesh deal with the tempfile and
+        # subprocess call.
+        data = trimesh.interfaces.scad.interface_scad([], scad)
+        geom = trimesh2panda(data.vertices, data.faces,
+                             face_normals=data.face_normals, flat_shading=True)
+        _cache[scad] = geom
+    return geom
