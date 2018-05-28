@@ -475,14 +475,10 @@ class ScenarioViewer(PhysicsViewer):
     ----------
     scenario : Scenario
       Instance of a class from scenario.py.
-    frame_rate : float, optional
-      Same as PhysicsViewer.
 
     """
-    def __init__(self, scenario, frame_rate=cfg.PHYSICS_FRAME_RATE,
-                 **viewer_kwargs):
-        super().__init__(frame_rate=frame_rate, world=scenario.world,
-                         **viewer_kwargs)
+    def __init__(self, scenario, **viewer_kwargs):
+        super().__init__(world=scenario.world, **viewer_kwargs)
         self.scenario = scenario
         scenario.scene.reparent_to(self.models)
         if not scenario.check_physically_valid():
