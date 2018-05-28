@@ -408,7 +408,7 @@ class Samplable:
                     break
         else:
             print("Ran out of trials")
-        return samples
+        return samples[:n_valid]
 
 
 class Scenario:
