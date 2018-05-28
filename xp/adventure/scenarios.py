@@ -174,10 +174,12 @@ class TeapotAdventure(Samplable, Scenario):
       []
 
     """
-    def __init__(self, sample, make_geom=False, **kwargs):
+    def __init__(self, sample, make_geom=False, graph_view=False, **kwargs):
         self._scene = self.init_scene(sample, make_geom)
         self.causal_graph = self.init_causal_graph(self._scene,
                                                    verbose=make_geom)
+        if graph_view:
+            self.graph_view = causal.CausalGraphViewer(self.causal_graph.root)
         # LEGACY
         self.world = self._scene.world
         self.scene = self._scene.graph

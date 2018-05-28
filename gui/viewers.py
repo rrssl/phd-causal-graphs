@@ -491,6 +491,8 @@ class ScenarioViewer(PhysicsViewer):
         self.status = None
         self.task_mgr.add(self.update_status, "update_status")
         self.accept('r', self.reset_scenario)
+        if hasattr(scenario, 'graph_view'):
+            self.accept('g', scenario.graph_view.render)
 
     def update_status(self, task):
         scenario = self.scenario

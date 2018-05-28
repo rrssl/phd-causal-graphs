@@ -1,4 +1,7 @@
 from enum import Enum
+from tempfile import NamedTemporaryFile
+
+from graphviz import Digraph
 
 import xp.config as cfg
 
@@ -152,6 +155,36 @@ class CausalGraphTraverser:
                 break
             else:
                 self.last_wake_time = max(event.wake_time, self.last_wake_time)
+
+
+class CausalGraphViewer:
+    def __init__(self, root):
+        self.root = root
+        self._file = NamedTemporaryFile()
+        self.colors = {
+            EventState.asleep: 'white',
+            EventState.awake: 'yellow',
+            EventState.success: 'green',
+            EventState.failure: 'orange',
+        }
+
+    def render(self, filename=None):
+        filename = filename if filename else self._file.name
+        g = Digraph('G', filename=filename)
+        to_process = {self.root}
+        processed = set()
+        while to_process:
+            event = to_process.pop()
+            if event in processed:
+                continue
+            g.node(event.name, style='filled', color='black',
+                   fillcolor=self.colors[event.state])
+            if event.outcome:
+                for trans in event.outcome.transitions:
+                    g.edge(event.name, trans.dest.name)
+                    to_process.add(trans.dest)
+            processed.add(event)
+        g.view()
 
 
 def connect(source, dest):
