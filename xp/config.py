@@ -14,7 +14,7 @@ REDUCE_SYM = True
 
 # Simulation parameters.
 TIMESTEP = 1/500            # [s]
-TIMEOUT = 10                # [s]
+TIMEOUT = 20                # [s]
 MAX_WAIT_TIME = 2           # [s]
 
 # Learning parameters.
