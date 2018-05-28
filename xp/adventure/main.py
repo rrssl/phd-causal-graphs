@@ -6,6 +6,7 @@ from joblib import Memory, dump, load
 
 sys.path.insert(0, os.path.abspath("../.."))
 from gui.viewers import Replayer  # noqa: E402
+from xp.adventure.scenarios import StateObserver, TeapotAdventure  # noqa: E402
 from xp.robustness import ScenarioRobustnessEstimator  # noqa: E402
 from xp.simulate import Simulation  # noqa: E402
 
