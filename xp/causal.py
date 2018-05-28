@@ -185,7 +185,8 @@ class CausalGraphViewer:
                    fillcolor=self.colors[event.state])
             if event.outcome:
                 for trans in event.outcome.transitions:
-                    g.edge(event.name, trans.dest.name)
+                    g.edge(event.name, trans.dest.name,
+                           label=str(int(trans.active)))
                     to_process.add(trans.dest)
             processed.add(event)
         g.view()
