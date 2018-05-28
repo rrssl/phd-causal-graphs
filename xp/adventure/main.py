@@ -6,6 +6,7 @@ from joblib import Memory, dump, load, Parallel, delayed
 
 sys.path.insert(0, os.path.abspath("../.."))
 from gui.viewers import Replayer  # noqa: E402
+import xp.adventure.config as cfg  # noqa: E402
 from xp.adventure.scenarios import StateObserver, TeapotAdventure  # noqa: E402
 from xp.causal import EventState  # noqa: E402
 from xp.robustness import ScenarioRobustnessEstimator  # noqa: E402
@@ -116,6 +117,9 @@ def main():
     # view_solution(x_manual)
     # export_animation(x_manual, filename="scene")
     # replay_solution("scene")
+    bounds = np.sort(np.column_stack([x_manual*.95, x_manual*1.05]), axis=1)
+    bounds[-2] = [-.01, .01]
+    cfg.SCENARIO_PARAMETERS_BOUNDS = bounds
     for x_random, success, failure_point in zip(*evaluate_random_candidates()):
         if success:
             # view_solution(x_random)
