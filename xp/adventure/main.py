@@ -105,7 +105,7 @@ def main():
         .32, -.27, -20,     # right track 4
         -.411, -.11,        # left pulley weight
         .43, -.10,          # right pulley weight
-        -.07, .16,          # gate
+        -.07,               # gate x
         -.05, -.30,         # bridge
         -.05, -.50,         # bottom goblet
         .13,                # teapot x
