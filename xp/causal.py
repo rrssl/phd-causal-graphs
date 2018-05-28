@@ -27,9 +27,6 @@ class Event:
         return self.name
 
     def reset(self):
-        if self.outcome:
-            for trans in self.outcome.transitions:
-                trans.active = False
         self.state = EventState.asleep
         self.wake_time = 0
 
@@ -127,12 +124,16 @@ class CausalGraphTraverser:
         self.state = None
         self.last_wake_time = 0
         to_reset = {self.root}
+        reset = set()
         while to_reset:
             event = to_reset.pop()
             event.reset()
             if event.outcome:
                 for trans in event.outcome.transitions:
-                    to_reset.add(trans.dest)
+                    trans.active = False
+                    if trans.dest not in reset:
+                        to_reset.add(trans.dest)
+            reset.add(event)
 
     def update(self, time):
         if self.state in (CausalGraphState.success, CausalGraphState.failure):
