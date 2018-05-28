@@ -110,8 +110,8 @@ class Stopping:
         self.body = body
 
     def __call__(self):
-        linvel = self.body.node().get_linear_velocity().length_squared()
-        angvel = self.body.node().get_angular_velocity().length_squared()
+        linvel = self.body.node().get_linear_velocity().length()
+        angvel = self.body.node().get_angular_velocity().length()
         return (linvel < cfg.STOPPING_LINEAR_VELOCITY
                 and angvel < cfg.STOPPING_ANGULAR_VELOCITY)
 
@@ -132,6 +132,11 @@ class Rising:
     def __call__(self):
         linvel = self.body.node().get_linear_velocity()[2]
         return linvel > cfg.RISING_LINEAR_VELOCITY
+
+
+class Dummy:
+    def __call__(self):
+        return True
 
 
 class StateObserver:
@@ -485,43 +490,57 @@ class TeapotAdventure(Samplable, Scenario):
             verbose=verbose
         )
         ball1_stops = causal.Event(
-            "ball_stops",
+            "ball1_stops",
             Stopping(ball1),
             causal.AllBefore(),
-            None,
+            causal.AllAfter(verbose=verbose),
             verbose=verbose
         )
+        ball2_stops = causal.Event(
+            "ball2_stops",
+            Stopping(ball2),
+            causal.AllBefore(),
+            causal.AllAfter(verbose=verbose),
+            verbose=verbose
+        )
+        end = causal.Event("end", Dummy(), causal.AllBefore(), None,
+                           verbose=verbose)
 
         # First branch
-        causal.connect(ball2_rolls_on_top_track, ball2_falls_on_middle_track),
-        causal.connect(ball2_falls_on_middle_track, ball2_hits_nail),
-        causal.connect(ball2_hits_nail, ball2_falls_on_right_track1),
-        causal.connect(ball2_falls_on_right_track1, ball2_hits_right_weight),
-        causal.connect(ball2_hits_right_weight, ball2_falls_on_right_track2),
+        causal.connect(ball2_rolls_on_top_track, ball2_falls_on_middle_track)
+        causal.connect(ball2_falls_on_middle_track, ball2_hits_nail)
+        causal.connect(ball2_hits_nail, ball2_falls_on_right_track1)
+        causal.connect(ball2_falls_on_right_track1, ball2_hits_right_weight)
+        causal.connect(ball2_hits_right_weight, ball2_falls_on_right_track2)
         causal.connect(ball2_falls_on_right_track2,
-                       ball2_falls_on_right_track3),
+                       ball2_falls_on_right_track3)
         causal.connect(ball2_falls_on_right_track3,
-                       ball2_falls_on_right_track4),
-        causal.connect(ball2_falls_on_right_track4, ball2_enters_teapot),
+                       ball2_falls_on_right_track4)
+        causal.connect(ball2_falls_on_right_track4, ball2_enters_teapot)
+        causal.connect(ball2_enters_teapot, ball2_stops)
+        causal.connect(ball2_stops, end)
         # Second branch
-        causal.connect(ball2_hits_nail, gate_falls),
-        causal.connect(gate_falls, top_goblet_rises),
-        causal.connect(top_goblet_rises, ball1_rolls_on_top_track),
-        causal.connect(ball1_rolls_on_top_track, ball1_hits_gate),
-        causal.connect(ball1_hits_gate, ball1_falls_on_left_track1),
-        causal.connect(ball1_falls_on_left_track1, ball1_hits_left_weight),
-        causal.connect(ball1_hits_left_weight, ball1_falls_on_left_track2),
-        causal.connect(ball1_falls_on_left_track2, ball1_falls_on_left_track3),
-        causal.connect(ball1_falls_on_left_track3, ball1_falls_on_left_track4),
-        causal.connect(ball1_falls_on_left_track4, ball1_falls_on_bridge),
-        causal.connect(ball1_rolls_on_top_track, ball1_enters_teapot),
+        causal.connect(ball2_hits_nail, gate_falls)
+        causal.connect(gate_falls, top_goblet_rises)
+        causal.connect(top_goblet_rises, ball1_rolls_on_top_track)
+        causal.connect(ball1_rolls_on_top_track, ball1_hits_gate)
+        causal.connect(ball1_hits_gate, ball1_falls_on_left_track1)
+        causal.connect(ball1_falls_on_left_track1, ball1_hits_left_weight)
+        causal.connect(ball1_hits_left_weight, ball1_falls_on_left_track2)
+        causal.connect(ball1_falls_on_left_track2, ball1_falls_on_left_track3)
+        causal.connect(ball1_falls_on_left_track3, ball1_falls_on_left_track4)
+        causal.connect(ball1_falls_on_left_track4, ball1_falls_on_bridge)
+        causal.connect(ball1_falls_on_bridge, ball1_enters_teapot)
         causal.connect(ball1_enters_teapot, ball1_stops)
+        causal.connect(ball1_stops, end)
         # Sub-branch 1
-        causal.connect(ball2_hits_right_weight, right_weight_falls),
-        causal.connect(right_weight_falls, brige_pivots),
+        causal.connect(ball2_hits_right_weight, right_weight_falls)
+        causal.connect(right_weight_falls, brige_pivots)
+        causal.connect(brige_pivots, ball1_falls_on_bridge)
         # Sub-branch 2
-        causal.connect(ball1_hits_left_weight, right_weight_falls),
-        causal.connect(left_weight_falls, teapot_lid_rises),
+        causal.connect(ball1_hits_left_weight, left_weight_falls)
+        causal.connect(left_weight_falls, teapot_lid_rises)
+        causal.connect(teapot_lid_rises, ball2_enters_teapot)
 
         graph = causal.CausalGraphTraverser(
             root=ball2_rolls_on_top_track, verbose=verbose
@@ -797,7 +816,8 @@ class TeapotAdventure(Samplable, Scenario):
         teapot_base = prim.Goblet(
             "teapot_base",
             (cfg.GOBLET_HEIGHT, cfg.GOBLET_R1, cfg.GOBLET_R2),
-            geom=make_geom
+            geom=make_geom,
+            friction=cfg.TEAPOT_FRICTION
         )
         teapot_base.create().set_pos_hpr(
             *cls.sample2coords(sample, "teapot_base")
@@ -1006,7 +1026,7 @@ class TeapotAdventure(Samplable, Scenario):
             hpr = Vec3(0, 0, 90)
         if name == "left_weight_support":
             pos = Point3(
-                sample[23] + cfg.FLAT_SUPPORT_LWH[1]/2 - 0.0025,  # magical
+                sample[23] + cfg.FLAT_SUPPORT_LWH[1]/2 - 0.0021,  # magical
                 0,
                 sample[24]
                 - (cfg.QUAD_PLANK_LWH[0] + cfg.FLAT_SUPPORT_LWH[2]) / 2
@@ -1082,7 +1102,7 @@ class TeapotAdventure(Samplable, Scenario):
                 - cfg.TOP_TRACK_LWHT[2]/2 * sin_at
                 + .9*cfg.GOBLET_R1,  # magical
                 0,
-                sample[34] + .06  # magical
+                sample[34]
             )
             pos2 = Point3(sample[27], 0, sample[34])
             return pos1, pos2

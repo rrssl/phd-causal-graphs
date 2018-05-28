@@ -59,7 +59,7 @@ def export(x, name):
 
 
 def main():
-    x_manual = [
+    x_manual = np.array([
         -.30, .11, 11,      # top track
         -11,                # left track 1
         -.32, -.11, 10,     # left track 2
@@ -69,17 +69,17 @@ def main():
         .33, -.12, -2,      # right track 2
         .25, -.18, 2,       # right track 3
         .32, -.27, -20,     # right track 4
-        -.41, -.11,         # left pulley weight
+        -.411, -.11,        # left pulley weight
         .43, -.10,          # right pulley weight
-        -.06, .16,          # top pulley weight
-        -.05, -.30,         # bottom pulley track
+        -.07, .16,          # gate
+        -.05, -.30,         # bridge
         -.05, -.50,         # bottom goblet
         .13,                # teapot x
-        .28,                # top pulley p1 & p2 y
+        .30,                # top pulley p1 & p2 y
         -.04,               # left pulley p1 & p2 y
         0.,                 # right pulley p1 y
-        .5                  # right pulley p2 x
-    ]
+        .50                 # right pulley p2 x
+    ])
     view_solution(x_manual)
     # x_random = search_random_solution()
     # view_solution(x_random)
