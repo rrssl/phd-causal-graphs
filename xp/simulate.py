@@ -42,6 +42,8 @@ class Simulation:
                 break
             world.do_physics(ts, 2, ts)
             time += ts
+        else:
+            print("Simulator timed out")
 
     def run_visual(self, **viewer_kwargs):
         """Run the simulation in visual mode."""
