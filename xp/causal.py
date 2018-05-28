@@ -120,6 +120,18 @@ class CausalGraphTraverser:
         self.state = None
         self.last_wake_time = 0
 
+    def get_events(self):
+        to_traverse = {self.root}
+        traversed = set()
+        while to_traverse:
+            event = to_traverse.pop()
+            if event.outcome:
+                for trans in event.outcome.transitions:
+                    if trans.dest not in traversed:
+                        to_traverse.add(trans.dest)
+            traversed.add(event)
+        return traversed
+
     def reset(self):
         self.state = None
         self.last_wake_time = 0
