@@ -200,31 +200,65 @@ class TeapotAdventure(Samplable, Scenario):
 
     @staticmethod
     def _check_physically_valid_scene(scene):
-        return True
-        # graph = scene.graph
-        # top_track = graph.find("top_track*").node()
-        # bridge = graph.find("bridge*").node()
-        # high_plank = graph.find("high_plank*").node()
-        # low_plank = graph.find("low_plank*").node()
-        # base_plank = graph.find("base_plank*").node()
-        # goblet = graph.find("goblet*").node()
-        # # Enable collisions for static objects
-        # for body in (top_track, bridge, goblet):
-        #     body.set_static(False)
-        #     body.set_active(True)
-        # test_pairs = [
-        #     (top_track, bridge),
-        #     (top_track, high_plank),
-        #     (top_track, low_plank),
-        #     (top_track, goblet),
-        #     (bridge, base_plank),
-        #     (bridge, goblet),
-        #     (low_plank, goblet),
-        #     (base_plank, goblet)
-        # ]
-        # world = scene.world
-        # return not any(world.contact_test_pair(a, b).get_num_contacts()
-        #                for a, b in test_pairs)
+        graph = scene.graph
+        # Check pulleys
+        world = scene.world
+        if not all(pulley_cb.__self__.check_physically_valid()
+                   for pulley_cb in world._callbacks):
+            return False
+        # Check unwanted collisions.
+        top_track = graph.find("top_track*").node()
+        middle_track = graph.find("middle_track*").node()
+        nail = graph.find("nail*").node()
+        gate = graph.find("gate*").node()
+        right_track1 = graph.find("right_track1*").node()
+        right_track2 = graph.find("right_track2*").node()
+        right_track3 = graph.find("right_track3*").node()
+        right_track4 = graph.find("right_track4*").node()
+        right_weight = graph.find("right_weight*").node()
+        left_track1 = graph.find("left_track1*").node()
+        left_track2 = graph.find("left_track2*").node()
+        left_track3 = graph.find("left_track3*").node()
+        left_track4 = graph.find("left_track4*").node()
+        left_weight = graph.find("left_weight*").node()
+        bridge = graph.find("bridge*").node()
+        bottom_goblet = graph.find("bottom_goblet*").node()
+        teapot_base = graph.find("teapot_base*").node()
+        # Enable collisions for static objects
+        static = (
+            top_track, middle_track,
+            right_track1, right_track2, right_track3, right_track4,
+            left_track1, left_track2, left_track3, left_track4,
+            bottom_goblet, teapot_base
+        )
+        for body in static:
+            body.set_static(False)
+            body.set_active(True)
+        test_pairs = [
+            (top_track, gate),
+            (top_track, middle_track),
+            (top_track, left_track1),
+            (nail, middle_track),
+            (left_weight, left_track1),
+            (left_weight, left_track2),
+            (left_weight, left_track4),
+            (left_track2, left_track1),
+            (left_track3, left_track2),
+            (left_track4, left_track3),
+            (left_track4, bottom_goblet),
+            (left_track4, bridge),
+            (bridge, bottom_goblet),
+            (bridge, teapot_base),
+            (right_weight, right_track1),
+            (right_weight, right_track2),
+            (right_weight, right_track4),
+            (right_track2, right_track1),
+            (right_track3, right_track2),
+            (right_track4, right_track3),
+            (right_track4, teapot_base),
+        ]
+        return not any(world.contact_test_pair(a, b).get_num_contacts()
+                       for a, b in test_pairs)
 
     @staticmethod
     def get_distribution():

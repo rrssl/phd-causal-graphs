@@ -706,7 +706,6 @@ class RopePulley(PrimitiveBase):
             for c2, c1 in zip(self.pulley_coords[1:], self.pulley_coords[:-1])
         )
         self.max_dist = self.rope_length - self.dist_between_pulleys
-        assert self.max_dist > 0
         # Hardcoded physical properties.
         self.hook_inertia = 1e-3
         self.max_slider_force = 1e6
@@ -876,6 +875,9 @@ class RopePulley(PrimitiveBase):
         else:
             for i, v in enumerate(vertices):
                 ls.set_vertex(i, v)
+
+    def check_physically_valid(self):
+        return self.max_dist > 0
 
     def create(self):
         # Scene graph
