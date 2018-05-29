@@ -1,6 +1,8 @@
 import os
 import sys
+from collections import Counter
 
+import matplotlib.pyplot as plt
 import numpy as np
 from joblib import Memory, dump, load, Parallel, delayed
 
@@ -13,14 +15,6 @@ from xp.robustness import ScenarioRobustnessEstimator  # noqa: E402
 from xp.simulate import Simulation  # noqa: E402
 
 memory = Memory(cachedir=".cache")
-
-
-def replay_solution(name):
-    app = Replayer(name+".bam", name+"_frames.pkl", grid='xz', view_h=180)
-    try:
-        app.run()
-    except SystemExit:
-        app.destroy()
 
 
 def run_and_check(x):
@@ -71,10 +65,14 @@ def search_most_robust_solution(estimator: ScenarioRobustnessEstimator):
     return candidates[np.argmax(robustnesses)]
 
 
-def view_solution(x):
-    scenario = TeapotAdventure(x, make_geom=True, graph_view=True)
-    simu = Simulation(scenario, timestep=1/500)
-    simu.run_visual(grid='xz', view_h=180)
+def view_solution(x, interactive=True):
+    if interactive:
+        scenario = TeapotAdventure(x, make_geom=True, graph_view=True)
+        simu = Simulation(scenario, timestep=1/500)
+        simu.run_visual(grid='xz', view_h=180)
+    else:
+        export_animation(x, filename="data/scene")
+        replay_solution("data/scene")
 
 
 def export_animation(x, filename="scene"):
@@ -87,24 +85,58 @@ def export_animation(x, filename="scene"):
     observer.export(filename+"_frames.pkl")
 
 
+def replay_solution(name):
+    app = Replayer(name+".bam", name+"_frames.pkl", grid='xz', view_h=180)
+    try:
+        app.run()
+    except SystemExit:
+        app.destroy()
+
+
 def export(x, name):
     scenario = TeapotAdventure(x, make_geom=True)
     scenario.export_scene_to_pdf(name, x, (3*21, 2*29.7))
 
 
+def show_failure_point_histogram(failure_points):
+    all_events = [
+        event.name for event in TeapotAdventure(
+            cfg.MANUAL_SCENARIO_PARAMETERS
+        ).causal_graph.get_events()
+    ]
+    cnt = Counter(failure_points)
+    all_events.sort()
+    counts = np.zeros(len(all_events))
+    for i, event in enumerate(all_events):
+        try:
+            counts[i] = cnt[event]
+        except KeyError:
+            pass
+    fig, ax = plt.subplots()
+    width = 0.3
+    x = np.arange(1, len(all_events) + 1)
+    ax.bar(x, counts, width=width)
+    ax.set_xticks(x)
+    ax.set_xticklabels(all_events, rotation=45,
+                       rotation_mode='anchor', ha='right')
+    fig.subplots_adjust(bottom=.3)
+    ax.set_title("Number of failures for each event "
+                 "($N_s={}$)".format(len(failure_points)))
+    plt.show()
+
+
 def main():
     x_manual = cfg.MANUAL_SCENARIO_PARAMETERS
     # view_solution(x_manual)
-    # export_animation(x_manual, filename="scene")
-    # replay_solution("scene")
     bounds = np.sort(np.column_stack((x_manual, x_manual))*[.95, 1.05], axis=1)
     bounds[-2] = [-.01, .01]
     cfg.SCENARIO_PARAMETERS_BOUNDS = bounds
-    for x_random, success, failure_point in zip(*evaluate_random_candidates()):
-        if success:
-            # view_solution(x_random)
-            export_animation(x_random, filename="data/scene")
-            replay_solution("data/scene")
+
+    samples, success_states, failure_points = evaluate_random_candidates()
+    # for x_random, success in zip(samples, success_states):
+    #     if success:
+    #         view_solution(x_random)
+    show_failure_point_histogram(failure_points)
     # filename = "full-robustness.pkl"
     # try:
     #     full_rob_estimator = load(filename)
