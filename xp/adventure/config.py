@@ -38,45 +38,86 @@ RIGHT_PULLEY_PIVOT_RADIUS = .006  # [m]
 RIGHT_PULLEY_PIVOT_HEIGHT = .003  # [m]
 RIGHT_PULLEY_PIVOT_COILED = .009  # [m]
 
-SCENARIO_PARAMETERS_BOUNDS = (
-    (-.20, -.10),
-    (.05, .20),
-    (1., 30.),
-    (-30., -1.),
-    (-.40, -.20),
-    (-.30, -.10),
-    (1., 30.),
-    (-.30, -.10),
-    (-.35, -.15),
-    (-30., -1.),
-    (-.30, -.10),
-    (-.40, -.20),
-    (1., 30.),
-    (1., 30.),
-    (.20, .40),
-    (-.20, -.10),
-    (-10., -1.),
-    (.15, .35),
-    (-.25, -.15),
-    (1., 10.),
-    (.20, .40),
-    (-.35, -.20),
-    (-30., -1.),
-    (-.45, -.15),
-    (-.30, -.10),
-    (.15, .45),
-    (-.25, -.05),
-    (-.10, 0.),
-    (-.10, 0.),
-    (-.40, -.20),
-    (-.10, 0.),
-    (-.55, -.45),
-    (.05, .20),
-    (.25, .40),
-    (-.10, 0.),
-    (-.05, .10),
-    (.40, .60),
-)
+
+MANUAL_SCENARIO_PARAMETERS = [
+    -.30,     # top track x
+    .11,      # top track y
+    11,       # top track a
+    -11,      # left track 1 a
+    -.32,     # left track 2 x
+    -.11,     # left track 2 y
+    10,       # left track 2 a
+    -.22,     # left track 3 x
+    -.16,     # left track 3 y
+    -22,      # left track 3 a
+    -.24,     # left track 4 x
+    -.25,     # left track 4 y
+    15,       # left track 4 a
+    15,       # right track 1 a
+    .33,      # right track 2 x
+    -.12,     # right track 2 y
+    -2,       # right track 2 a
+    .25,      # right track 3 x
+    -.18,     # right track 3 y
+    2,        # right track 3 a
+    .32,      # right track 4 x
+    -.27,     # right track 4 y
+    -20,      # right track 4 a
+    -.411,    # left pulley weight
+    -.11,     # left pulley weight
+    .43,      # right pulley weight x
+    -.10,     # right pulley weight y
+    -.07,     # gate x
+    -.05,     # bridge x
+    -.30,     # bridge y
+    -.05,     # bottom goblet x
+    -.50,     # bottom goblet and teapot y
+    .13,      # teapot x
+    .30,      # top pulley p1 & p2 y
+    -.04,     # left pulley p1 & p2 y
+    0.,       # right pulley p1 y
+    .50       # right pulley p2 x
+]
+
+SCENARIO_PARAMETERS_BOUNDS = [
+    (-.20, -.10),    # top track x
+    (.05, .20),      # top track y
+    (1., 30.),       # top track a
+    (-30., -1.),     # left track 1 a
+    (-.40, -.20),    # left track 2 x
+    (-.30, -.10),    # left track 2 y
+    (1., 30.),       # left track 2 a
+    (-.30, -.10),    # left track 3 x
+    (-.35, -.15),    # left track 3 y
+    (-30., -1.),     # left track 3 a
+    (-.30, -.10),    # left track 4 x
+    (-.40, -.20),    # left track 4 y
+    (1., 30.),       # left track 4 a
+    (1., 30.),       # right track 1 a
+    (.20, .40),      # right track 2 x
+    (-.20, -.10),    # right track 2 y
+    (-10., -1.),     # right track 2 a
+    (.15, .35),      # right track 3 x
+    (-.25, -.15),    # right track 3 y
+    (1., 10.),       # right track 3 a
+    (.20, .40),      # right track 4 x
+    (-.35, -.20),    # right track 4 y
+    (-30., -1.),     # right track 4 a
+    (-.45, -.15),    # left pulley weight
+    (-.30, -.10),    # left pulley weight
+    (.15, .45),      # right pulley weight x
+    (-.25, -.05),    # right pulley weight y
+    (-.10, 0.),      # gate x
+    (-.10, 0.),      # bridge x
+    (-.40, -.20),    # bridge y
+    (-.10, 0.),      # bottom goblet x
+    (-.55, -.45),    # bottom goblet and teapot y
+    (.05, .20),      # teapot x
+    (.25, .40),      # top pulley p1 & p2 y
+    (-.10, 0.),      # left pulley p1 & p2 y
+    (-.05, .10),     # right pulley p1 y
+    (.40, .60),      # right pulley p2 x
+]
 
 xp.config.MAX_WAIT_TIME = 4
 PIVOTING_ANGULAR_VELOCITY = 1

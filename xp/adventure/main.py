@@ -93,31 +93,11 @@ def export(x, name):
 
 
 def main():
-    x_manual = np.array([
-        -.30, .11, 11,      # top track
-        -11,                # left track 1
-        -.32, -.11, 10,     # left track 2
-        -.22, -.16, -22,    # left track 3
-        -.24, -.25, 15,     # left track 4
-        15,                 # right track 1
-        .33, -.12, -2,      # right track 2
-        .25, -.18, 2,       # right track 3
-        .32, -.27, -20,     # right track 4
-        -.411, -.11,        # left pulley weight
-        .43, -.10,          # right pulley weight
-        -.07,               # gate x
-        -.05, -.30,         # bridge
-        -.05, -.50,         # bottom goblet
-        .13,                # teapot x
-        .30,                # top pulley p1 & p2 y
-        -.04,               # left pulley p1 & p2 y
-        0.,                 # right pulley p1 y
-        .50                 # right pulley p2 x
-    ])
+    x_manual = cfg.MANUAL_SCENARIO_PARAMETERS
     # view_solution(x_manual)
     # export_animation(x_manual, filename="scene")
     # replay_solution("scene")
-    bounds = np.sort(np.column_stack([x_manual*.95, x_manual*1.05]), axis=1)
+    bounds = np.sort(np.column_stack((x_manual, x_manual))*[.95, 1.05], axis=1)
     bounds[-2] = [-.01, .01]
     cfg.SCENARIO_PARAMETERS_BOUNDS = bounds
     for x_random, success, failure_point in zip(*evaluate_random_candidates()):
