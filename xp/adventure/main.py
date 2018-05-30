@@ -1,6 +1,5 @@
 import os
 import sys
-from collections import Counter
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,25 +20,10 @@ def run_and_check(x):
     scenario = TeapotAdventure(x)
     simu = Simulation(scenario)
     simu.run()
-    if scenario.succeeded():
-        return True, None
-    else:
-        events = scenario.causal_graph.get_events()
-        try:
-            failure_point = next(
-                event.name for event in events
-                if event.state is EventState.failure
-            )
-        except StopIteration:
-            # A plausible cause is that the simulator timed out.
-            # Then the probable failure point would probably be
-            # one of the listening events.
-            failure_point = next(
-                event.name for event in events
-                if event.state is EventState.awake
-            )
-            # If it fails though, that's definitely a bug.
-        return False, failure_point
+    causal_states = {
+        e.name: e.state for e in scenario.causal_graph.get_events()
+    }
+    return causal_states
 
 
 @memory.cache
@@ -54,9 +38,18 @@ def sample_valid_candidates(n_cand=2000):
 def evaluate_random_candidates(n_cand=2000):
     samples = sample_valid_candidates(n_cand)
     results = Parallel(n_jobs=6)(delayed(run_and_check)(c) for c in samples)
-    success_states, failure_points = zip(*results)
-    print("Number of successful candidates:", sum(success_states))
-    return samples, success_states, failure_points
+    # Aggregate results.
+    results_agg = {k: [r[k] for r in results] for k in results[0].keys()}
+    n_success = sum(s is EventState.success for s in results_agg['end'])
+    print("Number of successful candidates:", n_success)
+    return samples, results_agg
+
+
+def compute_failure_frequencies(results):
+    events, events_states = zip(*results.items())
+    n_samples = len(events_states[0])
+    cnt = [sum(s is EventState.failure for s in es) for es in events_states]
+    return {e: c / n_samples for e, c in zip(events, cnt)}
 
 
 def search_most_robust_solution(estimator: ScenarioRobustnessEstimator):
@@ -98,31 +91,19 @@ def export(x, name):
     scenario.export_scene_to_pdf(name, x, (3*21, 2*29.7))
 
 
-def show_failure_point_histogram(failure_points):
-    all_events = [
-        event.name for event in TeapotAdventure(
-            cfg.MANUAL_SCENARIO_PARAMETERS
-        ).causal_graph.get_events()
-    ]
-    cnt = Counter(failure_points)
-    all_events.sort()
-    counts = np.zeros(len(all_events))
-    for i, event in enumerate(all_events):
-        try:
-            counts[i] = cnt[event]
-        except KeyError:
-            pass
+def show_failure_point_histogram(frequencies, n_samples):
+    frequencies = list(frequencies.items())
+    frequencies.sort()
+    names, values = zip(*frequencies)
     fig, ax = plt.subplots()
     width = 0.3
-    x = np.arange(1, len(all_events) + 1)
-    ax.bar(x, counts, width=width)
+    x = np.arange(1, len(names) + 1)
+    ax.bar(x, values, width=width)
     ax.set_xticks(x)
-    ax.set_xticklabels(all_events, rotation=45,
+    ax.set_xticklabels(names, rotation=45,
                        rotation_mode='anchor', ha='right')
     fig.subplots_adjust(bottom=.3)
-    ax.set_title("Number of failures for each event "
-                 "($N_s={}$)".format(len(failure_points)))
-    plt.show()
+    ax.set_title("Failure frequency per event ($N_s={}$)".format(n_samples))
 
 
 def main():
@@ -132,11 +113,13 @@ def main():
     bounds[-2] = [-.01, .01]
     cfg.SCENARIO_PARAMETERS_BOUNDS = bounds
 
-    samples, success_states, failure_points = evaluate_random_candidates()
-    # for x_random, success in zip(samples, success_states):
-    #     if success:
+    samples, results = evaluate_random_candidates(5000)
+    # for x_random, res in zip(samples, results['end']):
+    #     if res is EventState.success:
     #         view_solution(x_random)
-    show_failure_point_histogram(failure_points)
+    frequencies = compute_failure_frequencies(results)
+    show_failure_point_histogram(frequencies, len(samples))
+    plt.show()
     # filename = "full-robustness.pkl"
     # try:
     #     full_rob_estimator = load(filename)
