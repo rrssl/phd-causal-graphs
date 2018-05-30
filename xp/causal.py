@@ -118,6 +118,7 @@ class CausalGraphTraverser:
         self.root = root
         self.verbose = verbose
         self.state = None
+        # This is a legacy attribute to work with old termination conditions.
         self.last_wake_time = 0
 
     def get_events(self):
@@ -150,27 +151,31 @@ class CausalGraphTraverser:
     def update(self, time):
         if self.state in (CausalGraphState.success, CausalGraphState.failure):
             return
-        to_process = [self.root]
+        failed = False
+        awake = False
+        to_process = {self.root}
         while to_process:
-            event = to_process.pop(0)
+            event = to_process.pop()
             event.update(time)
-            if event.state is EventState.success:
-                if event.outcome:
-                    for trans in event.outcome.transitions:
-                        if trans.active:
-                            to_process.append(trans.dest)
-                else:
-                    self.state = CausalGraphState.success
-                    if self.verbose:
-                        print("Success of {} with {}".format(self, event))
-                    break
+            if event.state is EventState.success and event.outcome:
+                for trans in event.outcome.transitions:
+                    if trans.active:
+                        to_process.add(trans.dest)
             elif event.state is EventState.failure:
+                failed = True
+            elif event.state is EventState.awake:
+                awake = True
+                # Legacy
+                self.last_wake_time = max(event.wake_time, self.last_wake_time)
+        if not awake:
+            if failed:
                 self.state = CausalGraphState.failure
                 if self.verbose:
                     print("Failure of {} with {}".format(self, event))
-                break
             else:
-                self.last_wake_time = max(event.wake_time, self.last_wake_time)
+                self.state = CausalGraphState.success
+                if self.verbose:
+                    print("Success of {} with {}".format(self, event))
 
 
 class CausalGraphViewer:
