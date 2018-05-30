@@ -3,12 +3,15 @@ import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
-from joblib import Memory, dump, load, Parallel, delayed
-from sklearn.feature_selection import mutual_info_classif
+from joblib import Memory, Parallel, delayed
+from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.feature_selection import (RFE, SelectFromModel, SelectKBest,
+                                       SelectPercentile, mutual_info_classif)
+from sklearn.svm import SVC
 
 sys.path.insert(0, os.path.abspath("../.."))
-from gui.viewers import Replayer  # noqa: E402
 import xp.adventure.config as cfg  # noqa: E402
+from gui.viewers import Replayer  # noqa: E402
 from xp.adventure.scenarios import StateObserver, TeapotAdventure  # noqa: E402
 from xp.causal import EventState  # noqa: E402
 from xp.robustness import ScenarioRobustnessEstimator  # noqa: E402
@@ -80,6 +83,37 @@ def compute_correlations(samples, results):
     return scores
 
 
+@memory.cache
+def compute_assignment(samples, results, selector):
+    if selector == 'kbest':
+        selector = SelectKBest(mutual_info_classif, k=4)
+    elif selector == 'percentile':
+        selector = SelectPercentile(mutual_info_classif, percentile=10)
+    elif selector == 'rfe':
+        estimator = SVC(kernel='linear', C=1)
+        selector = RFE(estimator, n_features_to_select=4, step=1)
+    elif selector == 'model_svc':
+        estimator = SVC(kernel='linear', C=1)
+        selector = SelectFromModel(estimator, threshold="2*mean")
+    elif selector == 'model_trees':
+        estimator = ExtraTreesClassifier()
+        selector = SelectFromModel(estimator, threshold="1.1*mean")
+    assignment = {}
+    for event, states in results.items():
+        event_samples = []
+        event_values = []
+        for state, sample in zip(states, samples):
+            if state is EventState.failure:
+                event_samples.append(sample)
+                event_values.append(True)
+            elif state is EventState.success:
+                event_samples.append(sample)
+                event_values.append(False)
+        selector.fit(event_samples, event_values)
+        assignment[event] = selector.get_support(indices=True)
+    return assignment
+
+
 def view_solution(x, interactive=True):
     if interactive:
         scenario = TeapotAdventure(x, make_geom=True, graph_view=True)
@@ -144,6 +178,23 @@ def show_correlation(scores):
     fig.colorbar(im)
 
 
+def show_assigment(assignment, selector):
+    assignment = list(assignment.items())
+    assignment.sort()
+    names, ind_lists = zip(*assignment)
+    ass_matrix = np.zeros((len(names), len(cfg.PARAMETER_LABELS)), dtype=bool)
+    for ind, row in zip(ind_lists, ass_matrix):
+        row[ind] = True
+    fig, ax = plt.subplots()
+    ax.matshow(ass_matrix.T, aspect='auto', cmap=plt.cm.Blues)
+    ax.set_xticks(range(len(names)))
+    ax.set_xticklabels(names, rotation=45, rotation_mode='anchor', ha='left')
+    ax.set_yticks(range(len(cfg.PARAMETER_LABELS)))
+    ax.set_yticklabels(cfg.PARAMETER_LABELS)
+    ax.set_title("Parameter assignment with {}".format(selector), pad=100)
+    fig.subplots_adjust(left=.25, top=.8, bottom=.05)
+
+
 def main():
     x_manual = cfg.MANUAL_SCENARIO_PARAMETERS
     # view_solution(x_manual)
@@ -160,8 +211,9 @@ def main():
     filtered_results = {e: s for e, s in results.items()
                         if frequencies[e] > .01}
 
-    scores = compute_correlations(samples, filtered_results)
-    show_correlation(scores)
+    selector = 'model_svc'
+    assignment = compute_assignment(samples, filtered_results, selector)
+    show_assigment(assignment, selector)
     plt.show()
     # filename = "full-robustness.pkl"
     # try:
