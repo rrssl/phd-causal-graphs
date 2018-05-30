@@ -121,6 +121,20 @@ class CausalGraphTraverser:
         # This is a legacy attribute to work with old termination conditions.
         self.last_wake_time = 0
 
+    def get_event(self, name):
+        to_traverse = {self.root}
+        traversed = set()
+        while to_traverse:
+            event = to_traverse.pop()
+            if event.name == name:
+                return event
+            if event.outcome:
+                for trans in event.outcome.transitions:
+                    if trans.dest not in traversed:
+                        to_traverse.add(trans.dest)
+            traversed.add(event)
+        return None
+
     def get_events(self):
         to_traverse = {self.root}
         traversed = set()

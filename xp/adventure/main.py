@@ -14,7 +14,7 @@ import xp.adventure.config as cfg  # noqa: E402
 from gui.viewers import Replayer  # noqa: E402
 from xp.adventure.scenarios import StateObserver, TeapotAdventure  # noqa: E402
 from xp.causal import EventState  # noqa: E402
-from xp.robustness import ScenarioRobustnessEstimator  # noqa: E402
+from xp.robustness import EventRobustnessEstimator  # noqa: E402
 from xp.simulate import Simulation  # noqa: E402
 
 memory = Memory(cachedir=".cache")
@@ -112,6 +112,22 @@ def compute_assignment(samples, results, selector):
         selector.fit(event_samples, event_values)
         assignment[event] = selector.get_support(indices=True)
     return assignment
+
+
+@memory.cache
+def train_robustness_estimators(assignment, n_samples=100):
+    x_default = np.asarray(cfg.MANUAL_SCENARIO_PARAMETERS)
+    estimators = {}
+    for event, ids in assignment.items():
+        print("\nTraining for event {}".format(event))
+        param_filter = x_default.copy()
+        param_filter[ids] = np.nan
+        estimator = EventRobustnessEstimator(
+            TeapotAdventure, event, param_filter
+        )
+        estimator.train(n_samples, verbose=True)
+        estimators[event] = estimator
+    return estimators
 
 
 def view_solution(x, interactive=True):
@@ -226,15 +242,8 @@ def main():
     assignment = compute_assignment(samples, filtered_results, selector)
     show_assigment(assignment, selector)
     plt.show()
-    # filename = "full-robustness.pkl"
-    # try:
-    #     full_rob_estimator = load(filename)
-    # except FileNotFoundError:
-    #     full_rob_estimator = ScenarioRobustnessEstimator(TeapotAdventure)
-    #     full_rob_estimator.train(n_samples=2000, verbose=True)
-    #     dump(full_rob_estimator, filename)
-    # x_full_rob = search_most_robust_solution(full_rob_estimator)
-    # view_solution(x_full_rob)
+
+    estimators = train_robustness_estimators(assignment, n_samples=500)
     # export(x_full_rob, filename[:-3] + "pdf")
 
 

@@ -6,7 +6,7 @@ from joblib import Memory, dump, load
 
 sys.path.insert(0, os.path.abspath("../.."))
 from xp.ifelse.scenarios import ConditionalBallRun  # noqa: E402
-from xp.robustness import ScenarioRobustnessEstimator  # noqa: E402
+from xp.robustness import FullScenarioRobustnessEstimator  # noqa: E402
 from xp.simulate import Simulation  # noqa: E402
 
 memory = Memory(cachedir=".cache")
@@ -28,7 +28,7 @@ def search_random_solution(n_cand=200):
     return solution
 
 
-def search_most_robust_solution(estimator: ScenarioRobustnessEstimator):
+def search_most_robust_solution(estimator: FullScenarioRobustnessEstimator):
     candidates = ConditionalBallRun.sample_valid(1000, max_trials=3000,
                                                  rule='R')
     robustnesses = estimator.eval(candidates)
@@ -54,7 +54,9 @@ def main():
     try:
         full_rob_estimator = load(filename)
     except FileNotFoundError:
-        full_rob_estimator = ScenarioRobustnessEstimator(ConditionalBallRun)
+        full_rob_estimator = FullScenarioRobustnessEstimator(
+            ConditionalBallRun
+        )
         full_rob_estimator.train(n_samples=2000, verbose=True)
         dump(full_rob_estimator, filename)
     x_full_rob = search_most_robust_solution(full_rob_estimator)
