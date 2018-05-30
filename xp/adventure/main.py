@@ -195,6 +195,17 @@ def show_assigment(assignment, selector):
     fig.subplots_adjust(left=.25, top=.8, bottom=.05)
 
 
+def show_failure_wrt_2_params(samples_xy, failure_points, event):
+    is_fp = np.asarray(failure_points) == event
+    x, y = np.asarray(samples_xy).T
+
+    fig, ax = plt.subplots()
+    ax.scatter(x[is_fp], y[is_fp], label="Fails", alpha=.5)
+    ax.scatter(x[~is_fp], y[~is_fp], label="Failsn't", alpha=.5)
+    ax.legend()
+    ax.set_title("Failure at {}".format(event))
+
+
 def main():
     x_manual = cfg.MANUAL_SCENARIO_PARAMETERS
     # view_solution(x_manual)
