@@ -38,6 +38,45 @@ RIGHT_PULLEY_PIVOT_RADIUS = .006  # [m]
 RIGHT_PULLEY_PIVOT_HEIGHT = .003  # [m]
 RIGHT_PULLEY_PIVOT_COILED = .009  # [m]
 
+PARAMETER_LABELS = [
+    "top track x",
+    "top track y",
+    "top track a",
+    "left track 1 a",
+    "left track 2 x",
+    "left track 2 y",
+    "left track 2 a",
+    "left track 3 x",
+    "left track 3 y",
+    "left track 3 a",
+    "left track 4 x",
+    "left track 4 y",
+    "left track 4 a",
+    "right track 1 a",
+    "right track 2 x",
+    "right track 2 y",
+    "right track 2 a",
+    "right track 3 x",
+    "right track 3 y",
+    "right track 3 a",
+    "right track 4 x",
+    "right track 4 y",
+    "right track 4 a",
+    "left pulley weight x",
+    "left pulley weight y",
+    "right pulley weight x",
+    "right pulley weight y",
+    "gate x",
+    "bridge x",
+    "bridge y",
+    "bottom goblet x",
+    "bottom goblet and teapot y",
+    "teapot x",
+    "top pulley p1 & p2 y",
+    "left pulley p1 & p2 y",
+    "right pulley p1 y",
+    "right pulley p2 x"
+]
 
 MANUAL_SCENARIO_PARAMETERS = [
     -.30,     # top track x

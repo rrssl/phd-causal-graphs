@@ -4,6 +4,7 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 from joblib import Memory, dump, load, Parallel, delayed
+from sklearn.feature_selection import mutual_info_classif
 
 sys.path.insert(0, os.path.abspath("../.."))
 from gui.viewers import Replayer  # noqa: E402
@@ -58,6 +59,27 @@ def search_most_robust_solution(estimator: ScenarioRobustnessEstimator):
     return candidates[np.argmax(robustnesses)]
 
 
+@memory.cache
+def compute_correlations(samples, results):
+    scores = {}
+    for event, states in results.items():
+        corr_samples = []
+        corr_values = []
+        for state, sample in zip(states, samples):
+            if state is EventState.failure:
+                corr_samples.append(sample)
+                corr_values.append(True)
+            elif state is EventState.success:
+                corr_samples.append(sample)
+                corr_values.append(False)
+        if sum(corr_values) < 2:
+            # Not enough failures to get significant correlation scores
+            continue
+        mi = mutual_info_classif(corr_samples, corr_values)
+        scores[event] = mi / mi.max()
+    return scores
+
+
 def view_solution(x, interactive=True):
     if interactive:
         scenario = TeapotAdventure(x, make_geom=True, graph_view=True)
@@ -106,6 +128,22 @@ def show_failure_point_histogram(frequencies, n_samples):
     ax.set_title("Failure frequency per event ($N_s={}$)".format(n_samples))
 
 
+def show_correlation(scores):
+    scores = list(scores.items())
+    scores.sort()
+    names, values = zip(*scores)
+    values = np.array(values).T
+    fig, ax = plt.subplots()
+    im = ax.matshow(values, aspect='auto', cmap=plt.cm.Reds)
+    ax.set_xticks(range(len(names)))
+    ax.set_xticklabels(names, rotation=45, rotation_mode='anchor', ha='left')
+    ax.set_yticks(range(len(cfg.PARAMETER_LABELS)))
+    ax.set_yticklabels(cfg.PARAMETER_LABELS)
+    ax.set_title("Correlation between parameters and failure", pad=100)
+    fig.subplots_adjust(left=.25, right=1, top=.8, bottom=.05)
+    fig.colorbar(im)
+
+
 def main():
     x_manual = cfg.MANUAL_SCENARIO_PARAMETERS
     # view_solution(x_manual)
@@ -119,6 +157,11 @@ def main():
     #         view_solution(x_random)
     frequencies = compute_failure_frequencies(results)
     show_failure_point_histogram(frequencies, len(samples))
+    filtered_results = {e: s for e, s in results.items()
+                        if frequencies[e] > .01}
+
+    scores = compute_correlations(samples, filtered_results)
+    show_correlation(scores)
     plt.show()
     # filename = "full-robustness.pkl"
     # try:
