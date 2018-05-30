@@ -102,8 +102,8 @@ MANUAL_SCENARIO_PARAMETERS = [
     .32,      # right track 4 x
     -.27,     # right track 4 y
     -20,      # right track 4 a
-    -.411,    # left pulley weight
-    -.11,     # left pulley weight
+    -.411,    # left pulley weight x
+    -.11,     # left pulley weight y
     .43,      # right pulley weight x
     -.10,     # right pulley weight y
     -.07,     # gate x
@@ -142,8 +142,8 @@ SCENARIO_PARAMETERS_BOUNDS = [
     (.20, .40),      # right track 4 x
     (-.35, -.20),    # right track 4 y
     (-30., -1.),     # right track 4 a
-    (-.45, -.15),    # left pulley weight
-    (-.30, -.10),    # left pulley weight
+    (-.45, -.15),    # left pulley weight x
+    (-.30, -.10),    # left pulley weight y
     (.15, .45),      # right pulley weight x
     (-.25, -.05),    # right pulley weight y
     (-.10, 0.),      # gate x

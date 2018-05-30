@@ -28,7 +28,7 @@ def run_and_check(x):
 
 
 @memory.cache
-def sample_valid_candidates(n_cand=2000):
+def sample_valid_candidates(n_cand=100):
     candidates = TeapotAdventure.sample_valid(n_cand, max_trials=10*n_cand,
                                               rule='R')
     print("Number of candidates:", len(candidates))
@@ -36,7 +36,7 @@ def sample_valid_candidates(n_cand=2000):
 
 
 @memory.cache
-def evaluate_random_candidates(n_cand=2000):
+def evaluate_random_candidates(n_cand=100):
     samples = sample_valid_candidates(n_cand)
     results = Parallel(n_jobs=6)(delayed(run_and_check)(c) for c in samples)
     # Aggregate results.
