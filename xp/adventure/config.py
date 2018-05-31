@@ -1,5 +1,3 @@
-from math import atan, degrees
-
 import xp.config
 from xp.config import GRAVITY  # noqa: F401
 
@@ -167,7 +165,6 @@ PIVOTING_ANGULAR_VELOCITY = 1
 ROLLING_ANGLE = 90
 RISING_LINEAR_VELOCITY = 1e-2
 FALLING_LINEAR_VELOCITY = -1e-2
-HIGH_PLANK_TOPPLING_ANGLE = degrees(atan(0))
 STOPPING_LINEAR_VELOCITY = 5e-2
 STOPPING_ANGULAR_VELOCITY = 20
 
