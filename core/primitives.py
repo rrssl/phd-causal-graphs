@@ -351,9 +351,9 @@ class Cylinder(PrimitiveBase):
         return self.path
 
     @staticmethod
-    def make_geom(name, extents, n_seg=2 ** 4):
+    def make_geom(name, extents, n_seg=2 ** 4, center=True):
         r, h = extents
-        script = sl.cylinder(r=r, h=h, center=True, segments=n_seg)
+        script = sl.cylinder(r=r, h=h, center=center, segments=n_seg)
         geom = solid2panda(script)
         geom_node = GeomNode(name)
         geom_node.add_geom(geom)
@@ -403,8 +403,8 @@ class Capsule(PrimitiveBase):
         r, h = extents
         ball = sl.sphere(r=r, segments=n_seg)
         script = (sl.cylinder(r=r, h=h, center=True, segments=n_seg)
-                  + sl.translate(slu.up(h / 2))(ball)
-                  + sl.translate(slu.down(h / 2))(ball)
+                  + slu.up(h / 2)(ball)
+                  + slu.down(h / 2)(ball)
                   )
         geom = solid2panda(script)
         geom_node = GeomNode(name)
@@ -709,6 +709,11 @@ class RopePulley(PrimitiveBase):
         # Hardcoded physical properties.
         self.hook_inertia = 1e-3
         self.max_slider_force = 1e6
+        # Visual properties
+        if geom:
+            self.n_vertices = 15
+            self.thickness = .001
+            self._prev_vertices = [Point3(0)] * self.n_vertices
 
     def _attach_objects(self):
         self._attach_pulley(self.obj1, self.obj1_pos, self.pulley_coords[0])
@@ -844,7 +849,7 @@ class RopePulley(PrimitiveBase):
         loose_rope_length = self._get_loose_rope_length()
         vertices = [P1, P2]
         if loose_rope_length > 0:
-            t = np.linspace(0, 1, 21)[1:-1]
+            t = np.linspace(0, 1, self.n_vertices-2)[1:-1]
             for ti in t:
                 p = P2 * (1-ti) + Pn_1 * ti
                 p[2] -= loose_rope_length * .5 * math.sin(math.pi * ti)
@@ -875,6 +880,44 @@ class RopePulley(PrimitiveBase):
         else:
             for i, v in enumerate(vertices):
                 ls.set_vertex(i, v)
+
+    def _update_visual_rope_render(self):
+        P1 = self.bodies[2].get_transform().get_pos()
+        P2 = self.pulley_coords[0]
+        Pn_1 = self.pulley_coords[-1]
+        Pn = self.bodies[-1].get_transform().get_pos()
+        loose_rope_length = max(0, self._get_loose_rope_length())
+        vertices = [P1, P2]
+        t = np.linspace(0, 1, self.n_vertices-2)[1:-1]
+        for ti in t:
+            p = P2 * (1-ti) + Pn_1 * ti
+            p[2] -= loose_rope_length * .5 * math.sin(math.pi * ti)
+            vertices.append(p)
+        vertices += [Pn_1, Pn]
+        diff = [old != new for old, new in zip(self._prev_vertices, vertices)]
+        to_update = [i for i in range(len(diff)-1) if diff[i] or diff[i+1]]
+        self._prev_vertices = vertices
+        # Update rope
+        name = "rope"
+        path = self.path.find(name)
+        if path.is_empty():
+            path = NodePath(name)
+            thickness = self.thickness
+            for i in range(1, len(vertices)):
+                name = "seg" + str(i)
+                geom = Cylinder.make_geom(name, (thickness, 1), 4, False)
+                geom.set_tag('anim_id', '')
+                geom.set_tag('save_scale', '')
+                path.attach_new_node(geom)
+            path.reparent_to(self.path)
+        for ind in to_update:
+            seg = path.get_child(ind)
+            a = vertices[ind]
+            b = vertices[ind+1]
+            seg.set_pos(a)
+            seg.set_scale(Vec3(1, 1, (b - a).length()))
+            seg.look_at(b)
+            seg.set_hpr(seg, Vec3(90, 0, 90))
 
     def check_physically_valid(self):
         return self.max_dist > 0

@@ -145,6 +145,12 @@ class StateObserver:
         self.graph_root = scene.graph
         self.paths = []
         self.states = dict()
+        # Find and add nodes that are already tagged.
+        for path in self.graph_root.find_all_matches("**/=anim_id"):
+            anim_id = str(path.get_key())
+            path.set_tag('anim_id', anim_id)
+            self.states[anim_id] = []
+            self.paths.append(path)
         # Find and tag any GeomNode child of a non-static BulletRigidBodyNode.
         for body in scene.world.get_rigid_bodies():
             if not body.is_static() and body.get_num_children():
@@ -161,7 +167,12 @@ class StateObserver:
             anim_id = path.get_tag('anim_id')
             x, y, z = path.get_pos(self.graph_root)
             w, i, j, k = path.get_quat(self.graph_root)
-            self.states[anim_id].append([time, x, y, z, w, i, j, k])
+            if path.has_tag('save_scale'):
+                sx, sy, sz = path.get_scale(self.graph_root)
+                state = [time, x, y, z, w, i, j, k, sx, sy, sz]
+            else:
+                state = [time, x, y, z, w, i, j, k]
+            self.states[anim_id].append(state)
 
     def export(self, filename):
         if filename[-4:] != ".pkl":

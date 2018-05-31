@@ -34,11 +34,22 @@ def import_states(path):
             anim_id = o.game.properties['anim_id'].value
         except KeyError:
             continue
+        try:
+            o.game.properties['save_scale']
+            has_scale = True
+        except KeyError:
+            has_scale = False
         o_states = states[anim_id]
         parent = o.parent
         print("Keyframing {}".format(parent))
         parent.rotation_mode = 'QUATERNION'
-        for fi, (_, x, y, z, w, i, j, k) in enumerate(o_states):
+        for fi, state in enumerate(o_states):
+            if has_scale:
+                _, x, y, z, w, i, j, k, sx, sy, sz = state
+                parent.scale = (sx, sy, sz)
+                parent.keyframe_insert(data_path='scale', frame=fi+1)
+            else:
+                _, x, y, z, w, i, j, k = state
             parent.location = (x, y, z)
             parent.rotation_quaternion = (w, i, j, k)
             parent.keyframe_insert(data_path='location', frame=fi+1)

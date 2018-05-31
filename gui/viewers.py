@@ -8,7 +8,7 @@ import pickle
 from direct.showbase.ShowBase import ShowBase
 from panda3d.bullet import BulletDebugNode
 from panda3d.core import (AmbientLight, DirectionalLight, LineSegs, NodePath,
-                          Point2, Point3, Quat, ShadeModelAttrib, Vec4)
+                          Point2, Point3, Quat, ShadeModelAttrib, Vec3, Vec4)
 
 import gui.config as cfg
 from gui.coord_grid import ThreeAxisGrid
@@ -555,7 +555,11 @@ class Replayer(Modeler):
         scene = self.scene
         fi_original = self.remap_frame(fi)
         for nopa, frames in self.nodepaths_and_frames:
-            _, x, y, z, r, i, j, k = frames[fi_original]
+            if nopa.has_tag('save_scale'):
+                _, x, y, z, r, i, j, k, sx, sy, sz = frames[fi_original]
+                nopa.set_scale(scene, Vec3(sx, sy, sz))
+            else:
+                _, x, y, z, r, i, j, k = frames[fi_original]
             nopa.set_pos(scene, Point3(x, y, z))
             nopa.set_quat(scene, Quat(r, i, j, k))
 
