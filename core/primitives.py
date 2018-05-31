@@ -336,7 +336,7 @@ class Cylinder(PrimitiveBase):
 
     def create(self):
         # Physics
-        body = bt.BulletRigidBodyNode(self.name)
+        body = bt.BulletRigidBodyNode(self.name + "_solid")
         self.bodies.append(body)
         self._set_properties(body)
         r, h = self.extents
@@ -384,7 +384,7 @@ class Capsule(PrimitiveBase):
 
     def create(self):
         # Physics
-        body = bt.BulletRigidBodyNode(self.name)
+        body = bt.BulletRigidBodyNode(self.name + "_solid")
         self.bodies.append(body)
         self._set_properties(body)
         r, h = self.extents
