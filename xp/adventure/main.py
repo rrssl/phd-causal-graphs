@@ -3,6 +3,7 @@ import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.optimize as opt
 from joblib import Memory, Parallel, delayed
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.feature_selection import (RFE, SelectFromModel, SelectKBest,
@@ -56,10 +57,32 @@ def compute_failure_frequencies(results):
     return {e: c / n_samples for e, c in zip(events, cnt)}
 
 
-def search_most_robust_solution(estimator: ScenarioRobustnessEstimator):
-    candidates = TeapotAdventure.sample_valid(1000, max_trials=3000, rule='R')
-    robustnesses = estimator.eval(candidates)
-    return candidates[np.argmax(robustnesses)]
+def smooth_min(x, alpha=cfg.SOFTMIN_COEFF):
+    exps = np.exp(-alpha*x)
+    return (x*exps).sum() / exps.sum()
+
+
+@memory.cache
+def search_most_robust_solution(estimators, weights):
+    init = cfg.MANUAL_SCENARIO_PARAMETERS
+    bounds = cfg.SCENARIO_PARAMETERS_BOUNDS
+    constraints = [
+        {'type': 'ineq',
+         'fun': TeapotAdventure.get_physical_validity_constraint
+         },
+    ]
+    events, estimators = zip(*estimators.items())
+    weights = np.array([weights[e] for e in events])
+
+    def objective(x):
+        return -smooth_min(weights * [e.eval([x]) for e in estimators])
+
+    solution = opt.minimize(
+        objective, init,
+        bounds=bounds, constraints=constraints,
+        options=dict(disp=True)
+    ).x
+    return solution
 
 
 @memory.cache
@@ -243,7 +266,9 @@ def main():
     show_assigment(assignment, selector)
     plt.show()
 
-    estimators = train_robustness_estimators(assignment, n_samples=500)
+    estimators = train_robustness_estimators(assignment, n_samples=2000)
+    x_best = search_most_robust_solution(estimators, frequencies)
+    view_solution(x_best, interactive=False)
     # export(x_full_rob, filename[:-3] + "pdf")
 
 
