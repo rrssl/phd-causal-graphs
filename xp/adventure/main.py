@@ -246,11 +246,8 @@ def show_failure_wrt_2_params(samples_xy, failure_points, event):
 
 
 def main():
-    x_manual = cfg.MANUAL_SCENARIO_PARAMETERS
+    # x_manual = cfg.MANUAL_SCENARIO_PARAMETERS
     # view_solution(x_manual)
-    bounds = np.sort(np.column_stack((x_manual, x_manual))*[.95, 1.05], axis=1)
-    bounds[-2] = [-.01, .01]
-    cfg.SCENARIO_PARAMETERS_BOUNDS = bounds
 
     samples, results = evaluate_random_candidates(5000)
     # for x_random, res in zip(samples, results['end']):

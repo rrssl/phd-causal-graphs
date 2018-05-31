@@ -118,44 +118,48 @@ MANUAL_SCENARIO_PARAMETERS = [
     .50       # right pulley p2 x
 ]
 
+SCENARIO_PARAMETERS_INTERVALS = [
+    (-.05, .05),    # top track x
+    (-.05, .05),    # top track y
+    (-10, 10),      # top track a
+    (-10, 10),      # left track 1 a
+    (-.05, .05),    # left track 2 x
+    (-.05, .05),    # left track 2 y
+    (-10, 10),      # left track 2 a
+    (-.05, .05),    # left track 3 x
+    (-.05, .05),    # left track 3 y
+    (-10, 10),      # left track 3 a
+    (-.05, .05),    # left track 4 x
+    (-.05, .05),    # left track 4 y
+    (-10, 10),      # left track 4 a
+    (-10, 10),      # right track 1 a
+    (-.05, .05),    # right track 2 x
+    (-.05, .05),    # right track 2 y
+    (-10, 10),      # right track 2 a
+    (-.05, .05),    # right track 3 x
+    (-.05, .05),    # right track 3 y
+    (-10, 10),      # right track 3 a
+    (-.05, .05),    # right track 4 x
+    (-.05, .05),    # right track 4 y
+    (-10, 10),      # right track 4 a
+    (-.05, .05),    # left pulley weight x
+    (-.05, .05),    # left pulley weight y
+    (-.05, .05),    # right pulley weight x
+    (-.05, .05),    # right pulley weight y
+    (-.05, .05),    # gate x
+    (-.05, .05),    # bridge x
+    (-.05, .05),    # bridge y
+    (-.05, .05),    # bottom goblet x
+    (-.05, .05),    # bottom goblet and teapot y
+    (-.05, .05),    # teapot x
+    (-.05, .05),    # top pulley p1 & p2 y
+    (-.05, .05),    # left pulley p1 & p2 y
+    (-.05, .05),    # right pulley p1 y
+    (-.05, .05),    # right pulley p2 x
+]
 SCENARIO_PARAMETERS_BOUNDS = [
-    (-.20, -.10),    # top track x
-    (.05, .20),      # top track y
-    (1., 30.),       # top track a
-    (-30., -1.),     # left track 1 a
-    (-.40, -.20),    # left track 2 x
-    (-.30, -.10),    # left track 2 y
-    (1., 30.),       # left track 2 a
-    (-.30, -.10),    # left track 3 x
-    (-.35, -.15),    # left track 3 y
-    (-30., -1.),     # left track 3 a
-    (-.30, -.10),    # left track 4 x
-    (-.40, -.20),    # left track 4 y
-    (1., 30.),       # left track 4 a
-    (1., 30.),       # right track 1 a
-    (.20, .40),      # right track 2 x
-    (-.20, -.10),    # right track 2 y
-    (-10., -1.),     # right track 2 a
-    (.15, .35),      # right track 3 x
-    (-.25, -.15),    # right track 3 y
-    (1., 10.),       # right track 3 a
-    (.20, .40),      # right track 4 x
-    (-.35, -.20),    # right track 4 y
-    (-30., -1.),     # right track 4 a
-    (-.45, -.15),    # left pulley weight x
-    (-.30, -.10),    # left pulley weight y
-    (.15, .45),      # right pulley weight x
-    (-.25, -.05),    # right pulley weight y
-    (-.10, 0.),      # gate x
-    (-.10, 0.),      # bridge x
-    (-.40, -.20),    # bridge y
-    (-.10, 0.),      # bottom goblet x
-    (-.55, -.45),    # bottom goblet and teapot y
-    (.05, .20),      # teapot x
-    (.25, .40),      # top pulley p1 & p2 y
-    (-.10, 0.),      # left pulley p1 & p2 y
-    (-.05, .10),     # right pulley p1 y
-    (.40, .60),      # right pulley p2 x
+    (x + lower, x + upper) for x, (lower, upper)
+    in zip(MANUAL_SCENARIO_PARAMETERS, SCENARIO_PARAMETERS_INTERVALS)
 ]
 
 xp.config.MAX_WAIT_TIME = 4
