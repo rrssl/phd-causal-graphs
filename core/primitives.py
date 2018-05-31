@@ -920,7 +920,7 @@ class RopePulley(PrimitiveBase):
             seg.set_hpr(seg, Vec3(90, 0, 90))
 
     def check_physically_valid(self):
-        return self.max_dist > 0
+        return self._get_loose_rope_length() >= 0
 
     def create(self):
         # Scene graph

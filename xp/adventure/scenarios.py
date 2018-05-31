@@ -287,7 +287,7 @@ class TeapotAdventure(Samplable, Scenario):
         # Get pulleys' score
         world = scene.world
         for pulley_cb in world._callbacks:
-            score += min(0, pulley_cb.__self__.max_dist)
+            score += min(0, pulley_cb.__self__._get_loose_rope_length())
         # Check unwanted collisions.
         top_track = graph.find("top_track*").node()
         middle_track = graph.find("middle_track*").node()
