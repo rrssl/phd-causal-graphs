@@ -1,24 +1,11 @@
 """
-This module provides the necessary functions to simulate a domino run.
+This module provides the class to simulate a scenario.
 
 """
-from panda3d.core import load_prc_file_data
+from panda3d.core import TransformState
 
 from xp.config import TIMESTEP, TIMEOUT
 from gui.viewers import ScenarioViewer
-
-
-# The following line avoids a "memory leak" that notably happens when
-# BulletWorld.do_physics is called a huge number of times out of the regular
-# Panda3D task process. In a nutshell, objects transforms are cached to avoid
-# expensive recomputation; the cache is configured to flush itself at the end
-# of each frame, which never happens when we don't use frames. The workarounds
-# are: don't use the cache ("transform-cache 0"), or don't defer flushing to
-# the end of the frame ("garbage-collect-states 0"). See
-# http://www.panda3d.org/forums/viewtopic.php?t=15645 for a discussion. Note
-# that a bug made BAM export crash in some cases when this option was off.
-# This has been fixed in version 1.10.0-dev1511.
-load_prc_file_data("", "garbage-collect-states 0")
 
 
 class Simulation:
@@ -44,6 +31,10 @@ class Simulation:
             time += ts
         else:
             print("Simulator timed out")
+        # Transforms are globally cached by default. Out of the regular
+        # Panda3D task process, we need to empty this cache by hand when
+        # running a large number of simulations, to avoid memory overflow.
+        TransformState.garbage_collect()
 
     def run_visual(self, **viewer_kwargs):
         """Run the simulation in visual mode."""

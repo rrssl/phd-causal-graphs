@@ -5,7 +5,7 @@ from collections import namedtuple
 
 import chaospy as cp
 import numpy as np
-from panda3d.core import NodePath, Point3, Vec3
+from panda3d.core import NodePath, Point3, TransformState, Vec3
 
 import core.primitives as prim
 import xp.adventure.config as cfg
@@ -268,8 +268,10 @@ class TeapotAdventure(Samplable, Scenario):
             (right_track4, right_track3),
             (right_track4, teapot_base),
         ]
-        return not any(world.contact_test_pair(a, b).get_num_contacts()
-                       for a, b in test_pairs)
+        valid = not any(world.contact_test_pair(a, b).get_num_contacts()
+                        for a, b in test_pairs)
+        TransformState.garbage_collect()
+        return valid
 
     @staticmethod
     def get_distribution():
@@ -347,6 +349,7 @@ class TeapotAdventure(Samplable, Scenario):
                     mpoint = contact.get_manifold_point()
                     penetration += mpoint.get_distance()
                 score += penetration
+        TransformState.garbage_collect()
         return score
 
     def export_scene_to_egg(self, filename):
