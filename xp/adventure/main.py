@@ -106,6 +106,22 @@ def compute_correlations(samples, results):
     return scores
 
 
+def compute_event_assignment(samples, event, states, selector):
+    event_samples = []
+    event_values = []
+    for state, sample in zip(states, samples):
+        if state is EventState.failure:
+            event_samples.append(sample)
+            event_values.append(True)
+        elif state is EventState.success:
+            event_samples.append(sample)
+            event_values.append(False)
+    print("Computing parameter sensitivity for "
+          "event {} with {} samples".format(event, len(event_samples)))
+    selector.fit(event_samples, event_values)
+    return selector.get_support(indices=True)
+
+
 @memory.cache
 def compute_assignment(samples, results, selector):
     if selector == 'kbest':
@@ -121,20 +137,12 @@ def compute_assignment(samples, results, selector):
     elif selector == 'model_trees':
         estimator = ExtraTreesClassifier()
         selector = SelectFromModel(estimator, threshold="1.1*mean")
-    assignment = {}
-    for event, states in results.items():
-        event_samples = []
-        event_values = []
-        for state, sample in zip(states, samples):
-            if state is EventState.failure:
-                event_samples.append(sample)
-                event_values.append(True)
-            elif state is EventState.success:
-                event_samples.append(sample)
-                event_values.append(False)
-        selector.fit(event_samples, event_values)
-        assignment[event] = selector.get_support(indices=True)
-    return assignment
+    results = list(results.items())
+    assignment = Parallel(n_jobs=cfg.NCORES)(
+        delayed(compute_event_assignment)(samples, event, states, selector)
+        for event, states in results
+    )
+    return {e: a for (e, _), a in zip(results, assignment)}
 
 
 @memory.cache
