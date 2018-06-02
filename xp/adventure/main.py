@@ -39,6 +39,17 @@ def sample_valid_candidates(n_cand=100):
     return candidates
 
 
+def sample_valid_around(x, n_samples, radius):
+    x = np.asarray(x).reshape(-1, 1)
+    intervals = np.array(cfg.SCENARIO_PARAMETERS_INTERVALS)
+    bounds = intervals * radius + x
+    distribution = TeapotAdventure.build_distribution_from_bounds(bounds)
+    samples = TeapotAdventure.sample_valid(
+        n_samples, 30*n_samples, 'R', distribution
+    )
+    return samples
+
+
 @memory.cache
 def evaluate_random_candidates(n_cand=100):
     samples = sample_valid_candidates(n_cand)
@@ -161,6 +172,18 @@ def train_robustness_estimators(assignment, n_samples=100):
     return estimators
 
 
+@memory.cache
+def compute_success_rate_wrt_error(x, n_err=10,  n_samples=100):
+    success_rates = np.zeros(n_err)
+    for i, err in enumerate(np.linspace(0, 1, n_err+1)[1:]):
+        samples = sample_valid_around(x, n_samples, err)
+        results = Parallel(n_jobs=cfg.NCORES)(
+            delayed(run_and_check_global_success)(s) for s in samples
+        )
+        success_rates[i] = sum(results) / len(results)
+    return success_rates
+
+
 def view_solution(x, interactive=True):
     if interactive:
         scenario = TeapotAdventure(x, make_geom=True, graph_view=True)
@@ -242,6 +265,15 @@ def show_assigment(assignment, selector):
     fig.subplots_adjust(left=.25, top=.8, bottom=.05)
 
 
+def show_success_rates_wrt_error(success_rates):
+    fig, ax = plt.subplots()
+    for label, sr in success_rates.items():
+        err = np.linspace(0, 1, len(sr)+1)[1:]
+        ax.plot(err, sr, label=label)
+    ax.legend()
+    ax.set_title("Success_rates wrt error")
+
+
 def show_failure_wrt_2_params(samples_xy, failure_points, event):
     is_fp = np.asarray(failure_points) == event
     x, y = np.asarray(samples_xy).T
@@ -254,11 +286,14 @@ def show_failure_wrt_2_params(samples_xy, failure_points, event):
 
 
 def main():
-    # x_manual = cfg.MANUAL_SCENARIO_PARAMETERS
-    # view_solution(x_manual)
+    x_manual = cfg.MANUAL_SCENARIO_PARAMETERS
+    # view_solution(x_manual, 0)
+    success_rates = {}
+    success_rates['manual'] = compute_success_rate_wrt_error(x_manual,
+                                                             n_samples=200)
 
-    samples, results = evaluate_random_candidates(5000)
-    # for x_random, res in zip(samples, results['end']):
+    random_samples, results = evaluate_random_candidates(5003)
+    # for x_random, res in zip(random_samples, results['end']):
     #     if res is EventState.success:
     #         view_solution(x_random)
     frequencies = compute_failure_frequencies(results)
@@ -273,7 +308,11 @@ def main():
 
     estimators = train_robustness_estimators(assignment, n_samples=2000)
     x_best = search_most_robust_solution(estimators, frequencies)
-    view_solution(x_best, interactive=False)
+    success_rates['best'] = compute_success_rate_wrt_error(x_best,
+                                                           n_samples=200)
+    show_success_rates_wrt_error(success_rates)
+    plt.show()
+    # view_solution(x_best, interactive=False)
     # export(x_full_rob, filename[:-3] + "pdf")
 
 

@@ -382,22 +382,33 @@ class DominoRunTopplingTimeObserver:
 
 
 class Samplable:
-    """Samplable scenario"""
+    """Mixin to add sampling functionality to a scenario.
+
+    The scenario needs to implement a get_distribution() static method.
+
+    """
     @staticmethod
     def get_distribution():
         raise NotImplementedError
 
-    @classmethod
-    def sample(cls, n, rule='R'):
-        if rule == 'R':
-            cp.seed(n)
-        return cls.get_distribution().sample(n, rule=rule).T
+    @staticmethod
+    def build_distribution_from_bounds(bounds):
+        dists = [cp.Truncnorm(a, b, (a+b)/2, (b-a)/4) for a, b in bounds]
+        return cp.J(*dists)
 
     @classmethod
-    def sample_valid(cls, n, max_trials=None, rule='R'):
+    def sample(cls, n, rule='R', distribution=None):
+        if rule == 'R':
+            cp.seed(n)
+        if distribution is None:
+            distribution = cls.get_distribution()
+        return distribution.sample(n, rule=rule).T
+
+    @classmethod
+    def sample_valid(cls, n, max_trials=None, rule='R', distribution=None):
         if max_trials is None:
             max_trials = 2 * n
-        cand_samples = cls.sample(max_trials, rule)
+        cand_samples = cls.sample(max_trials, rule, distribution)
         samples = np.empty((n, cand_samples.shape[1]))
         n_valid = 0
         for sample in cand_samples:

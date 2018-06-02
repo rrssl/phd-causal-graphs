@@ -28,7 +28,7 @@ class RobustnessEstimator:
 
     def _generate_samples(self, n_samples):
         samples = self.scenario.sample_valid(
-            n_samples, max_trials=10*n_samples, rule='R'
+            n_samples, max_trials=30*n_samples, rule='R'
         )[:, self._ids]
         return samples
 
@@ -40,6 +40,7 @@ class RobustnessEstimator:
             print("Sampling the design space")
         samples = self._generate_samples(n_samples)
         if verbose:
+            print("Number of samples:", samples.shape[0])
             print("Number of features:", samples.shape[1])
 
         if verbose:
@@ -51,6 +52,9 @@ class RobustnessEstimator:
         if not all(valid):
             samples = samples[valid]
             res = list(compress(res, valid))
+        if verbose:
+            print("Number of valid samples:", len(res))
+            print("Number of successful samples:", sum(res))
 
         if verbose:
             print("Training the classifier")
