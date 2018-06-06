@@ -18,6 +18,7 @@ TIMEOUT = 20                # [s]
 MAX_WAIT_TIME = 2           # [s]
 
 # Learning parameters.
+SAMPLING_MAX_TRIALS_FACTOR = 30
 SVC_C_RANGE = (-4, 4, 9)  # in logspace
 SVC_GAMMA_RANGE = (-4, 4, 9)  # in logspace
 

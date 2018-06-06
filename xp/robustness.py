@@ -13,36 +13,30 @@ from xp.simulate import Simulation
 
 
 class RobustnessEstimator:
-    def __init__(self, scenario, param_filter=None):
+    def __init__(self, scenario, ids=None):
         self.scenario = scenario
-        if param_filter is not None:
-            self._default = np.asarray(param_filter, dtype=float)
-            self._ids = np.where(np.isnan(self._default))[0]
-        else:
-            self._ids = slice(None)
+        self.ids = ids if ids is not None else slice(None)
         self.estimator = None
 
     def eval(self, samples):
-        samples = np.asarray(samples)[:, self._ids]
+        samples = np.asarray(samples)[:, self.ids]
         return self.estimator.decision_function(samples)
 
     def _generate_samples(self, n_samples):
         samples = self.scenario.sample_valid(
-            n_samples, max_trials=30*n_samples, rule='R'
-        )[:, self._ids]
+            n_samples,
+            max_trials=cfg.TRAINING_SAMPLING_FACTOR*n_samples,
+            rule='R'
+        )
         return samples
 
     def run_and_check(self, x):
         raise NotImplementedError
 
-    def train(self, n_samples, verbose=False):
+    def sample_and_train(self, n_samples, verbose=False):
         if verbose:
             print("Sampling the design space")
         samples = self._generate_samples(n_samples)
-        if verbose:
-            print("Number of samples:", samples.shape[0])
-            print("Number of features:", samples.shape[1])
-
         if verbose:
             print("Evaluating each sample")
         res = Parallel(n_jobs=cfg.NCORES)(
@@ -52,18 +46,23 @@ class RobustnessEstimator:
         if not all(valid):
             samples = samples[valid]
             res = list(compress(res, valid))
+        self.train_from_samples(samples, res, verbose)
+
+    def train(self, samples, values, verbose=False):
+        samples = np.asarray(samples)[:, self.ids]
         if verbose:
-            print("Number of valid samples:", len(res))
-            print("Number of successful samples:", sum(res))
+            print("Number of samples:", samples.shape[0])
+            print("Number of features:", samples.shape[1])
 
         if verbose:
             print("Training the classifier")
         samples_train, samples_test, res_train, res_test = train_test_split(
-            samples, res, test_size=.5, random_state=n_samples, stratify=res
+            samples, values, test_size=.5, random_state=len(samples),
+            stratify=values
         )
         pipeline = make_pipeline(
                 StandardScaler(),
-                SVC(kernel='rbf', random_state=n_samples, cache_size=512),
+                SVC(kernel='rbf', random_state=len(samples), cache_size=512),
                 )
         C_range = np.logspace(*cfg.SVC_C_RANGE)
         gamma_range = np.logspace(*cfg.SVC_GAMMA_RANGE)
@@ -93,6 +92,10 @@ class FullScenarioRobustnessEstimator(RobustnessEstimator):
         simu.run()
         return instance.succeeded()
 
+    # LEGACY
+    def train(self, n_samples, verbose=False):
+        super().sample_and_train(n_samples, verbose)
+
 
 class EventRobustnessEstimator(RobustnessEstimator):
     answer = {
@@ -101,17 +104,12 @@ class EventRobustnessEstimator(RobustnessEstimator):
         EventState.asleep: None
     }
 
-    def __init__(self, scenario, event, param_filter=None):
-        super().__init__(scenario, param_filter)
+    def __init__(self, scenario, event, ids=None):
+        super().__init__(scenario, ids)
         self.event = event
 
     def run_and_check(self, x):
-        try:
-            x_ = self._default.copy()
-            x_[self._ids] = x
-        except AttributeError:
-            x_ = x
-        instance = self.scenario(x_)
+        instance = self.scenario(x)
         simu = Simulation(instance)
         simu.run()
         return self.answer[instance.causal_graph.get_event(self.event).state]
