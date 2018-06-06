@@ -211,34 +211,39 @@ class TeapotAdventure(Samplable, Scenario):
 
     @staticmethod
     def _check_physically_valid_scene(scene):
-        graph = scene.graph
+        scene_graph = scene.graph
         # Check pulleys
         world = scene.world
         if not all(pulley_cb.__self__.check_physically_valid()
                    for pulley_cb in world._callbacks):
             return False
         # Check unwanted collisions.
-        top_track = graph.find("top_track*").node()
-        middle_track = graph.find("middle_track*").node()
-        nail = graph.find("nail*").node()
-        gate = graph.find("gate*").node()
-        right_track1 = graph.find("right_track1*").node()
-        right_track2 = graph.find("right_track2*").node()
-        right_track3 = graph.find("right_track3*").node()
-        right_track4 = graph.find("right_track4*").node()
-        right_weight = graph.find("right_weight*").node()
-        left_track1 = graph.find("left_track1*").node()
-        left_track2 = graph.find("left_track2*").node()
-        left_track3 = graph.find("left_track3*").node()
-        left_track4 = graph.find("left_track4*").node()
-        left_weight = graph.find("left_weight*").node()
-        bridge = graph.find("bridge*").node()
-        bottom_goblet = graph.find("bottom_goblet*").node()
-        teapot_base = graph.find("teapot_base*").node()
+        top_track = scene_graph.find("top_track_solid").node()
+        middle_track = scene_graph.find("middle_track_solid").node()
+        nail = scene_graph.find("nail_solid").node()
+        gate = scene_graph.find("gate_solid").node()
+        right_track1 = scene_graph.find("right_track1_solid").node()
+        right_track2 = scene_graph.find("right_track2_solid").node()
+        right_track2_blocker1 = scene_graph.find("right_track2_blocker1_solid"
+                                                 ).node()
+        right_track2_blocker2 = scene_graph.find("right_track2_blocker2_solid"
+                                                 ).node()
+        right_track3 = scene_graph.find("right_track3_solid").node()
+        right_track4 = scene_graph.find("right_track4_solid").node()
+        right_weight = scene_graph.find("right_weight_solid").node()
+        left_track1 = scene_graph.find("left_track1_solid").node()
+        left_track2 = scene_graph.find("left_track2_solid").node()
+        left_track3 = scene_graph.find("left_track3_solid").node()
+        left_track4 = scene_graph.find("left_track4_solid").node()
+        left_weight = scene_graph.find("left_weight_solid").node()
+        bridge = scene_graph.find("bridge_solid").node()
+        bottom_goblet = scene_graph.find("bottom_goblet_solid").node()
+        teapot_base = scene_graph.find("teapot_base_solid").node()
         # Enable collisions for static objects
         static = (
             top_track, middle_track,
             right_track1, right_track2, right_track3, right_track4,
+            right_track2_blocker1, right_track2_blocker2,
             left_track1, left_track2, left_track3, left_track4,
             bottom_goblet, teapot_base
         )
@@ -263,6 +268,8 @@ class TeapotAdventure(Samplable, Scenario):
             (right_weight, right_track1),
             (right_weight, right_track2),
             (right_weight, right_track4),
+            (right_weight, right_track2_blocker1),
+            (right_weight, right_track2_blocker2),
             (right_track2, right_track1),
             (right_track3, right_track2),
             (right_track4, right_track3),
@@ -285,33 +292,38 @@ class TeapotAdventure(Samplable, Scenario):
     def get_physical_validity_constraint(cls, sample):
         score = 0
         scene = cls.init_scene(sample, make_geom=False)
-        graph = scene.graph
+        scene_graph = scene.graph
         # Get pulleys' score
         world = scene.world
         for pulley_cb in world._callbacks:
             score += min(0, pulley_cb.__self__._get_loose_rope_length())
         # Check unwanted collisions.
-        top_track = graph.find("top_track*").node()
-        middle_track = graph.find("middle_track*").node()
-        nail = graph.find("nail*").node()
-        gate = graph.find("gate*").node()
-        right_track1 = graph.find("right_track1*").node()
-        right_track2 = graph.find("right_track2*").node()
-        right_track3 = graph.find("right_track3*").node()
-        right_track4 = graph.find("right_track4*").node()
-        right_weight = graph.find("right_weight*").node()
-        left_track1 = graph.find("left_track1*").node()
-        left_track2 = graph.find("left_track2*").node()
-        left_track3 = graph.find("left_track3*").node()
-        left_track4 = graph.find("left_track4*").node()
-        left_weight = graph.find("left_weight*").node()
-        bridge = graph.find("bridge*").node()
-        bottom_goblet = graph.find("bottom_goblet*").node()
-        teapot_base = graph.find("teapot_base*").node()
+        top_track = scene_graph.find("top_track_solid").node()
+        middle_track = scene_graph.find("middle_track_solid").node()
+        nail = scene_graph.find("nail_solid").node()
+        gate = scene_graph.find("gate_solid").node()
+        right_track1 = scene_graph.find("right_track1_solid").node()
+        right_track2 = scene_graph.find("right_track2_solid").node()
+        right_track2_blocker1 = scene_graph.find("right_track2_blocker1_solid"
+                                                 ).node()
+        right_track2_blocker2 = scene_graph.find("right_track2_blocker2_solid"
+                                                 ).node()
+        right_track3 = scene_graph.find("right_track3_solid").node()
+        right_track4 = scene_graph.find("right_track4_solid").node()
+        right_weight = scene_graph.find("right_weight_solid").node()
+        left_track1 = scene_graph.find("left_track1_solid").node()
+        left_track2 = scene_graph.find("left_track2_solid").node()
+        left_track3 = scene_graph.find("left_track3_solid").node()
+        left_track4 = scene_graph.find("left_track4_solid").node()
+        left_weight = scene_graph.find("left_weight_solid").node()
+        bridge = scene_graph.find("bridge_solid").node()
+        bottom_goblet = scene_graph.find("bottom_goblet_solid").node()
+        teapot_base = scene_graph.find("teapot_base_solid").node()
         # Enable collisions for static objects
         static = (
             top_track, middle_track,
             right_track1, right_track2, right_track3, right_track4,
+            right_track2_blocker1, right_track2_blocker2,
             left_track1, left_track2, left_track3, left_track4,
             bottom_goblet, teapot_base
         )
@@ -336,6 +348,8 @@ class TeapotAdventure(Samplable, Scenario):
             (right_weight, right_track1),
             (right_weight, right_track2),
             (right_weight, right_track4),
+            (right_weight, right_track2_blocker1),
+            (right_weight, right_track2_blocker2),
             (right_track2, right_track1),
             (right_track3, right_track2),
             (right_track4, right_track3),
@@ -767,6 +781,16 @@ class TeapotAdventure(Samplable, Scenario):
         )
         left_track3.attach_to(scene.graph, scene.world)
 
+        left_track3_blocker = prim.Box(
+            "left_track3_blocker",
+            cfg.FLAT_SUPPORT_LWH,
+            geom=make_geom
+        )
+        left_track3_blocker.create().set_pos_hpr(
+            *cls.sample2coords(sample, "left_track3_blocker")
+        )
+        left_track3_blocker.attach_to(scene.graph, scene.world)
+
         left_track4 = prim.Track(
             "left_track4",
             cfg.LONG_TRACK_LWHT,
@@ -807,6 +831,26 @@ class TeapotAdventure(Samplable, Scenario):
         )
         right_track2.attach_to(scene.graph, scene.world)
 
+        right_track2_blocker1 = prim.Box(
+            "right_track2_blocker1",
+            cfg.FLAT_SUPPORT_LWH,
+            geom=make_geom
+        )
+        right_track2_blocker1.create().set_pos_hpr(
+            *cls.sample2coords(sample, "right_track2_blocker1")
+        )
+        right_track2_blocker1.attach_to(scene.graph, scene.world)
+
+        right_track2_blocker2 = prim.Box(
+            "right_track2_blocker2",
+            cfg.FLAT_SUPPORT_LWH,
+            geom=make_geom
+        )
+        right_track2_blocker2.create().set_pos_hpr(
+            *cls.sample2coords(sample, "right_track2_blocker2")
+        )
+        right_track2_blocker2.attach_to(scene.graph, scene.world)
+
         right_track3 = prim.Track(
             "right_track3",
             cfg.SHORT_TRACK_LWHT,
@@ -836,6 +880,16 @@ class TeapotAdventure(Samplable, Scenario):
             *cls.sample2coords(sample, "right_track4")
         )
         right_track4.attach_to(scene.graph, scene.world)
+
+        right_track4_blocker = prim.Box(
+            "right_track4_blocker",
+            cfg.FLAT_SUPPORT_LWH,
+            geom=make_geom
+        )
+        right_track4_blocker.create().set_pos_hpr(
+            *cls.sample2coords(sample, "right_track4_blocker")
+        )
+        right_track4_blocker.attach_to(scene.graph, scene.world)
 
         top_weight_support = prim.Box(
             "top_weight_support",
@@ -970,7 +1024,8 @@ class TeapotAdventure(Samplable, Scenario):
             "teapot_lid",
             (cfg.TEAPOT_LID_RADIUS, cfg.TEAPOT_LID_HEIGHT),
             geom=make_geom,
-            mass=cfg.TEAPOT_LID_MASS
+            mass=cfg.TEAPOT_LID_MASS,
+            angular_damping=cfg.TEAPOT_LID_ANGULAR_DAMPING
         )
         teapot_lid.create().set_pos_hpr(
             *cls.sample2coords(sample, "teapot_lid")
@@ -1110,6 +1165,21 @@ class TeapotAdventure(Samplable, Scenario):
         if name == "left_track3":
             pos = Point3(sample[7], 0, sample[8])
             hpr = Vec3(0, 0, sample[9])
+        if name == "left_track3_blocker":
+            at = math.radians(sample[9])
+            sin_at = math.sin(at)
+            cos_at = math.cos(at)
+            pos = Point3(
+                sample[7]
+                + cfg.SHORT_TRACK_LWHT[0]/2 * cos_at
+                + cfg.SHORT_TRACK_LWHT[2]/2 * sin_at
+                + cfg.FLAT_SUPPORT_LWH[2],
+                0,
+                sample[8]
+                - cfg.SHORT_TRACK_LWHT[0]/2 * sin_at
+                + cfg.SHORT_TRACK_LWHT[2]/2 * cos_at
+            )
+            hpr = Vec3(0, 0, 90)
         if name == "left_track4":
             pos = Point3(sample[10], 0, sample[11])
             hpr = Vec3(0, 0, sample[12])
@@ -1142,6 +1212,38 @@ class TeapotAdventure(Samplable, Scenario):
         if name == "right_track2":
             pos = Point3(sample[14], 0, sample[15])
             hpr = Vec3(0, 0, sample[16])
+        if name == "right_track2_blocker1":
+            at = math.radians(sample[16])
+            sin_at = math.sin(at)
+            cos_at = math.cos(at)
+            pos = Point3(
+                sample[14]
+                + cfg.SHORT_TRACK_LWHT[0]/2 * cos_at
+                + cfg.SHORT_TRACK_LWHT[2]/2 * sin_at
+                - cfg.FLAT_SUPPORT_LWH[1]/2,
+                cfg.SHORT_TRACK_LWHT[1]/2 + cfg.FLAT_SUPPORT_LWH[2]/2,
+                sample[15]
+                + cfg.SHORT_TRACK_LWHT[0]/2 * sin_at
+                + cfg.SHORT_TRACK_LWHT[2]/2 * cos_at
+                + cfg.FLAT_SUPPORT_LWH[0]/2 + cfg.SHORT_TRACK_LWHT[2]
+            )
+            hpr = Vec3(0, 90, 0)
+        if name == "right_track2_blocker2":
+            at = math.radians(sample[16])
+            sin_at = math.sin(at)
+            cos_at = math.cos(at)
+            pos = Point3(
+                sample[14]
+                + cfg.SHORT_TRACK_LWHT[0]/2 * cos_at
+                + cfg.SHORT_TRACK_LWHT[2]/2 * sin_at
+                - cfg.FLAT_SUPPORT_LWH[1]/2,
+                - cfg.SHORT_TRACK_LWHT[1]/2 - cfg.FLAT_SUPPORT_LWH[2]/2,
+                sample[15]
+                + cfg.SHORT_TRACK_LWHT[0]/2 * sin_at
+                + cfg.SHORT_TRACK_LWHT[2]/2 * cos_at
+                + cfg.FLAT_SUPPORT_LWH[0]/2 + cfg.SHORT_TRACK_LWHT[2]
+            )
+            hpr = Vec3(0, 90, 0)
         if name == "right_track3":
             pos = Point3(sample[17], 0, sample[18])
             hpr = Vec3(0, 0, sample[19])
@@ -1163,6 +1265,21 @@ class TeapotAdventure(Samplable, Scenario):
         if name == "right_track4":
             pos = Point3(sample[20], 0, sample[21])
             hpr = Vec3(0, 0, sample[22])
+        if name == "right_track4_blocker":
+            at = math.radians(sample[22])
+            sin_at = math.sin(at)
+            cos_at = math.cos(at)
+            pos = Point3(
+                sample[20]
+                + cfg.SHORT_TRACK_LWHT[0]/2 * cos_at
+                + cfg.SHORT_TRACK_LWHT[2]/2 * sin_at
+                + cfg.FLAT_SUPPORT_LWH[2],
+                0,
+                sample[21]
+                - cfg.SHORT_TRACK_LWHT[0]/2 * sin_at
+                + cfg.SHORT_TRACK_LWHT[2]/2 * cos_at
+            )
+            hpr = Vec3(0, 0, 90)
         if name == "left_weight":
             pos = Point3(sample[23], 0, sample[24])
             hpr = Vec3(0, 0, 90)
@@ -1179,7 +1296,7 @@ class TeapotAdventure(Samplable, Scenario):
             hpr = Vec3(0)
         if name == "right_weight_support":
             pos = Point3(
-                sample[25] - cfg.FLAT_SUPPORT_LWH[0]/2 + 0.00045,  # magical
+                sample[25] - cfg.FLAT_SUPPORT_LWH[0]/2 + 0.001,  # magical
                 0,
                 sample[26]
                 - (cfg.RIGHT_WEIGHT_HEIGHT + cfg.FLAT_SUPPORT_LWH[2]) / 2

@@ -1,8 +1,8 @@
 import xp.config
-from xp.config import GRAVITY  # noqa: F401
+from xp.config import GRAVITY, NCORES  # noqa: F401
 
 BALL_RADIUS = 0.01  # [m]
-BALL_MASS = 0.01  # [kg] TODO
+BALL_MASS = 0.02  # [kg] TODO
 BALL_FRICTION = .1
 TOP_TRACK_LWHT = (0.35, 0.025, 0.005, .002)  # [m]
 TOP_TRACK_FRICTION = 1
@@ -27,7 +27,8 @@ RIGHT_WEIGHT_RADIUS = 0.0315 / 2  # [m]
 RIGHT_WEIGHT_MASS = 0.2  # [kg]
 TEAPOT_LID_RADIUS = GOBLET_R1
 TEAPOT_LID_HEIGHT = .005  # [m]
-TEAPOT_LID_MASS = 0.005  # [kg] TODO
+TEAPOT_LID_MASS = 0.002  # [kg] TODO
+TEAPOT_LID_ANGULAR_DAMPING = 1
 TEAPOT_FRICTION = .1
 TOP_PULLEY_ROPE_LENGTH = .57  # [m]
 LEFT_PULLEY_ROPE_LENGTH = .95  # [m]
@@ -117,43 +118,43 @@ MANUAL_SCENARIO_PARAMETERS = [
 ]
 
 SCENARIO_PARAMETERS_INTERVALS = [
-    (-.05, .05),    # top track x
-    (-.05, .05),    # top track y
-    (-10, 10),      # top track a
-    (-10, 10),      # left track 1 a
-    (-.05, .05),    # left track 2 x
-    (-.05, .05),    # left track 2 y
-    (-10, 10),      # left track 2 a
-    (-.05, .05),    # left track 3 x
-    (-.05, .05),    # left track 3 y
-    (-10, 10),      # left track 3 a
-    (-.05, .05),    # left track 4 x
-    (-.05, .05),    # left track 4 y
-    (-10, 10),      # left track 4 a
-    (-10, 10),      # right track 1 a
-    (-.05, .05),    # right track 2 x
-    (-.05, .05),    # right track 2 y
-    (-10, 10),      # right track 2 a
-    (-.05, .05),    # right track 3 x
-    (-.05, .05),    # right track 3 y
-    (-10, 10),      # right track 3 a
-    (-.05, .05),    # right track 4 x
-    (-.05, .05),    # right track 4 y
-    (-10, 10),      # right track 4 a
-    (-.05, .05),    # left pulley weight x
-    (-.05, .05),    # left pulley weight y
-    (-.05, .05),    # right pulley weight x
-    (-.05, .05),    # right pulley weight y
-    (-.05, .05),    # gate x
-    (-.05, .05),    # bridge x
-    (-.05, .05),    # bridge y
-    (-.05, .05),    # bottom goblet x
-    (-.05, .05),    # bottom goblet and teapot y
-    (-.05, .05),    # teapot x
-    (-.05, .05),    # top pulley p1 & p2 y
-    (-.05, .05),    # left pulley p1 & p2 y
-    (-.05, .05),    # right pulley p1 y
-    (-.05, .05),    # right pulley p2 x
+    (-.03, .03),    # top track x
+    (-.03, .03),    # top track y
+    (-5, 5),        # top track a
+    (-5, 5),        # left track 1 a
+    (-.03, .03),    # left track 2 x
+    (-.03, .03),    # left track 2 y
+    (-5, 5),        # left track 2 a
+    (-.03, .03),    # left track 3 x
+    (-.03, .03),    # left track 3 y
+    (-5, 5),        # left track 3 a
+    (-.03, .03),    # left track 4 x
+    (-.03, .03),    # left track 4 y
+    (-5, 5),        # left track 4 a
+    (-5, 5),        # right track 1 a
+    (-.03, .03),    # right track 2 x
+    (-.03, .03),    # right track 2 y
+    (-5, 5),        # right track 2 a
+    (-.03, .03),    # right track 3 x
+    (-.03, .03),    # right track 3 y
+    (-5, 5),        # right track 3 a
+    (-.03, .03),    # right track 4 x
+    (-.03, .03),    # right track 4 y
+    (-5, 5),        # right track 4 a
+    (-.03, .03),    # left pulley weight x
+    (-.03, .03),    # left pulley weight y
+    (-.03, .03),    # right pulley weight x
+    (-.03, .03),    # right pulley weight y
+    (-.03, .03),    # gate x
+    (-.03, .03),    # bridge x
+    (-.03, .03),    # bridge y
+    (-.03, .03),    # bottom goblet x
+    (-.03, .03),    # bottom goblet and teapot y
+    (-.03, .03),    # teapot x
+    (-.03, .03),    # top pulley p1 & p2 y
+    (-.03, .03),    # left pulley p1 & p2 y
+    (-.03, .03),    # right pulley p1 y
+    (-.03, .03),    # right pulley p2 x
 ]
 SCENARIO_PARAMETERS_BOUNDS = [
     (x + lower, x + upper) for x, (lower, upper)
