@@ -1,13 +1,22 @@
 import os
 import sys
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas
+import seaborn
 
 sys.path.insert(0, os.path.abspath("../.."))
 from xp.domino_predictors import DominoRobustness, DominoRobustness2  # noqa
 
+seaborn.set()
+# matplotlib.rc('font', family='Linux Libertine O')
+matplotlib.rc('font', family='Linux Biolinum O')
+fs = 15
+matplotlib.rc('legend', fontsize=fs)
+matplotlib.rc('xtick', labelsize=fs)
+matplotlib.rc('ytick', labelsize=fs)
 
 FILE = "data/results.csv"
 STRIDES = 6
@@ -60,12 +69,12 @@ def main():
     capsize = 3
     labels = ["Trial {}".format(i) for i in range(1, len(manu_means) + 1)]
     group_labels = [shape['name'] for shape in SHAPES]
-    fig, ax = plt.subplots()
-    grouped_bar(ax, manu_means, barwidth, manu_sems, capsize, labels,
-                group_labels)
-    ax.legend()
-    ax.set_title(
-            "Success rate: manual placement ({} samples)".format(n_samples))
+    # fig, ax = plt.subplots()
+    # grouped_bar(ax, manu_means, barwidth, manu_sems, capsize, labels,
+    #             group_labels)
+    # ax.legend()
+    # ax.set_title(
+    #         "Success rate: manual placement ({} samples)".format(n_samples))
 
     success_means = np.array([
             (manu_means[0] + manu_means[1]) / 2,
@@ -84,20 +93,20 @@ def main():
     ax.legend()
     ax.set_title("Comparison of success rates ({} samples)".format(n_samples))
 
-    rob_predictor = DominoRobustness2()
-    rob_scores = [
-            [min(rob_predictor(
-                np.load("data/" + shape + "-"+ type_ + "_layout.npy")))
-             for shape in group_labels]
-            for type_ in ("base", "best")
-            ]
-    print(rob_scores)
-    labels = ["Baseline", "Optimized"]
-    fig, ax = plt.subplots()
-    grouped_bar(ax, rob_scores, barwidth, capsize=capsize, labels=labels,
-                group_labels=group_labels)
-    ax.legend()
-    ax.set_title("Comparison of robustness scores")
+    # rob_predictor = DominoRobustness2()
+    # rob_scores = [
+    #         [min(rob_predictor(
+    #             np.load("data/" + shape + "-"+ type_ + "_layout.npy")))
+    #          for shape in group_labels]
+    #         for type_ in ("base", "best")
+    #         ]
+    # print(rob_scores)
+    # labels = ["Baseline", "Optimized"]
+    # fig, ax = plt.subplots()
+    # grouped_bar(ax, rob_scores, barwidth, capsize=capsize, labels=labels,
+    #             group_labels=group_labels)
+    # ax.legend()
+    # ax.set_title("Comparison of robustness scores")
 
     plt.show()
 
