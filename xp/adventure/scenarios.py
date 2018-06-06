@@ -415,13 +415,13 @@ class TeapotAdventure(Samplable, Scenario):
         coords.append([pos.x + 0.015, pos.z, 0])
         sizes.append([.005, 0])
         shapes.append('circ')
-        pos, hpr = cls.sample2coords(sample, "goblet")
-        angle = math.radians(hpr.z)
-        coords.append([pos.x + math.sin(angle)*cfg.GOBLET_HEIGHT/2,
-                       pos.z + math.cos(angle)*cfg.GOBLET_HEIGHT/2,
-                       hpr.z])
-        sizes.append([cfg.GOBLET_R1*2, cfg.GOBLET_HEIGHT])
-        shapes.append('rect')
+        add_circles("top_pulley", .005)
+        add_circles("left_pulley", .005)
+        add_circles("right_pulley", .005)
+        add_goblet("top_goblet")
+        add_goblet("bottom_goblet")
+        add_goblet("teapot_base")
+
         coords = np.asarray(coords)
         sizes = np.asarray(sizes)
         rects = np.array([shape == 'rect' for shape in shapes])
