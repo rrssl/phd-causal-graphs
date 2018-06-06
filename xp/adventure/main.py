@@ -1,10 +1,12 @@
 import os
 import sys
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.optimize as opt
 from joblib import Memory, Parallel, delayed
+import seaborn
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.feature_selection import (RFE, SelectFromModel, SelectKBest,
                                        SelectPercentile, mutual_info_classif)
@@ -19,6 +21,14 @@ from xp.robustness import RobustnessEstimator  # noqa: E402
 from xp.simulate import Simulation  # noqa: E402
 
 memory = Memory(cachedir=".cache")
+
+seaborn.set()
+# matplotlib.rc('font', family='Linux Libertine O')
+matplotlib.rc('font', family='Linux Biolinum O')
+fs = 15
+matplotlib.rc('legend', fontsize=fs)
+matplotlib.rc('xtick', labelsize=fs)
+matplotlib.rc('ytick', labelsize=fs)
 
 
 def run_and_check_global_success(x):
