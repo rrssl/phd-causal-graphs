@@ -434,6 +434,8 @@ class Pivot(PrimitiveBase):
       Relative position of the pivot wrt the primitive.
     pivot_hpr : (3,) float sequence
       Relative orientation of the pivot wrt the primitive.
+    pivot_extents : (2,) float sequence
+      Parameters of the visual cylinder (if geom is True): radius, height.
     geom : bool
       Whether to generate a geometry for visualization.
     bt_props : dict
@@ -444,14 +446,19 @@ class Pivot(PrimitiveBase):
     """
 
     def __init__(self, name, obj: PrimitiveBase, pivot_pos, pivot_hpr,
-                 geom=False, **bt_props):
+                 pivot_extents=None, geom=False, **bt_props):
         super().__init__(name=name, geom=geom, **bt_props)
         self.obj = obj
         self.pivot_xform = TransformState.make_pos_hpr(pivot_pos, pivot_hpr)
+        self.pivot_extents = pivot_extents
 
     def create(self):
         # Physics
-        pivot = Empty(name=self.name)
+        if self.geom:
+            pivot = Cylinder(name=self.name, extents=self.pivot_extents,
+                             geom=True)
+        else:
+            pivot = Empty(name=self.name)
         pivot.create().set_transform(self.obj.path, self.pivot_xform)
         self.bodies += pivot.bodies
         cs = bt.BulletHingeConstraint(
