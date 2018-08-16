@@ -1032,7 +1032,7 @@ class RopePulleyPivot(RopePulley):
         # Useful values.
         self.max_dist -= (
             obj2.path.get_transform().get_mat().xform_point(obj2_pos)
-            - pulley_coords[-1]
+            - Vec3(*pulley_coords[-1])
         ).length()
         self.max_angle = math.degrees(
             self.init_coiled_length / self.pivot_extents[1]
