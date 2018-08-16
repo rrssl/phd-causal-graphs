@@ -480,8 +480,12 @@ class Lever(PrimitiveBase):
       Name of the lever.
     extents : float sequence
       Extents of the lever (same as Box).
-    pivot_pos_hpr : float sequence
-      Relative position and orientation of the pivot (X, Y, Z, H, P, R).
+    pivot_pos : (3,) float sequence
+      Relative position of the pivot wrt the primitive.
+    pivot_hpr : (3,) float sequence
+      Relative orientation of the pivot wrt the primitive.
+    pivot_extents : (2,) float sequence
+      Parameters of the visual cylinder (if geom is True): radius, height.
     geom : bool
       Whether to generate a geometry for visualization.
     bt_props : dict
@@ -491,28 +495,33 @@ class Lever(PrimitiveBase):
 
     """
 
-    def __init__(self, name, extents, pivot_pos_hpr, geom=False, **bt_props):
+    def __init__(self, name, extents, pivot_pos, pivot_hpr, pivot_extents=None,
+                 geom=False, **bt_props):
         super().__init__(name=name, geom=geom, **bt_props)
         self.extents = extents
-        self.pivot_pos = Point3(*pivot_pos_hpr[:3])
-        self.pivot_hpr = Vec3(*pivot_pos_hpr[3:])
+        self.pivot_pos = Point3(*pivot_pos)
+        self.pivot_hpr = Vec3(*pivot_hpr)
+        self.pivot_extents = pivot_extents
 
     def create(self):
         # Physics
-        box = Box(name=self.name, extents=self.extents, geom=self.geom,
+        box = Box(name=self.name+"_box", extents=self.extents, geom=self.geom,
                   **self.bt_props)
         box.create()
         self.bodies += box.bodies
-        pivot = Empty(name=self.name + "_pivot")
+        pivot = Pivot(
+            name=self.name+"_pivot", obj=box,
+            pivot_pos=self.pivot_pos, pivot_hpr=self.pivot_hpr,
+            pivot_extents=self.pivot_extents,
+            geom=self.geom
+        )
         pivot.create()
         self.bodies += pivot.bodies
-        frame = TransformState.make_pos_hpr(self.pivot_pos, self.pivot_hpr)
-        cs = bt.BulletHingeConstraint(
-                box.bodies[0], pivot.bodies[0], frame, frame)
-        self.constraints.append(cs)
+        self.constraints += pivot.constraints
         # Scene graph
-        self.path = BulletRootNodePath(pivot.bodies[0])
+        self.path = BulletRootNodePath(self.name)
         box.path.reparent_to(self.path)
+        pivot.path.reparent_to(self.path)
         return self.path
 
 
@@ -524,7 +533,13 @@ class Pulley(PrimitiveBase):
     name : string
       Name of the lever.
     extents : float sequence
-      Extents of the pulley (same as Cylinder).
+      Extents of the pulley (same as Cylinder): radius, height.
+    pivot_pos : (3,) float sequence
+      Relative position of the pivot wrt the primitive.
+    pivot_hpr : (3,) float sequence
+      Relative orientation of the pivot wrt the primitive.
+    pivot_extents : (2,) float sequence
+      Parameters of the visual cylinder (if geom is True): radius, height.
     geom : bool
       Whether to generate a geometry for visualization.
     bt_props : dict
@@ -534,26 +549,33 @@ class Pulley(PrimitiveBase):
 
     """
 
-    def __init__(self, name, extents, geom=False, **bt_props):
+    def __init__(self, name, extents, pivot_pos, pivot_hpr, pivot_extents=None,
+                 geom=False, **bt_props):
         super().__init__(name=name, geom=geom, **bt_props)
         self.extents = extents
+        self.pivot_pos = Point3(*pivot_pos)
+        self.pivot_hpr = Vec3(*pivot_hpr)
+        self.pivot_extents = pivot_extents
 
     def create(self):
         # Physics
-        cyl = Cylinder(name=self.name, extents=self.extents, geom=self.geom,
-                       **self.bt_props)
+        cyl = Cylinder(name=self.name+"_cylinder", extents=self.extents,
+                       geom=self.geom, **self.bt_props)
         cyl.create()
         self.bodies += cyl.bodies
-        pivot = Empty(name=self.name+"_pivot")
+        pivot = Pivot(
+            name=self.name+"_pivot", obj=cyl,
+            pivot_pos=self.pivot_pos, pivot_hpr=self.pivot_hpr,
+            pivot_extents=self.pivot_extents,
+            geom=self.geom
+        )
         pivot.create()
         self.bodies += pivot.bodies
-        frame = TransformState.make_hpr(Vec3(0, 0, 90))
-        cs = bt.BulletHingeConstraint(
-                cyl.bodies[0], pivot.bodies[0], frame, frame)
-        self.constraints.append(cs)
+        self.constraints += pivot.constraints
         # Scene graph
-        self.path = BulletRootNodePath(pivot.bodies[0])
+        self.path = BulletRootNodePath(self.name)
         cyl.path.reparent_to(self.path)
+        pivot.path.reparent_to(self.path)
         return self.path
 
 
