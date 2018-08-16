@@ -321,6 +321,8 @@ class Cylinder(PrimitiveBase):
       Name of the cylinder.
     extents : float sequence
       Extents of the cylinder: radius, height.
+    center : bool
+      Whether the cylinder should be centered. Defaults to True.
     geom : bool
       Whether to generate a geometry for visualization.
     bt_props : dict
@@ -330,9 +332,10 @@ class Cylinder(PrimitiveBase):
 
     """
 
-    def __init__(self, name, extents, geom=False, **bt_props):
+    def __init__(self, name, extents, center=True, geom=False, **bt_props):
         super().__init__(name=name, geom=geom, **bt_props)
         self.extents = extents
+        self.center = center
 
     def create(self):
         # Physics
@@ -341,13 +344,19 @@ class Cylinder(PrimitiveBase):
         self._set_properties(body)
         r, h = self.extents
         shape = bt.BulletCylinderShape(r, h)
-        body.add_shape(shape)
+        if self.center:
+            body.add_shape(shape)
+        else:
+            body.add_shape(shape, TransformState.make_pos(Point3(0, 0, h/2)))
         # Scene graph
         self.path = NodePath(body)
         # Geometry
         if self.geom:
             self.path.attach_new_node(
-                self.make_geom(self.name + "_geom", self.extents))
+                self.make_geom(
+                    self.name + "_geom", self.extents, center=self.center
+                )
+            )
         return self.path
 
     @staticmethod
