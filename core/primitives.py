@@ -1049,9 +1049,10 @@ class RopePulleyPivot(RopePulley):
         target_name = target.path.get_name()
         pivot_pos = target.path.get_transform(
         ).get_mat().xform_point(target_coords)
-        # Empty to support the hinge.
+        # Cylinder to support the hinge.
         pivot = Cylinder(name=target_name + "_pivot",
-                         extents=self.pivot_extents, geom=self.geom)
+                         extents=self.pivot_extents, center=False,
+                         geom=self.geom)
         pulley_hpr = self._get_pulley_hpr()
         pivot.create().set_pos_hpr(pivot_pos, pulley_hpr)
         self.bodies += pivot.bodies
