@@ -80,7 +80,7 @@ class DominoRunMode:
         # Generate run
         run = DominoRun(
                 "domrun_segment_{}".format(self.domrun.get_num_children()),
-                (t, w, h), coords, geom=True, mass=MASS)
+                (t, w, h), coords, geom='LD', mass=MASS)
         run.create()
         # Tilt first domino
         tilt_box_forward(run.path.get_child(0), TOPPLING_ANGLE + 1)
@@ -339,7 +339,7 @@ class MyApp(Tileable, Focusable, Drawable, Pickerable, PhysicsViewer):
         self.accept("l", self.render.ls)
 
         # RGM primitives
-        floor = Plane("floor", geom=True)
+        floor = Plane("floor", geom='LD')
         floor.create()
         floor.attach_to(self.models, self.world)
 

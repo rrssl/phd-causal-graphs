@@ -66,28 +66,32 @@ class BulletRootNodePath(NodePath):
 class PrimitiveBase:
     """Base class for all primitives.
 
-     Parameters
-     ----------
-     name : string
-       Name of the primitive.
-     geom : bool
-       Whether to generate a geometry for visualization.
-     bt_props : dict
-       Dictionary of Bullet properties (mass, restitution, etc.). Basically
-       the method set_key is called for the Bullet body, where "key" is each
-       key of the dictionary.
+    Parameters
+    ----------
+    name : string
+      Name of the primitive.
+    geom : {None, 'LD', 'HD'}, optional
+      Quality of the visible geometry. None by default (i.e. not visible).
+    phys : bool, optional
+      Whether this primitive participates in the simulation or not. If false,
+      bt_props arguments are ignored. True by default.
+    bt_props : dict, optional
+      Dictionary of Bullet properties (mass, restitution, etc.). Basically
+      the method set_key is called for the Bullet body, where "key" is each
+      key of the dictionary. Empty by default (i.e. Bullet default values).
 
     """
 
-    def __init__(self, name, geom=False, **bt_props):
+    def __init__(self, name, geom=None, phys=True, **bt_props):
         self.name = name
-        self.bt_props = bt_props
         self.geom = geom
-
         self.path = None
-        self.bodies = []
-        self.constraints = []
-        self.physics_callback = None
+        self.phys = phys
+        if phys:
+            self.bt_props = bt_props
+            self.bodies = []
+            self.constraints = []
+            self.physics_callback = None
 
     def attach_to(self, path: NodePath, world: World):
         """Attach the object to the scene.
@@ -101,13 +105,14 @@ class PrimitiveBase:
 
         """
         self.path.reparent_to(path)
-        for body in self.bodies:
-            world.attach(body)
-        for cs in self.constraints:
-            world.attach_constraint(cs, linked_collision=True)
-            cs.set_debug_draw_size(.05)
-        if self.physics_callback is not None:
-            world._callbacks.append(self.physics_callback)
+        if self.phys:
+            for body in self.bodies:
+                world.attach(body)
+            for cs in self.constraints:
+                world.attach_constraint(cs, linked_collision=True)
+                cs.set_debug_draw_size(.05)
+            if self.physics_callback is not None:
+                world._callbacks.append(self.physics_callback)
 
     def create(self):
         raise NotImplementedError
@@ -127,13 +132,15 @@ class Empty(PrimitiveBase):
 
     """
 
-    def __init__(self, name):
-        super().__init__(name=name)
+    def __init__(self, name, phys=True, **bt_props):
+        super().__init__(name=name, phys=phys, **bt_props)
 
     def create(self):
-        body = bt.BulletRigidBodyNode(self.name)
-        self.bodies.append(body)
-        self.path = NodePath(body)
+        if self.phys:
+            body = bt.BulletRigidBodyNode(self.name)
+            self.bodies.append(body)
+            self._set_properties(body)
+        self.path = NodePath(body) if self.phys else NodePath(self.name)
         return self.path
 
     @staticmethod
@@ -152,36 +159,30 @@ class Plane(PrimitiveBase):
       Normal to the plane.
     distance : float
       Distance of the plane along the normal.
-    geom : bool
-      Whether to generate a geometry for visualization.
-    bt_props : dict
-      Dictionary of Bullet properties (mass, restitution, etc.). Basically
-      the method set_key is called for the Bullet body, where "key" is each
-      key of the dictionary.
 
     """
 
-    def __init__(self, name, normal=(0, 0, 1), distance=0, geom=False,
-                 **bt_props):
-        super().__init__(name=name, geom=geom, **bt_props)
-        self.normal = normal
+    def __init__(self, name, normal=(0, 0, 1), distance=0,
+                 geom=None, phys=True, **bt_props):
+        super().__init__(name=name, geom=geom, phys=phys, **bt_props)
+        self.normal = Vec3(*normal)
         self.distance = distance
 
     def create(self):
         # Physics
-        body = bt.BulletRigidBodyNode(self.name + "_solid")
-        self.bodies.append(body)
-        self._set_properties(body)
-        # TODO. Investigate whether PlaneShape really is the cause
-        # of the problem. Maybe it's just a matter of collision margin?
-        # shape = bt.BulletBoxShape((1, 1, .1))
-        # body.add_shape(shape, TransformState.make_pos(Point3(0, 0, -.1)))
-        shape = bt.BulletPlaneShape(Vec3(*self.normal), self.distance)
-        body.add_shape(shape)
+        if self.phys:
+            body = bt.BulletRigidBodyNode(self.name + "_solid")
+            self.bodies.append(body)
+            self._set_properties(body)
+            shape = bt.BulletPlaneShape(self.normal, self.distance)
+            # NB: Using a box instead of a plane might help stability:
+            # shape = bt.BulletBoxShape((1, 1, .1))
+            # body.add_shape(shape, TransformState.make_pos(Point3(0, 0, -.1)))
+            body.add_shape(shape)
         # Scene graph
-        self.path = NodePath(body)
+        self.path = NodePath(body) if self.phys else NodePath(self.name)
         # Geometry
-        if self.geom:
+        if self.geom is not None:
             self.path.attach_new_node(self.make_geom(
                 self.name + "_geom",
                 self.normal,
@@ -228,36 +229,35 @@ class Ball(PrimitiveBase):
       Name of the ball.
     radius : float
       Radius of the ball.
-    geom : bool
-       Whether to generate a geometry for visualization.
-    bt_props : dict
-      Dictionary of Bullet properties (mass, restitution, etc.). Basically
-      the method set_key is called for the Bullet body, where "key" is each
-      key of the dictionary.
 
     """
 
-    def __init__(self, name, radius, geom=False, **bt_props):
-        super().__init__(name=name, geom=geom, **bt_props)
+    def __init__(self, name, radius, geom=None, phys=True, **bt_props):
+        super().__init__(name=name, geom=geom, phys=phys, **bt_props)
         self.radius = radius
 
     def create(self):
         # Physics
-        body = bt.BulletRigidBodyNode(self.name + "_solid")
-        self.bodies.append(body)
-        self._set_properties(body)
-        shape = bt.BulletSphereShape(self.radius)
-        body.add_shape(shape)
+        if self.phys:
+            body = bt.BulletRigidBodyNode(self.name + "_solid")
+            self.bodies.append(body)
+            self._set_properties(body)
+            shape = bt.BulletSphereShape(self.radius)
+            body.add_shape(shape)
         # Scene graph
-        self.path = NodePath(body)
+        self.path = NodePath(body) if self.phys else NodePath(self.name)
         # Geometry
-        if self.geom:
+        if self.geom is not None:
+            n_seg = 2**5 if self.geom == 'HD' else 2**4
             self.path.attach_new_node(
-                self.make_geom(self.name + "_geom", self.radius))
+                self.make_geom(
+                    self.name + "_geom", self.radius, n_seg
+                )
+            )
         return self.path
 
     @staticmethod
-    def make_geom(name, radius, n_seg=2 ** 4):
+    def make_geom(name, radius, n_seg=2**4):
         script = sl.sphere(radius, segments=n_seg)
         geom = solid2panda(script)
         geom_node = GeomNode(name)
@@ -274,31 +274,26 @@ class Box(PrimitiveBase):
       Name of the box.
     extents : float sequence
       Extents of the box.
-    geom : bool
-      Whether to generate a geometry for visualization.
-    bt_props : dict
-      Dictionary of Bullet properties (mass, restitution, etc.). Basically
-      the method set_key is called for the Bullet body, where "key" is each
-      key of the dictionary.
 
     """
 
-    def __init__(self, name, extents, geom=False, **bt_props):
-        super().__init__(name=name, geom=geom, **bt_props)
+    def __init__(self, name, extents, geom=None, phys=True, **bt_props):
+        super().__init__(name=name, geom=geom, phys=phys, **bt_props)
         self.extents = extents
 
     def create(self):
         # Physics
-        body = bt.BulletRigidBodyNode(self.name + "_solid")
-        self.bodies.append(body)
-        self._set_properties(body)
-        shape = bt.BulletBoxShape(Vec3(*self.extents) / 2)
-        #  shape.set_margin(.0001)
-        body.add_shape(shape)
+        if self.phys:
+            body = bt.BulletRigidBodyNode(self.name + "_solid")
+            self.bodies.append(body)
+            self._set_properties(body)
+            shape = bt.BulletBoxShape(Vec3(*self.extents) / 2)
+            #  shape.set_margin(.0001)
+            body.add_shape(shape)
         # Scene graph
-        self.path = NodePath(body)
+        self.path = NodePath(body) if self.phys else NodePath(self.name)
         # Geometry
-        if self.geom:
+        if self.geom is not None:
             self.path.attach_new_node(
                 self.make_geom(self.name + "_geom", self.extents))
         return self.path
@@ -323,44 +318,42 @@ class Cylinder(PrimitiveBase):
       Extents of the cylinder: radius, height.
     center : bool
       Whether the cylinder should be centered. Defaults to True.
-    geom : bool
-      Whether to generate a geometry for visualization.
-    bt_props : dict
-      Dictionary of Bullet properties (mass, restitution, etc.). Basically
-      the method set_key is called for the Bullet body, where "key" is each
-      key of the dictionary.
 
     """
 
-    def __init__(self, name, extents, center=True, geom=False, **bt_props):
-        super().__init__(name=name, geom=geom, **bt_props)
+    def __init__(self, name, extents, center=True,
+                 geom=None, phys=True, **bt_props):
+        super().__init__(name=name, geom=geom, phys=phys, **bt_props)
         self.extents = extents
         self.center = center
 
     def create(self):
         # Physics
-        body = bt.BulletRigidBodyNode(self.name + "_solid")
-        self.bodies.append(body)
-        self._set_properties(body)
-        r, h = self.extents
-        shape = bt.BulletCylinderShape(r, h)
-        if self.center:
-            body.add_shape(shape)
-        else:
-            body.add_shape(shape, TransformState.make_pos(Point3(0, 0, h/2)))
+        if self.phys:
+            body = bt.BulletRigidBodyNode(self.name + "_solid")
+            self.bodies.append(body)
+            self._set_properties(body)
+            r, h = self.extents
+            shape = bt.BulletCylinderShape(r, h)
+            if self.center:
+                body.add_shape(shape)
+            else:
+                body.add_shape(shape,
+                               TransformState.make_pos(Point3(0, 0, h/2)))
         # Scene graph
-        self.path = NodePath(body)
+        self.path = NodePath(body) if self.phys else NodePath(self.name)
         # Geometry
-        if self.geom:
+        if self.geom is not None:
+            n_seg = 2**5 if self.geom == 'HD' else 2**4
             self.path.attach_new_node(
                 self.make_geom(
-                    self.name + "_geom", self.extents, center=self.center
+                    self.name + "_geom", self.extents, self.center, n_seg
                 )
             )
         return self.path
 
     @staticmethod
-    def make_geom(name, extents, n_seg=2 ** 4, center=True):
+    def make_geom(name, extents, center=True, n_seg=2**4):
         r, h = extents
         script = sl.cylinder(r=r, h=h, center=center, segments=n_seg)
         geom = solid2panda(script)
@@ -378,37 +371,34 @@ class Capsule(PrimitiveBase):
       Name of the capsule.
     extents : float sequence
       Extents of the capsule: radius, height.
-    geom : bool
-      Whether to generate a geometry for visualization.
-    bt_props : dict
-      Dictionary of Bullet properties (mass, restitution, etc.). Basically
-      the method set_key is called for the Bullet body, where "key" is each
-      key of the dictionary.
 
     """
 
-    def __init__(self, name, extents, geom=False, **bt_props):
-        super().__init__(name=name, geom=geom, **bt_props)
+    def __init__(self, name, extents, geom=None, phys=True, **bt_props):
+        super().__init__(name=name, geom=geom, phys=phys, **bt_props)
         self.extents = extents
 
     def create(self):
         # Physics
-        body = bt.BulletRigidBodyNode(self.name + "_solid")
-        self.bodies.append(body)
-        self._set_properties(body)
-        r, h = self.extents
-        shape = bt.BulletCapsuleShape(r, h)
-        body.add_shape(shape)
+        if self.phys:
+            body = bt.BulletRigidBodyNode(self.name + "_solid")
+            self.bodies.append(body)
+            self._set_properties(body)
+            r, h = self.extents
+            shape = bt.BulletCapsuleShape(r, h)
+            body.add_shape(shape)
         # Scene graph
-        self.path = NodePath(body)
+        self.path = NodePath(body) if self.phys else NodePath(self.name)
         # Geometry
-        if self.geom:
+        if self.geom is not None:
+            n_seg = 2**5 if self.geom == 'HD' else 2**4
             self.path.attach_new_node(
-                self.make_geom(self.name + "_geom", self.extents))
+                self.make_geom(self.name + "_geom", self.extents, n_seg)
+            )
         return self.path
 
     @staticmethod
-    def make_geom(name, extents, n_seg=2 ** 4):
+    def make_geom(name, extents, n_seg=2**4):
         r, h = extents
         ball = sl.sphere(r=r, segments=n_seg)
         script = (sl.cylinder(r=r, h=h, center=True, segments=n_seg)
@@ -434,38 +424,31 @@ class Pivot(PrimitiveBase):
       Relative position of the pivot wrt the primitive.
     pivot_hpr : (3,) float sequence
       Relative orientation of the pivot wrt the primitive.
-    pivot_extents : (2,) float sequence
-      Parameters of the visual cylinder (if geom is True): radius, height.
-    geom : bool
-      Whether to generate a geometry for visualization.
-    bt_props : dict
-      Dictionary of Bullet properties (mass, restitution, etc.). Basically
-      the method set_key is called for the Bullet body, where "key" is each
-      key of the dictionary.
+    pivot_extents : None or (2,) float sequence, optional
+      Parameters of the visual cylinder (if geom is not None): radius, height.
+      None by default.
 
     """
 
     def __init__(self, name, obj: PrimitiveBase, pivot_pos, pivot_hpr,
-                 pivot_extents=None, geom=False, **bt_props):
-        super().__init__(name=name, geom=geom, **bt_props)
+                 pivot_extents=None, geom=None, phys=True):
+        super().__init__(name=name, geom=geom, phys=phys)
         self.obj = obj
         self.pivot_xform = TransformState.make_pos_hpr(pivot_pos, pivot_hpr)
         self.pivot_extents = pivot_extents
 
     def create(self):
-        # Physics
-        if self.geom:
-            pivot = Cylinder(name=self.name, extents=self.pivot_extents,
-                             geom=True)
-        else:
-            pivot = Empty(name=self.name)
+        pivot = Cylinder(name=self.name, extents=self.pivot_extents,
+                         geom=self.geom, phys=self.phys)
         pivot.create().set_transform(self.obj.path, self.pivot_xform)
-        self.bodies += pivot.bodies
-        cs = bt.BulletHingeConstraint(
-            pivot.bodies[0], self.obj.bodies[0],
-            TransformState.make_identity(), self.pivot_xform
-        )
-        self.constraints.append(cs)
+        # Physics
+        if self.phys:
+            self.bodies += pivot.bodies
+            cs = bt.BulletHingeConstraint(
+                pivot.bodies[0], self.obj.bodies[0],
+                TransformState.make_identity(), self.pivot_xform
+            )
+            self.constraints.append(cs)
         # Scene graph
         self.path = pivot.path
         return self.path
@@ -486,38 +469,34 @@ class Lever(PrimitiveBase):
       Relative orientation of the pivot wrt the primitive.
     pivot_extents : (2,) float sequence
       Parameters of the visual cylinder (if geom is True): radius, height.
-    geom : bool
-      Whether to generate a geometry for visualization.
-    bt_props : dict
-      Dictionary of Bullet properties (mass, restitution, etc.). Basically
-      the method set_key is called for the Bullet body, where "key" is each
-      key of the dictionary.
 
     """
 
     def __init__(self, name, extents, pivot_pos, pivot_hpr, pivot_extents=None,
-                 geom=False, **bt_props):
-        super().__init__(name=name, geom=geom, **bt_props)
+                 geom=None, phys=True, **bt_props):
+        super().__init__(name=name, geom=geom, phys=phys)
         self.extents = extents
         self.pivot_pos = Point3(*pivot_pos)
         self.pivot_hpr = Vec3(*pivot_hpr)
         self.pivot_extents = pivot_extents
+        self.bt_props = bt_props
 
     def create(self):
         # Physics
         box = Box(name=self.name+"_box", extents=self.extents, geom=self.geom,
-                  **self.bt_props)
+                  phys=self.phys, **self.bt_props)
         box.create()
-        self.bodies += box.bodies
         pivot = Pivot(
             name=self.name+"_pivot", obj=box,
             pivot_pos=self.pivot_pos, pivot_hpr=self.pivot_hpr,
             pivot_extents=self.pivot_extents,
-            geom=self.geom
+            geom=self.geom, phys=self.phys
         )
         pivot.create()
-        self.bodies += pivot.bodies
-        self.constraints += pivot.constraints
+        if self.phys:
+            self.bodies += box.bodies
+            self.bodies += pivot.bodies
+            self.constraints += pivot.constraints
         # Scene graph
         self.path = BulletRootNodePath(self.name)
         box.path.reparent_to(self.path)
@@ -550,28 +529,30 @@ class Pulley(PrimitiveBase):
     """
 
     def __init__(self, name, extents, pivot_pos, pivot_hpr, pivot_extents=None,
-                 geom=False, **bt_props):
-        super().__init__(name=name, geom=geom, **bt_props)
+                 geom=None, phys=True, **bt_props):
+        super().__init__(name=name, geom=geom, phys=phys)
         self.extents = extents
         self.pivot_pos = Point3(*pivot_pos)
         self.pivot_hpr = Vec3(*pivot_hpr)
         self.pivot_extents = pivot_extents
+        self.bt_props = bt_props
 
     def create(self):
         # Physics
         cyl = Cylinder(name=self.name+"_cylinder", extents=self.extents,
-                       geom=self.geom, **self.bt_props)
+                       geom=self.geom, phys=self.phys, **self.bt_props)
         cyl.create()
-        self.bodies += cyl.bodies
         pivot = Pivot(
             name=self.name+"_pivot", obj=cyl,
             pivot_pos=self.pivot_pos, pivot_hpr=self.pivot_hpr,
             pivot_extents=self.pivot_extents,
-            geom=self.geom
+            geom=self.geom, phys=self.phys
         )
         pivot.create()
-        self.bodies += pivot.bodies
-        self.constraints += pivot.constraints
+        if self.phys:
+            self.bodies += cyl.bodies
+            self.bodies += pivot.bodies
+            self.constraints += pivot.constraints
         # Scene graph
         self.path = BulletRootNodePath(self.name)
         cyl.path.reparent_to(self.path)
@@ -589,49 +570,47 @@ class Goblet(PrimitiveBase):
     extents : float sequence
       Extents of the goblet / truncated cone (h, r1, r2), as defined in
       solidpython (r1 = radius at the bottom of the cone).
-    geom : bool
-      Whether to generate a geometry for visualization.
-    bt_props : dict
-      Dictionary of Bullet properties (mass, restitution, etc.). Basically
-      the method set_key is called for the Bullet body, where "key" is each
-      key of the dictionary.
 
     """
 
-    def __init__(self, name, extents, geom=False, **bt_props):
-        super().__init__(name=name, geom=geom, **bt_props)
+    def __init__(self, name, extents, geom=None, phys=True, **bt_props):
+        super().__init__(name=name, geom=geom, phys=phys, **bt_props)
         self.extents = extents
 
     def create(self):
-        h, r1, r2 = self.extents
-        alpha = math.atan2(r1 - r2, h)
-        length = math.sqrt((r1 - r2) ** 2 + h ** 2)
-        eps = 1e-3
-        n_seg = 2 ** 4
         # Physics
-        body = bt.BulletRigidBodyNode(self.name + "_solid")
-        self.bodies.append(body)
-        self._set_properties(body)
-        # Add bottom
-        bottom = bt.BulletCylinderShape(r2, eps)
-        bottom.set_margin(eps)
-        body.add_shape(bottom, TransformState.make_pos(Point3(0, 0, eps / 2)))
-        # Add sides
-        side = bt.BulletBoxShape(
-            Vec3(eps, 2 * math.pi * r1 / n_seg, length) / 2)
-        cz = eps + h/2 - math.cos(alpha) * eps / 2
-        cr = (r1 + r2) / 2 + math.sin(alpha) * eps / 2
-        for i in range(n_seg):
-            ai = (i + .5) * 2 * math.pi / n_seg  # .5 to match the geometry
-            pos = Point3(cr * math.cos(ai), cr * math.sin(ai), cz)
-            hpr = Vec3(math.degrees(ai), 0, math.degrees(alpha))
-            body.add_shape(side, TransformState.make_pos_hpr(pos, hpr))
+        if self.phys:
+            h, r1, r2 = self.extents
+            alpha = math.atan2(r1 - r2, h)
+            length = math.sqrt((r1 - r2) ** 2 + h ** 2)
+            eps = 1e-3
+            n_seg = 2**5 if self.geom == 'HD' else 2**4
+            body = bt.BulletRigidBodyNode(self.name + "_solid")
+            self.bodies.append(body)
+            self._set_properties(body)
+            # Add bottom
+            bottom = bt.BulletCylinderShape(r2, eps)
+            bottom.set_margin(eps)
+            body.add_shape(bottom,
+                           TransformState.make_pos(Point3(0, 0, eps / 2)))
+            # Add sides
+            side = bt.BulletBoxShape(
+                Vec3(eps, 2 * math.pi * r1 / n_seg, length) / 2)
+            cz = eps + h/2 - math.cos(alpha) * eps / 2
+            cr = (r1 + r2) / 2 + math.sin(alpha) * eps / 2
+            for i in range(n_seg):
+                ai = (i + .5) * 2 * math.pi / n_seg  # .5 to match the geometry
+                pos = Point3(cr * math.cos(ai), cr * math.sin(ai), cz)
+                hpr = Vec3(math.degrees(ai), 0, math.degrees(alpha))
+                body.add_shape(side, TransformState.make_pos_hpr(pos, hpr))
         # Scene graph
-        self.path = NodePath(body)
+        self.path = NodePath(body) if self.phys else NodePath(self.name)
         # Geometry
-        if self.geom:
+        if self.geom is not None:
+            n_seg = 2**5 if self.geom == 'HD' else 2**4
             self.path.attach_new_node(
-                    self.make_geom(self.name+"_geom", self.extents, n_seg))
+                self.make_geom(self.name+"_geom", self.extents, n_seg)
+            )
         return self.path
 
     @staticmethod
@@ -662,38 +641,40 @@ class DominoRun(PrimitiveBase):
       Extents of each domino.
     coords : (n,3) ndarray
       (x,y,heading) of each domino.
-    geom : bool
-      True if a visible geometry should be added to the scene.
 
     """
 
-    def __init__(self, name, extents, coords, geom=False, **bt_props):
-        super().__init__(name=name, geom=geom, **bt_props)
+    def __init__(self, name, extents, coords,
+                 geom=None, phys=True, **bt_props):
+        super().__init__(name=name, geom=geom, phys=phys, **bt_props)
         self.extents = extents
         self.coords = coords
 
     def create(self):
         # Physics
-        shape = bt.BulletBoxShape(Vec3(*self.extents) / 2)
+        if self.phys:
+            shape = bt.BulletBoxShape(Vec3(*self.extents) / 2)
         # Scene graph
         self.path = NodePath(self.name)
         # Geometry
-        if self.geom:
+        if self.geom is not None:
             geom_path = NodePath(
                     Box.make_geom(self.name+"_geom", self.extents))
 
         for i, (x, y, head) in enumerate(self.coords):
             # Physics
-            body = bt.BulletRigidBodyNode(self.name + "_body_{}".format(i))
-            self.bodies.append(body)
-            body.add_shape(shape)
-            self._set_properties(body)
+            if self.phys:
+                body = bt.BulletRigidBodyNode(self.name+"_solid_{}".format(i))
+                self.bodies.append(body)
+                body.add_shape(shape)
+                self._set_properties(body)
             # Scene graph + local coords
-            dom_path = self.path.attach_new_node(body)
+            dom_path = NodePath(body) if self.phys else NodePath(self.name)
+            dom_path.reparent_to(self.path)
             dom_path.set_pos(Point3(x, y, self.extents[2] / 2))
             dom_path.set_h(head)
             # Geometry
-            if self.geom:
+            if self.geom is not None:
                 geom_path.instance_to(dom_path)
         return self.path
 
@@ -717,12 +698,6 @@ class RopePulley(PrimitiveBase):
       Length of the rope.
     pulley_coords : (n,3) float array
       (x, y, z) of each pulley.
-    geom : bool
-      Whether to generate a geometry for visualization.
-    bt_props : dict
-      Dictionary of Bullet properties (mass, restitution, etc.). Basically
-      the method set_key is called for the Bullet body, where "key" is each
-      key of the dictionary.
 
     """
 
@@ -730,12 +705,13 @@ class RopePulley(PrimitiveBase):
                  obj1: PrimitiveBase, obj2: PrimitiveBase,
                  obj1_pos, obj2_pos,
                  rope_length, pulley_coords,
-                 geom=False, **bt_props):
-        super().__init__(name=name, geom=geom, **bt_props)
+                 geom=None, phys=True, **bt_props):
+        super().__init__(name=name, geom=geom, phys=phys, **bt_props)
         self.obj1 = obj1
         self.obj2 = obj2
         self.obj1_pos = Point3(*obj1_pos)
         self.obj2_pos = Point3(*obj2_pos)
+        self.obj_hooks = {}
         self.rope_length = rope_length
         self.pulley_coords = [Point3(*c) for c in pulley_coords]
         # Useful values.
@@ -745,10 +721,11 @@ class RopePulley(PrimitiveBase):
         )
         self.max_dist = self.rope_length - self.dist_between_pulleys
         # Hardcoded physical properties.
-        self.hook_inertia = 1e-3
-        self.max_slider_force = 1e6
+        if self.phys:
+            self.hook_inertia = 1e-3
+            self.max_slider_force = 1e6
         # Visual properties
-        if geom:
+        if geom is not None:
             self.n_vertices = 15
             self.thickness = .001
             self._prev_vertices = [Point3(0)] * self.n_vertices
@@ -758,7 +735,6 @@ class RopePulley(PrimitiveBase):
         self._attach_pulley(self.obj2, self.obj2_pos, self.pulley_coords[-1])
 
     def _attach_pulley(self, target, target_coords, pulley_coords):
-        target.bodies[0].set_deactivation_enabled(False)
         target_name = target.path.get_name()
         object_hook_coords = target.path.get_transform(
         ).get_mat().xform_point(target_coords)
@@ -766,47 +742,51 @@ class RopePulley(PrimitiveBase):
         # One point-to-point at the pulley, another at the target, and a slider
         # between them.
         # Pulley base (static)
-        pulley_base = Empty(name=target_name + "_pulley-base")
+        pulley_base = Empty(name=target_name + "_pulley-base", phys=self.phys)
         pulley_base.create().set_pos(pulley_coords)
-        self.bodies += pulley_base.bodies
         pulley_base.path.reparent_to(self.path)
         # Pulley hook (can rotate on the base)
-        pulley_hook = Empty(name=target_name + "_pulley-hook")
+        pulley_hook = Empty(name=target_name + "_pulley-hook", phys=self.phys)
         pulley_hook.create().set_pos(pulley_coords)
         pulley_hook.path.look_at(object_hook_coords)  # Y looks at
         pulley_hook.path.set_hpr(pulley_hook.path, Vec3(90, 0, 0))  # now X
-        pulley_hook.bodies[0].set_mass(1e-2)  # make it dynamic
-        pulley_hook.bodies[0].set_inertia(self.hook_inertia)  # allow rotation
-        self.bodies += pulley_hook.bodies
         pulley_hook.path.reparent_to(self.path)
         # Object hook (can rotate on the object)
-        object_hook = Empty(name=target_name + "_object-hook")
+        object_hook = Empty(name=target_name + "_object-hook", phys=self.phys)
         object_hook.create().set_pos(object_hook_coords)
         object_hook.path.look_at(pulley_hook.path.get_pos())  # Y looks at
         object_hook.path.set_hpr(object_hook.path, Vec3(-90, 0, 0))  # now -X
-        object_hook.bodies[0].set_mass(1e-3)  # make it dynamic
-        object_hook.bodies[0].set_inertia(self.hook_inertia)  # allow rotation
-        self.bodies += object_hook.bodies
         object_hook.path.reparent_to(self.path)
-        # Constraints
-        cs1 = bt.BulletSphericalConstraint(
-            pulley_base.bodies[0], pulley_hook.bodies[0],
-            Point3(0), Point3(0)
-        )
-        self.constraints.append(cs1)
-        cs2 = bt.BulletSliderConstraint(  # along the X-axis by default
-            pulley_hook.bodies[0], object_hook.bodies[0],
-            TransformState.make_pos(0), TransformState.make_pos(0), True
-        )
-        cs2.set_lower_linear_limit(0)
-        cs2.set_upper_linear_limit(self.max_dist)
-        cs2.set_max_linear_motor_force(self.max_slider_force)
-        self.constraints.append(cs2)
-        cs3 = bt.BulletSphericalConstraint(
-            object_hook.bodies[0], target.bodies[0],
-            Point3(0), target_coords
-        )
-        self.constraints.append(cs3)
+        self.obj_hooks[target] = object_hook
+        # Physics
+        if self.phys:
+            target.bodies[0].set_deactivation_enabled(False)
+            self.bodies += pulley_base.bodies
+            pulley_hook.bodies[0].set_mass(1e-2)  # make it dynamic
+            pulley_hook.bodies[0].set_inertia(self.hook_inertia)  # allow rot
+            self.bodies += pulley_hook.bodies
+            object_hook.bodies[0].set_mass(1e-3)  # make it dynamic
+            object_hook.bodies[0].set_inertia(self.hook_inertia)  # allow rot
+            self.bodies += object_hook.bodies
+            # Constraints
+            cs1 = bt.BulletSphericalConstraint(
+                pulley_base.bodies[0], pulley_hook.bodies[0],
+                Point3(0), Point3(0)
+            )
+            self.constraints.append(cs1)
+            cs2 = bt.BulletSliderConstraint(  # along the X-axis by default
+                pulley_hook.bodies[0], object_hook.bodies[0],
+                TransformState.make_pos(0), TransformState.make_pos(0), True
+            )
+            cs2.set_lower_linear_limit(0)
+            cs2.set_upper_linear_limit(self.max_dist)
+            cs2.set_max_linear_motor_force(self.max_slider_force)
+            self.constraints.append(cs2)
+            cs3 = bt.BulletSphericalConstraint(
+                object_hook.bodies[0], target.bodies[0],
+                Point3(0), target_coords
+            )
+            self.constraints.append(cs3)
 
     def _apply_rope_tension(self, callback_data):
         slider1 = self.constraints[1]
@@ -848,17 +828,17 @@ class RopePulley(PrimitiveBase):
             slider1.set_upper_linear_limit(self.max_dist)
             slider2.set_upper_linear_limit(self.max_dist)
         # (If not in tension now or before, don't update anything.)
-        if self.geom:
+        if self.geom is not None:
             self._update_visual_rope()
 
     def _get_loose_rope_length(self):
         # Better use the points than slider.get_linear_pos() because the
         # latter is not initialized yet at the first frame.
         dist1 = (
-            self.bodies[2].get_transform().get_pos() - self.pulley_coords[0]
+            self.obj_hooks[self.obj1].path.get_pos() - self.pulley_coords[0]
         ).length()
         dist2 = (
-            self.bodies[-1].get_transform().get_pos() - self.pulley_coords[-1]
+            self.obj_hooks[self.obj2].path.get_pos() - self.pulley_coords[-1]
         ).length()
         loose_rope_length = self.rope_length - (
             self.dist_between_pulleys + dist1 + dist2
@@ -880,10 +860,10 @@ class RopePulley(PrimitiveBase):
         return pulley_hpr
 
     def _update_visual_rope(self):
-        P1 = self.bodies[2].get_transform().get_pos()
+        P1 = self.obj_hooks[self.obj1].path.get_pos()
         P2 = self.pulley_coords[0]
         Pn_1 = self.pulley_coords[-1]
-        Pn = self.bodies[-1].get_transform().get_pos()
+        Pn = self.obj_hooks[self.obj2].path.get_pos()
         loose_rope_length = self._get_loose_rope_length()
         vertices = [P1, P2]
         if loose_rope_length > 0:
@@ -919,11 +899,11 @@ class RopePulley(PrimitiveBase):
             for i, v in enumerate(vertices):
                 ls.set_vertex(i, v)
 
-    def _update_visual_rope_render(self):
-        P1 = self.bodies[2].get_transform().get_pos()
+    def _update_visual_rope_hd(self):
+        P1 = self.obj_hooks[self.obj1].path.get_pos()
         P2 = self.pulley_coords[0]
         Pn_1 = self.pulley_coords[-1]
-        Pn = self.bodies[-1].get_transform().get_pos()
+        Pn = self.obj_hooks[self.obj2].path.get_pos()
         loose_rope_length = max(0, self._get_loose_rope_length())
         vertices = [P1, P2]
         t = np.linspace(0, 1, self.n_vertices-2)[1:-1]
@@ -963,19 +943,27 @@ class RopePulley(PrimitiveBase):
     def create(self):
         # Scene graph
         self.path = NodePath(self.name)
-        # Physics
         self._attach_objects()
-        self._pulley_acc = self._get_pulley_acc()
-        self._in_tension = False
-        self.physics_callback = self._apply_rope_tension
+        # Physics
+        if self.phys:
+            self._pulley_acc = self._get_pulley_acc()
+            self._in_tension = False
+            self.physics_callback = self._apply_rope_tension
         # Geometry
-        if self.geom:
-            self._update_visual_rope()
+        if self.geom is not None:
+            if self.geom == 'HD':
+                self._update_visual_rope_hd()
+            elif self.geom == 'LD':
+                self._update_visual_rope()
             # Pulley geometry
             pulley_hpr = self._get_pulley_hpr()
             for i, coords in enumerate(self.pulley_coords):
+                n_seg = 2**5 if self.geom == 'HD' else 2**4
                 pulley = self.path.attach_new_node(
-                    Cylinder.make_geom("pulley"+str(i)+"_geom", (.003, .05))
+                    Cylinder.make_geom(
+                        self.name + "_pulley_" + str(i) + "_geom",
+                        (.002, .02), center=True, n_seg=n_seg
+                    )
                 )
                 pulley.set_pos(coords)
                 pulley.set_hpr(pulley_hpr)
@@ -1009,12 +997,6 @@ class RopePulleyPivot(RopePulley):
       [-1] indirect (clockwise) rotation of the pivot.
     coiled_length : float
       How much length of the rope is initially coiled around the pivot.
-    geom : bool
-      Whether to generate a geometry for visualization.
-    bt_props : dict
-      Dictionary of Bullet properties (mass, restitution, etc.). Basically
-      the method set_key is called for the Bullet body, where "key" is each
-      key of the dictionary.
 
     """
 
@@ -1023,9 +1005,9 @@ class RopePulleyPivot(RopePulley):
                  obj1_pos, obj2_pos,
                  rope_length, pulley_coords,
                  pivot_extents, rot_dir, coiled_length,
-                 geom=False, **bt_props):
+                 geom=None, phys=True, **bt_props):
         super().__init__(name, obj1, obj2, obj1_pos, obj2_pos, rope_length,
-                         pulley_coords, geom=geom, **bt_props)
+                         pulley_coords, geom=geom, phys=phys, **bt_props)
         self.pivot_extents = pivot_extents
         self.rot_dir = rot_dir
         self.init_coiled_length = coiled_length
@@ -1038,42 +1020,46 @@ class RopePulleyPivot(RopePulley):
             self.init_coiled_length / self.pivot_extents[1]
         )
         # Hardcoded physical properties.
-        self.hinge_force = 1
+        if self.phys:
+            self.hinge_force = 1
 
     def _attach_objects(self):
         self._attach_pulley(self.obj1, self.obj1_pos, self.pulley_coords[0])
         self._attach_pivot(self.obj2, self.obj2_pos)
 
     def _attach_pivot(self, target, target_coords):
-        target.bodies[0].set_deactivation_enabled(False)
         target_name = target.path.get_name()
         pivot_pos = target.path.get_transform(
         ).get_mat().xform_point(target_coords)
         # Cylinder to support the hinge.
         pivot = Cylinder(name=target_name + "_pivot",
                          extents=self.pivot_extents, center=False,
-                         geom=self.geom)
+                         geom=self.geom, phys=self.phys)
         pulley_hpr = self._get_pulley_hpr()
         pivot.create().set_pos_hpr(pivot_pos, pulley_hpr)
-        self.bodies += pivot.bodies
         pivot.path.reparent_to(self.path)
-        # Constraint
-        cs = bt.BulletHingeConstraint(
-            pivot.bodies[0], target.bodies[0],
-            TransformState.make_pos_hpr(Point3(0), Vec3(0)),
-            TransformState.make_pos_hpr(target_coords, pulley_hpr)
-        )
-        init_hinge_angle = cs.get_hinge_angle()
-        cs.set_limit(*sorted(
-            [init_hinge_angle,
-             init_hinge_angle + self.rot_dir * self.max_angle]
-        ))
-        self.constraints.append(cs)
+        self.obj_hooks[target] = pivot
+        # Physics
+        if self.phys:
+            target.bodies[0].set_deactivation_enabled(False)
+            self.bodies += pivot.bodies
+            # Constraint
+            cs = bt.BulletHingeConstraint(
+                pivot.bodies[0], target.bodies[0],
+                TransformState.make_pos_hpr(Point3(0), Vec3(0)),
+                TransformState.make_pos_hpr(target_coords, pulley_hpr)
+            )
+            init_hinge_angle = cs.get_hinge_angle()
+            cs.set_limit(*sorted(
+                [init_hinge_angle,
+                 init_hinge_angle + self.rot_dir * self.max_angle]
+            ))
+            self.constraints.append(cs)
         # Some bookkeeping to update rope tension
         self.init_dist2 = self.init_coiled_length + (
             pivot_pos - self.pulley_coords[-1]
         ).length()
-        self.init_hinge_angle = cs.get_hinge_angle()
+        self.init_hinge_angle = target.path.get_quat().get_angle()
 
     def _apply_rope_tension(self, callback_data):
         slider = self.constraints[1]
@@ -1097,18 +1083,18 @@ class RopePulleyPivot(RopePulley):
                 slider.set_target_linear_motor_velocity(0)
             # We want the hinge to be still when there is no tension.
             hinge.enable_angular_motor(True, 0, self.hinge_force * step)
-        if self.geom:
+        if self.geom is not None:
             self._update_visual_rope()
 
     def _get_loose_rope_length(self):
         # Better use the points than slider.get_linear_pos() because the
         # latter is not initialized yet at the first frame.
         dist1 = (
-            self.bodies[2].get_transform().get_pos() - self.pulley_coords[0]
+            self.obj_hooks[self.obj1].path.get_pos() - self.pulley_coords[0]
         ).length()
         dist2 = self.init_dist2 - (
             self.rot_dir * self.pivot_extents[1]
-            * math.radians(self.constraints[3].get_hinge_angle()
+            * math.radians(self.obj2.path.get_quat().get_angle()
                            - self.init_hinge_angle)
         )
         loose_rope_length = self.rope_length - (
@@ -1130,34 +1116,32 @@ class Track(PrimitiveBase):
     extents : (4,) float sequence
       Extents of the track: (length, width, height, thickness). The first 3
       are external.
-    geom : bool
-      Whether to generate a geometry for visualization.
-    bt_props : dict
-      Dictionary of Bullet properties (mass, restitution, etc.). Basically
-      the method set_key is called for the Bullet body, where "key" is each
-      key of the dictionary.
 
     """
 
-    def __init__(self, name, extents, geom=False, **bt_props):
-        super().__init__(name=name, geom=geom, **bt_props)
+    def __init__(self, name, extents, geom=None, phys=True, **bt_props):
+        super().__init__(name=name, geom=geom, phys=phys, **bt_props)
         self.extents = extents
 
     def create(self):
         # Physics
-        body = bt.BulletRigidBodyNode(self.name + "_solid")
-        self.bodies.append(body)
-        self._set_properties(body)
-        l, w, h, t = self.extents
-        bottom = bt.BulletBoxShape(Vec3(l/2, w/2 - t, t/2))
-        body.add_shape(bottom, TransformState.make_pos(Point3(0, 0, (t-h)/2)))
-        side = bt.BulletBoxShape(Vec3(l/2, t/2, h/2))
-        body.add_shape(side, TransformState.make_pos(Point3(0, (t-w)/2, 0)))
-        body.add_shape(side, TransformState.make_pos(Point3(0, (w-t)/2, 0)))
+        if self.phys:
+            body = bt.BulletRigidBodyNode(self.name + "_solid")
+            self.bodies.append(body)
+            self._set_properties(body)
+            l, w, h, t = self.extents
+            bottom = bt.BulletBoxShape(Vec3(l/2, w/2 - t, t/2))
+            body.add_shape(bottom,
+                           TransformState.make_pos(Point3(0, 0, (t-h)/2)))
+            side = bt.BulletBoxShape(Vec3(l/2, t/2, h/2))
+            body.add_shape(side,
+                           TransformState.make_pos(Point3(0, (t-w)/2, 0)))
+            body.add_shape(side,
+                           TransformState.make_pos(Point3(0, (w-t)/2, 0)))
         # Scene graph
-        self.path = NodePath(body)
+        self.path = NodePath(body) if self.phys else NodePath(self.name)
         # Geometry
-        if self.geom:
+        if self.geom is not None:
             self.path.attach_new_node(
                 self.make_geom(self.name + "_geom", self.extents))
         return self.path

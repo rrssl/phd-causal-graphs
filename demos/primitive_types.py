@@ -19,21 +19,21 @@ def main():
     floor.create()
     floor.attach_to(app.models, app.world)
 
-    ball = prim.Ball(name="ball", radius=.01, geom=True, mass=.01)
+    ball = prim.Ball(name="ball", radius=.01, geom='LD', mass=.01)
     ball.create().set_pos(Point3(0, 0, .4))
     ball.attach_to(app.models, app.world)
 
     lever = prim.Lever(
         name="lever", extents=[.05, .1, .01],
         pivot_pos_hpr=[0, 0, 0, 0, 0, 90],
-        geom=True, mass=.1, angular_damping=.1
+        geom='LD', mass=.1, angular_damping=.1
     )
     lever.create().set_pos(Point3(0, -.03, .3))
     lever.attach_to(app.models, app.world)
 
     goblet = prim.Goblet(
         name="goblet", extents=[.1, .05, .03],
-        geom=True, mass=.1
+        geom='LD', mass=.1
     )
     goblet.create().set_pos_hpr(Point3(0, .05, .02), Vec3(0, -40, 0))
     goblet.attach_to(app.models, app.world)
@@ -41,18 +41,18 @@ def main():
     coords = create_circular_arc([-.1, .01], .1, -90, -0, 10)
     run = prim.DominoRun(
         name="run", extents=[.005, .015, .04], coords=coords,
-        geom=True, mass=.005
+        geom='LD', mass=.005
     )
     run.create()
     run.attach_to(app.models, app.world)
 
     pulley_ball = prim.Ball(
-        name="ball", radius=.01, geom=True, mass=.02
+        name="ball", radius=.01, geom='LD', mass=.02
     )
     pulley_ball.create().set_pos(Point3(0, .15, .2))
     pulley_ball.attach_to(app.models, app.world)
     pulley_cube = prim.Box(
-        name="box", extents=[.02, .02, .02], geom=True, mass=.01
+        name="box", extents=[.02, .02, .02], geom='LD', mass=.01
     )
     pulley_cube.create().set_pos(Point3(0, .27, .2))
     pulley_cube.attach_to(app.models, app.world)
@@ -61,7 +61,7 @@ def main():
         obj1=pulley_ball, obj2=pulley_cube,
         obj1_pos=Point3(0, 0, .01), obj2_pos=Point3(0, 0, .01),
         rope_length=.30, pulley_coords=[[0, .16, .25], [0, .25, .3]],
-        geom=True
+        geom='LD'
     )
     rope_pulley.create()
     rope_pulley.attach_to(app.models, app.world)
