@@ -13,6 +13,7 @@ from panda3d.core import (GeomNode, LineSegs, NodePath, Point3,
                           PythonCallbackObject, TransformState, Vec3)
 
 from core.meshio import solid2panda, trimesh2panda
+from core.spline2d import show_polyline3d
 
 
 class CallbackSequence(list):
@@ -660,6 +661,15 @@ class DominoRun(PrimitiveBase):
         if self.geom is not None:
             geom_path = NodePath(
                     Box.make_geom(self.name+"_geom", self.extents))
+            # Path
+            path_coords = np.c_[self.coords[:, :2], np.zeros(len(self.coords))]
+            if self.geom == 'LD':
+                show_polyline3d(self.path, path_coords, self.name + "_path")
+            elif self.geom == 'HD':
+                self.path.attach_new_node(
+                    self.make_path_geom(self.name + "_path", path_coords,
+                                        n_seg=2**3)
+                )
 
         for i, (x, y, head) in enumerate(self.coords):
             # Physics
@@ -677,6 +687,22 @@ class DominoRun(PrimitiveBase):
             if self.geom is not None:
                 geom_path.instance_to(dom_path)
         return self.path
+
+    @staticmethod
+    def make_path_geom(name, vertices, thickness=.001, n_seg=2**2):
+        geom_node = GeomNode(name)
+        vertices = [Vec3(*v) for v in vertices]
+        for i, (a, b) in enumerate(zip(vertices[:-1], vertices[1:])):
+            name = name + "_seg_" + str(i)
+            length = (b - a).length()
+            geom = Cylinder.make_geom(name, (thickness, length), False, n_seg)
+            path = NodePath(geom)
+            path.set_pos(a)
+            path.look_at(b)
+            path.set_hpr(path, Vec3(90, 0, 90))
+            path.flatten_light()
+            geom_node.add_geoms_from(path.node())
+        return geom_node
 
 
 class RopePulley(PrimitiveBase):
