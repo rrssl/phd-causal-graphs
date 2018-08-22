@@ -10,17 +10,7 @@ import gui.visual as vis  # noqa: E402
 from gui.viewers import ScenarioViewer  # noqa: E402
 from xp.scenarios import BallPlankDominoes  # noqa: E402
 
-
-def my_amazing_svm(params, X0):
-    return (params[:, 0]-X0[0]*10)**2 + (params[:, 1]-X0[1]*10)**2
-
-
-def transform(params):
-    return params * 10
-
-
-def inverse_transform(params):
-    return params / 10
+PATH = "data/robustness_estimation/ballplankdominoes-estimator.pkl"
 
 
 def main():
@@ -34,7 +24,7 @@ def main():
     app.camLens.set_near(0.1)
     app.pivot.set_h(180)
     # Import the estimator
-    estimator = joblib.load("ballplankdominoes-estimator.pkl")
+    estimator = joblib.load(PATH)
     scaler = estimator.named_steps['standardscaler']
     svc = estimator.named_steps['svc']
     print(scaler)

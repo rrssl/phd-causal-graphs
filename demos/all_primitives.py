@@ -131,7 +131,7 @@ def main():
 
         app.run()
     else:
-        dir_ = "all_primitives"
+        dir_ = "data/all_primitives"
         if not os.path.exists(dir_):
             os.mkdir(dir_)
         for child in scene.get_children():
