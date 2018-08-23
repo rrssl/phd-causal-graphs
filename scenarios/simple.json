@@ -1,0 +1,94 @@
+{
+	"scene": [
+		{
+			"name": "floor",
+			"type": "Plane",
+			"args": {
+				"normal": [0, 0, 1],
+				"distance": 0
+			}
+		},
+		{
+			"name": "ball",
+			"type": "Ball",
+			"args": {
+				"radius": 0.01,
+				"b_mass": 0.01,
+				"b_friction": 0.5,
+				"b_restitution": 0.2
+			},
+			"parent": "track",
+			"xform": {
+				"relative_xyz_units": true,
+				"value": [-0.9, 0, 1.01, 0, 0, 0]
+			}
+		},
+		{
+			"name": "track",
+			"type": "Track",
+			"args": {
+				"extents": [0.1, 0.02, 0.003, 0.001],
+				"b_friction": 0.5
+			},
+			"xform": {
+				"value": [-0.1, 0, 0.1, 0, 0, 30],
+				"range": [
+					[-0.3, 0],
+					null,
+					[0, 0.3],
+					null,
+					[0, 90],
+					null
+				]
+			}
+		},
+		{
+			"name": "run",
+			"type": "DominoRun",
+			"args": {
+				"extents": [0.005, 0.02, 0.04],
+				"coords": [
+					[0, 0, 0],
+					[0.01, 0, 0],
+					[0.02, 0, 0]
+				],
+				"b_mass": 0.03,
+				"b_friction": 0.6,
+				"b_restitution": 0.8,
+				"b_angular_damping": 0.09
+			},
+			"xform": {
+				"value": [0, 0, 0, 0, 0, 0]
+			}
+		}
+	],
+	"causal_graph": [
+		{
+			"name": "ball_rolls_on_track",
+			"type": "RollingOn",
+			"args": {
+				"rolling": "ball",
+				"support": "track"
+			},
+			"children": ["ball_hits_run"]
+		},
+		{
+			"name": "ball_hits_run",
+			"type": "Contact",
+			"args": {
+				"first": "ball",
+				"second": "run"
+			},
+			"children": ["run_topples"]
+		},
+		{
+			"name": "run_topples",
+			"type": "Toppling",
+			"args": {
+				"body": "run"
+			}
+		}
+	]
+}
+
+
