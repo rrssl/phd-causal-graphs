@@ -26,12 +26,14 @@ def unregister():
 
 def import_states(path):
     with open(path, 'rb') as f:
-        states = pickle.load(f)
+        data = pickle.load(f)
+    fps = data['metadata']['fps']
+    states = data['states']
     # Set keyframes
     scene = bpy.context.scene
     for o in scene.objects:
         try:
-            anim_id = o.game.properties['anim_id'].value
+            o_states = states[o.name]
         except KeyError:
             continue
         try:
@@ -39,27 +41,24 @@ def import_states(path):
             has_scale = True
         except KeyError:
             has_scale = False
-        o_states = states[anim_id]
-        parent = o.parent
-        print("Keyframing {}".format(parent))
-        parent.rotation_mode = 'QUATERNION'
-        for fi, state in enumerate(o_states):
+        print("Keyframing {}".format(o))
+        o.rotation_mode = 'QUATERNION'
+        for state in o_states:
+            t, x, y, z, w, i, j, k, *_ = state
+            frame = int(t*fps) + 1
             if has_scale:
-                _, x, y, z, w, i, j, k, sx, sy, sz = state
-                parent.scale = (sx, sy, sz)
-                parent.keyframe_insert(data_path='scale', frame=fi+1)
-            else:
-                _, x, y, z, w, i, j, k = state
-            parent.location = (x, y, z)
-            parent.rotation_quaternion = (w, i, j, k)
-            parent.keyframe_insert(data_path='location', frame=fi+1)
-            parent.keyframe_insert(data_path='rotation_quaternion', frame=fi+1)
+                sx, sy, sz = state[-3:]
+                o.scale = (sx, sy, sz)
+                o.keyframe_insert(data_path='scale', frame=frame)
+            o.location = (x, y, z)
+            o.rotation_quaternion = (w, i, j, k)
+            o.keyframe_insert(data_path='location', frame=frame)
+            o.keyframe_insert(data_path='rotation_quaternion', frame=frame)
     # Set time remapping
     render = scene.render
-    old_fps = int(1 / (o_states[1][0] - o_states[0][0]))
     new_fps = render.fps
-    print("Remapping {}FPS to {}FPS".format(old_fps, new_fps))
-    render.frame_map_old = old_fps // new_fps
+    print("Remapping {}FPS to {}FPS".format(fps, new_fps))
+    render.frame_map_old = fps // new_fps
     render.frame_map_new = 1
     scene.frame_end = len(o_states) // render.frame_map_old
 
