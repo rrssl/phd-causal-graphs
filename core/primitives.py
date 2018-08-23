@@ -649,7 +649,7 @@ class DominoRun(PrimitiveBase):
                  geom=None, phys=True, **bt_props):
         super().__init__(name=name, geom=geom, phys=phys, **bt_props)
         self.extents = extents
-        self.coords = coords
+        self.coords = np.asarray(coords)
 
     def create(self):
         # Physics
