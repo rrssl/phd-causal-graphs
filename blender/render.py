@@ -4,9 +4,7 @@ blend file.
 
 Usage
 -----
-NV_GPU=1 blender -b path/to/file.blend \
-        -o //render_ -F PNG -x 1 \
-        -P path/to/render.py -- $NV_GPU
+blender -b path/to/file.blend -P path/to/render.py -- $NV_GPU
 
 """
 import bpy
@@ -23,7 +21,6 @@ for i in range(4):
 scene = bpy.data.scenes['Scene']
 scene.cycles.device = 'GPU'
 scene.cycles.engine = 'CYCLES'
-# scene.cycles.samples = 6
 scene.render.resolution_percentage = 100
 print("Rendering to {}".format(scene.render.filepath))
 
