@@ -201,20 +201,17 @@ class Plane(PrimitiveBase):
         tangent /= np.linalg.norm(tangent)
         bitangent = np.cross(normal, tangent)
         # Compute vertices
-        vertices = np.array(
-            [-tangent - bitangent,
-             -tangent + bitangent,
-             tangent + bitangent,
-             tangent - bitangent]
-        ) * scale + distance * normal
+        vertices = np.array([
+            tangent,
+            bitangent,
+            -tangent,
+            -bitangent
+        ]) * scale + distance * normal
         faces = np.array(
             [0, 1, 3, 1, 2, 3],
             dtype=np.int64
         ).reshape(-1, 3)
-        vertex_normals = np.array(
-            [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1],
-            dtype=np.float64
-        ).reshape(-1, 3)
+        vertex_normals = np.tile(normal, (len(vertices), 1))
         geom = trimesh2panda(vertices, faces, vertex_normals)
         geom_node = GeomNode(name)
         geom_node.add_geom(geom)
