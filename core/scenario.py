@@ -1,4 +1,3 @@
-import json
 import pickle
 import subprocess
 from collections import namedtuple
@@ -212,12 +211,10 @@ def load_causal_graph(graph_data, scene):
     return None
 
 
-def load(filename, geom='LD', phys=True):
-    with open(filename, 'r') as f:
-        data = json.load(f)
-    scene = load_scene(data['scene'], geom, phys)
-    domain = load_domain(data['scene'])
-    causal_graph = load_causal_graph(data['causal_graph'], scene)
+def load_scenario(scenario_data, geom='LD', phys=True):
+    scene = load_scene(scenario_data['scene'], geom, phys)
+    domain = load_domain(scenario_data['scene'])
+    causal_graph = load_causal_graph(scenario_data['causal_graph'], scene)
     return Scenario(scene, causal_graph, domain)
 
 
