@@ -14,12 +14,11 @@ class EventState(Enum):
 
 
 class Event:
-    def __init__(self, name, condition, precondition, outcome, verbose=False):
+    def __init__(self, name, condition):
         self.name = name
         self.condition = condition
-        self.precondition = precondition
-        self.outcome = outcome
-        self.verbose = verbose
+        self.precondition = AllBefore()
+        self.outcome = AllAfter()
         self.state = EventState.asleep
         self.wake_time = 0
 
@@ -30,7 +29,7 @@ class Event:
         self.state = EventState.asleep
         self.wake_time = 0
 
-    def update(self, time):
+    def update(self, time, verbose=False):
         if self.state is EventState.asleep:
             if self.precondition is None or self.precondition():
                 self.state = EventState.awake
@@ -76,20 +75,18 @@ class AllBefore:
         self.transitions = transitions if transitions is not None else []
 
     def __call__(self):
+        # Also works on the root node since all([]) == True :)
         return all(trans.active for trans in self.transitions)
 
 
 class AllAfter:
     """Outcome"""
-    def __init__(self, transitions=None, verbose=False):
+    def __init__(self, transitions=None):
         self.transitions = transitions if transitions is not None else []
-        self.verbose = verbose
 
     def __call__(self, condition):
         for trans in self.transitions:
             trans.active = True
-            if self.verbose:
-                print("Activating {}".format(trans))
 
 
 class CategoricalAfter:
@@ -170,7 +167,7 @@ class CausalGraphTraverser:
         to_process = {self.root}
         while to_process:
             event = to_process.pop()
-            event.update(time)
+            event.update(time, verbose=self.verbose)
             if event.state is EventState.success and event.outcome:
                 for trans in event.outcome.transitions:
                     if trans.active:
