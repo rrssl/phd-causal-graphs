@@ -1,6 +1,5 @@
 import pickle
 import subprocess
-from collections import namedtuple
 from itertools import count
 
 from panda3d.core import NodePath, TransformState
@@ -9,7 +8,6 @@ import core.config as cfg
 from core import primitives
 from core.causal_graph import CausalGraphViewer
 
-Scene = namedtuple('Scene', ['graph', 'world'])
 
 
 class LegacyScenario:
@@ -63,11 +61,10 @@ class LegacyScenario:
         raise NotImplementedError
 
 
-class Scenario:
-    def __init__(self, scene, causal_graph, domain):
-        self.scene = scene
-        self.causal_graph = causal_graph
-        self.domain = domain
+class Scene:
+    def __init__(self, graph: NodePath, world: primitives.World):
+        self.graph = graph
+        self.world = world
 
     def check_physically_valid(self):
         return True
@@ -75,7 +72,7 @@ class Scenario:
     def export_scene_to_egg(self, filename):
         if filename[-4:] == ".egg":
             filename = filename[:-4]
-        self.scene.graph.write_bam_file(filename + ".bam")
+        self.graph.write_bam_file(filename + ".bam")
         subprocess.run(["bam2egg", "-o", filename + ".egg", filename + ".bam"])
 
     def export_layout_to_pdf(self, filename, sheetsize):
@@ -83,6 +80,13 @@ class Scenario:
 
     def get_physical_validity_constraint(self):
         return 0
+
+
+class Scenario:
+    def __init__(self, scene: Scene, causal_graph, domain):
+        self.scene = scene
+        self.causal_graph = causal_graph
+        self.domain = domain
 
 
 class StateObserver:
