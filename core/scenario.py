@@ -3,7 +3,7 @@ import subprocess
 from collections import namedtuple
 from itertools import count
 
-from panda3d.core import NodePath
+from panda3d.core import NodePath, TransformState
 
 import core.config as cfg
 from core import primitives
@@ -219,12 +219,43 @@ def load_scenario(scenario_data, geom='LD', phys=True):
 
 
 def simulate_scene(scene: Scene, duration, timestep, callbacks=None):
+    """Run the simulator for a given Scene.
+
+    Parameters
+    ----------
+    scene : Scene
+      The Scene to simulate.
+    duration : float
+      The maximum duration of the simulation (in seconds).
+    timestep : float
+      The simulator timestep.
+    callbacks : callable sequence, optional
+      A list of functions of time called _before_ each simulation step.
+      After calling each of them, if at least one has returned False, the
+      simulation exits.
+
+    Return
+    ------
+    time : float
+      The total time of the simulation.
+
+    """
     world = scene.world
     if callbacks is None:
         callbacks = []
     time = 0.
+    do_break = False
     while time <= duration:
         for c in callbacks:
-            c(time)
+            res = c(time)
+            if res is not None and not res:
+                do_break = True
+        if do_break:
+            break
         world.do_physics(timestep, 2, timestep)
         time += timestep
+    # Transforms are globally cached by default. Out of the regular
+    # Panda3D task process, we need to empty this cache by hand when
+    # running a large number of simulations, to avoid memory overflow.
+    TransformState.garbage_collect()
+    return time
