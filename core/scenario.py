@@ -1,13 +1,16 @@
 import pickle
 import subprocess
 from itertools import count
+from math import ceil
 
-from panda3d.core import NodePath, TransformState
+from panda3d.core import GeomVertexReader, NodePath, TransformState
+from shapely.geometry import LineString
 
 import core.config as cfg
 from core import primitives
 from core.causal_graph import CausalGraphViewer
 
+from core.export import VectorFile
 
 
 class LegacyScenario:
@@ -75,8 +78,89 @@ class Scene:
         self.graph.write_bam_file(filename + ".bam")
         subprocess.run(["bam2egg", "-o", filename + ".egg", filename + ".bam"])
 
-    def export_layout_to_pdf(self, filename, sheetsize):
-        pass
+    def export_layout_to_pdf(self, filename, sheetsize, plane='xy',
+                             exclude=None):
+        if exclude is None:
+            exclude = []
+        geom_nodes = self.graph.find_all_matches("**/+GeomNode")
+        objects = []
+        min_u = min_v = float('inf')
+        max_u = max_v = -min_u
+        # First pass: retrieve the vertices.
+        for node_path in geom_nodes:
+            if node_path.name in exclude:
+                continue
+            geom_node = node_path.node()
+            mat = node_path.get_net_transform().get_mat()
+            objects.append([])
+            for geom in geom_node.get_geoms():
+                vertex = GeomVertexReader(geom.get_vertex_data(), 'vertex')
+                while not vertex.is_at_end():
+                    point = mat.xform_point(vertex.get_data3f())
+                    u = getattr(point, plane[0]) * -100
+                    v = getattr(point, plane[1]) * -100
+                    objects[-1].append([u, v])
+                    # Update the min and max.
+                    if u < min_u:
+                        min_u = u
+                    if v < min_v:
+                        min_v = v
+                    if u > max_u:
+                        max_u = u
+                    if v > max_v:
+                        max_v = v
+        # Second pass: get the convex hulls.
+        objects = [LineString(o).convex_hull.exterior.coords for o in objects]
+        # Determine the size of the whole sheet: i.e., choose landscape or
+        # portrait, and determine the number of sheets.
+        su, sv = sheetsize
+        nu_por = ceil((max_u - min_u)/su)
+        nv_por = ceil((max_v - min_v)/sv)
+        nu_lan = ceil((max_u - min_u)/sv)
+        nv_lan = ceil((max_v - min_v)/su)
+        if (nu_por + nv_por) <= (nu_lan + nv_lan):
+            nu = nu_por
+            nv = nv_por
+        else:
+            nu = nu_lan
+            nv = nu_lan
+            su, sv = sv, su
+        sheetsize = (nu*su, nv*sv)
+        # Create the vector file.
+        vec = VectorFile(filename, sheetsize)
+        # Add the cut lines.
+        guides_color = "#DDDDDD"
+        for i in range(1, nu):
+            vec.add_polyline([[su*i, 0], [su*i, sheetsize[1]]],
+                             linecolor=guides_color)
+        for i in range(1, nv):
+            vec.add_polyline([[0, sv*i], [sheetsize[0], sv*i]],
+                             linecolor=guides_color)
+        # Add the stitch guides.
+        density = nu + nv
+        points = []
+        # (This could be rewritten with modulos, but would be harder to read.)
+        for i in range(0, density):
+            points.append([0, i*sheetsize[1]/density])
+            points.append([i*sheetsize[0]/density, 0])
+        for i in range(0, density):
+            points.append([sheetsize[0], i*sheetsize[1]/density])
+            points.append([i*sheetsize[0]/density, sheetsize[1]])
+        for i in range(0, density):
+            points.append([0, (density-i)*sheetsize[1]/density])
+            points.append([i*sheetsize[0]/density, sheetsize[1]])
+        for i in range(0, density):
+            points.append([sheetsize[0], (density-i)*sheetsize[1]/density])
+            points.append([i*sheetsize[0]/density, 0])
+        vec.add_polyline(points, linecolor=guides_color)
+        # Add the polylines.
+        du = sheetsize[0]/2 - (min_u + max_u)/2
+        dv = sheetsize[1]/2 - (min_v + max_v)/2
+        for o in objects:
+            o = [[u + du, v + dv] for u, v in o]
+            vec.add_polyline(o)
+        # Write the file.
+        vec.save()
 
     def get_physical_validity_constraint(self):
         return 0
