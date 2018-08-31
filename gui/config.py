@@ -1,4 +1,4 @@
-from config import *
+from core.config import GRAVITY
 
 VIDEO_FRAME_RATE = 60
 
