@@ -481,7 +481,7 @@ class Lever(PrimitiveBase):
 
     def create(self):
         # Physics
-        box = Box(name=self.name+"_box", extents=self.extents, geom=self.geom,
+        box = Box(name=self.name, extents=self.extents, geom=self.geom,
                   phys=self.phys, **self.bt_props)
         box.create()
         pivot = Pivot(
@@ -537,7 +537,7 @@ class Pulley(PrimitiveBase):
 
     def create(self):
         # Physics
-        cyl = Cylinder(name=self.name+"_cylinder", extents=self.extents,
+        cyl = Cylinder(name=self.name, extents=self.extents,
                        geom=self.geom, phys=self.phys, **self.bt_props)
         cyl.create()
         pivot = Pivot(
