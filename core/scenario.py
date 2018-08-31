@@ -256,16 +256,6 @@ def load_scene(scene_data, geom='LD', phys=True):
             xform = obj_data['xform']['value']
         except KeyError:
             xform = [0, 0, 0, 0, 0, 0]
-        try:
-            rel = obj_data['xform']['relative_xyz_units']
-        except KeyError:
-            rel = False
-        if rel:
-            bounds = obj_path.get_bounds()
-            unit = (bounds.get_max() - bounds.get_min()) / 2
-            xform[0] *= unit[0]
-            xform[1] *= unit[1]
-            xform[2] *= unit[2]
         obj_path.set_pos_hpr(*xform)
         # Attach object to the root
         obj.attach_to(scene.graph, scene.world)
