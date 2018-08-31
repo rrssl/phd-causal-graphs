@@ -68,23 +68,6 @@
 			"args": {
 				"rolling": "ball",
 				"support": "track"
-			},
-			"children": ["ball_hits_run"]
-		},
-		{
-			"name": "ball_hits_run",
-			"type": "Contact",
-			"args": {
-				"first": "ball",
-				"second": "run"
-			},
-			"children": ["run_topples"]
-		},
-		{
-			"name": "run_topples",
-			"type": "Toppling",
-			"args": {
-				"body": "run"
 			}
 		}
 	]

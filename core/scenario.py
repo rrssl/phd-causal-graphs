@@ -7,9 +7,9 @@ from panda3d.core import GeomVertexReader, NodePath, TransformState
 from shapely.geometry import LineString
 
 import core.config as cfg
+from core import causal_graph as causal
+from core import events
 from core import primitives
-from core.causal_graph import CausalGraphViewer
-
 from core.export import VectorFile
 
 
@@ -27,7 +27,7 @@ class LegacyScenario:
         self.causal_graph = self.init_causal_graph(self.scene,
                                                    verbose=make_geom)
         if graph_view:
-            self.graph_view = CausalGraphViewer(self.causal_graph.root)
+            self.graph_view = causal.CausalGraphViewer(self.causal_graph.root)
 
     def check_physically_valid(self):
         return self._check_physically_valid_scene(self._scene)
@@ -285,8 +285,49 @@ def load_domain(scene_data):
     return domain
 
 
-def load_causal_graph(graph_data, scene):
-    return None
+def load_causal_graph(graph_data, scene, verbose=False):
+    graph = scene.graph
+    world = scene.world
+    name2path = {}
+    name2event = {}
+    event2children = {}
+    root = None
+    # First pass: create the events
+    for event_data in graph_data:
+        name = event_data['name']
+        EventType = getattr(events, event_data['type'])
+        args = event_data['args'].copy()
+        for key, value in args.items():
+            if type(value) is str:
+                try:
+                    path = name2path[value]
+                except KeyError:
+                    path = graph.find("**/" + value + "_solid")
+                    if path.is_empty():
+                        path = None
+                    name2path[value] = path
+                if path is not None:
+                    args[key] = path
+        if EventType in (events.Contact, events.NoContact, events.RollingOn):
+            args['world'] = world
+        event = causal.Event(name, EventType(**args))
+        name2event[name] = event
+        try:
+            children = event_data['children']
+        except KeyError:
+            children = []
+        event2children[event] = children
+    # Second pass: connect the events
+    has_parent = set()
+    for event, children in event2children.items():
+        for child in children:
+            causal.connect(event, name2event[child])
+            has_parent.add(name2event[child])
+    root = (event2children.keys() - has_parent).pop()
+    graph = causal.CausalGraphTraverser(
+        root=root, verbose=verbose
+    )
+    return graph
 
 
 def load_scenario(scenario_data, geom='LD', phys=True):
