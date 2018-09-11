@@ -269,7 +269,8 @@ def load_scene(scene_data, geom='LD', phys=True):
     # Second pass for scene graph hierarchy
     for obj_path, parent in path2parent.items():
         obj_path.reparent_to(name2path[parent])
-        obj_path.node().set_transform_dirty()
+        if phys:
+            obj_path.node().set_transform_dirty()
     return scene
 
 
