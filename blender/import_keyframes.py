@@ -31,6 +31,7 @@ def import_states(path):
     states = data['states']
     # Set keyframes
     scene = bpy.context.scene
+    max_frame = 0
     for o in scene.objects:
         try:
             o_states = states[o.name]
@@ -54,13 +55,17 @@ def import_states(path):
             o.rotation_quaternion = (w, i, j, k)
             o.keyframe_insert(data_path='location', frame=frame)
             o.keyframe_insert(data_path='rotation_quaternion', frame=frame)
+        # Keep track of max frame.
+        # Do it after the for loop because highest frame is always last!
+        if frame > max_frame:
+            max_frame = frame
     # Set time remapping
     render = scene.render
     new_fps = render.fps
     print("Remapping {}FPS to {}FPS".format(fps, new_fps))
-    render.frame_map_old = fps // new_fps
-    render.frame_map_new = 1
-    scene.frame_end = len(o_states) // render.frame_map_old
+    render.frame_map_old = fps
+    render.frame_map_new = new_fps
+    scene.frame_end = max_frame * new_fps // fps
 
 
 if __name__ == "__main__":
