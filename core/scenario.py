@@ -209,7 +209,7 @@ class StateObserver:
                 self.states[key].append(state)
                 prev[key] = state[1:]
                 continue
-            if any(abs(s - s_) >= 1e-3 for s, s_ in zip(state[1:], state_)):
+            if any(abs(s - s_) >= 1e-4 for s, s_ in zip(state[1:], state_)):
                 self.states[key].append(state)
                 prev[key] = state[1:]
 
