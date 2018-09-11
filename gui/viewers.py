@@ -263,6 +263,8 @@ class Modeler(TurntableViewer):
         self.accept('s', self.models.write_bam_file, ["scene.bam"])
         # Center view on the entire scene
         self.accept_once("home", self.center_view_on, [self.models])
+        # Show models
+        self.accept('l', self.models.ls)
 
     def update_axes(self, task):
         # Point of reference for each rotation is super important here.
