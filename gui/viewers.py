@@ -522,20 +522,37 @@ class Replayer(Modeler):
     ----------
     scene : string
       Filename of the .bam or .egg scene (.bam keeps more data).
-    frames : string
-      Filename of the .pkl dict of frames.
+    simu_data : string
+      Filename of the .pkl file of simulation data.
 
     """
-    def __init__(self, scene, frames, **viewer_kwargs):
+    def __init__(self, scene, simu_data, **viewer_kwargs):
         super().__init__(**viewer_kwargs)
-        self.scene = self.loader.load_model(scene)
-        self.scene.reparent_to(self.models)
-        self.nodepaths_and_frames = self.import_frames(frames)
-        first_frames = self.nodepaths_and_frames[0][1]
-        step = first_frames[1][0] - first_frames[0][0]
-        self.remapping_factor = 1 / (step * self.video_frame_rate)
+        # Load the scene.
+        scene = self.loader.load_model(scene)
+        scene.reparent_to(self.models)
+        # Load the frames.
+        with open(simu_data, 'rb') as f:
+            simu_data = pickle.load(f)
+        simu_frame_rate = simu_data['metadata']['fps']
+        length = max(states[-1][0] for states in simu_data['states'].values())
+        n_frames = int(length * simu_frame_rate) + 1
+        frames = [[] for _ in range(n_frames)]
+        name2path = {}
+        for name, states in simu_data['states'].items():
+            try:
+                nopa = name2path[name]
+            except KeyError:
+                nopa = scene.find("**/{}".format(name))
+                name2path[name] = nopa
+            for state in states:
+                t = state[0]
+                fi = int(t * simu_frame_rate)
+                frames[fi].append((nopa, state[1:]))
+        self.frames = frames
+        self.remapping_factor = simu_frame_rate / self.video_frame_rate
         self.frame_start = 0
-        self.frame_end = int((len(first_frames) - 1) / self.remapping_factor)
+        self.frame_end = int((n_frames - 1) / self.remapping_factor)
 
         self.play = False
         self.current_frame = 0
@@ -552,16 +569,12 @@ class Replayer(Modeler):
         fi = fs if fi < fs else fe if fi > fe else fi
         self.current_frame = fi
         # Update transforms
-        scene = self.scene
         fi_original = self.remap_frame(fi)
-        for nopa, frames in self.nodepaths_and_frames:
+        for nopa, state in self.frames[fi_original]:
             if nopa.has_tag('save_scale'):
-                _, x, y, z, r, i, j, k, sx, sy, sz = frames[fi_original]
-                nopa.set_scale(scene, Vec3(sx, sy, sz))
-            else:
-                _, x, y, z, r, i, j, k = frames[fi_original]
-            nopa.set_pos(scene, Point3(x, y, z))
-            nopa.set_quat(scene, Quat(r, i, j, k))
+                nopa.set_scale(Vec3(*state[-3:]))
+            nopa.set_pos(Point3(*state[:3]))
+            nopa.set_quat(Quat(*state[3:7]))
 
     def go_to_next_frame(self):
         self.go_to_frame(self.current_frame + 1)
