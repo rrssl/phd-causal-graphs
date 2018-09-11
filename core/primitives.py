@@ -12,6 +12,7 @@ import solid.utils as slu
 from panda3d.core import (GeomNode, LineSegs, NodePath, Point3,
                           PythonCallbackObject, TransformState, Vec3)
 
+from core.dominoes import tilt_domino_forward
 from core.meshio import solid2panda, trimesh2panda
 from core.spline2d import show_polyline3d
 
@@ -649,14 +650,17 @@ class DominoRun(PrimitiveBase):
       Extents of each domino.
     coords : (n,3) ndarray
       (x,y,heading) of each domino.
+    tilt_angle : float, optional
+      Angle by which the first domino should be tilted. Defaults to 0.
 
     """
 
-    def __init__(self, name, extents, coords,
+    def __init__(self, name, extents, coords, tilt_angle=0,
                  geom=None, phys=True, **bt_props):
         super().__init__(name=name, geom=geom, phys=phys, **bt_props)
         self.extents = extents
         self.coords = np.asarray(coords)
+        self.tilt_angle = tilt_angle
 
     def create(self):
         # Physics
@@ -678,7 +682,6 @@ class DominoRun(PrimitiveBase):
                     self.make_path_geom(self.name + "_path", path_coords,
                                         n_seg=2**3)
                 )
-
         for i, (x, y, head) in enumerate(self.coords):
             name = self.name+"_solid_{}".format(i)
             # Physics
@@ -695,6 +698,10 @@ class DominoRun(PrimitiveBase):
             # Geometry
             if self.geom is not None:
                 geom_path.instance_to(dom_path)
+        # Initial condition
+        if self.tilt_angle:
+            tilt_domino_forward(self.path.get_child(1), self.extents,
+                                self.tilt_angle)
         return self.path
 
     @staticmethod
