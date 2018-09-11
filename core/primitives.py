@@ -137,11 +137,12 @@ class Empty(PrimitiveBase):
         super().__init__(name=name, phys=phys, **bt_props)
 
     def create(self):
+        name = self.name + "_solid"
         if self.phys:
-            body = bt.BulletRigidBodyNode(self.name)
+            body = bt.BulletRigidBodyNode(name)
             self.bodies.append(body)
             self._set_properties(body)
-        self.path = NodePath(body) if self.phys else NodePath(self.name)
+        self.path = NodePath(body) if self.phys else NodePath(name)
         return self.path
 
     @staticmethod
@@ -170,9 +171,10 @@ class Plane(PrimitiveBase):
         self.distance = distance
 
     def create(self):
+        name = self.name + "_solid"
         # Physics
         if self.phys:
-            body = bt.BulletRigidBodyNode(self.name + "_solid")
+            body = bt.BulletRigidBodyNode(name)
             self.bodies.append(body)
             self._set_properties(body)
             shape = bt.BulletPlaneShape(self.normal, self.distance)
@@ -181,7 +183,7 @@ class Plane(PrimitiveBase):
             # body.add_shape(shape, TransformState.make_pos(Point3(0, 0, -.1)))
             body.add_shape(shape)
         # Scene graph
-        self.path = NodePath(body) if self.phys else NodePath(self.name)
+        self.path = NodePath(body) if self.phys else NodePath(name)
         # Geometry
         if self.geom is not None:
             self.path.attach_new_node(self.make_geom(
@@ -235,15 +237,16 @@ class Ball(PrimitiveBase):
         self.radius = radius
 
     def create(self):
+        name = self.name + "_solid"
         # Physics
         if self.phys:
-            body = bt.BulletRigidBodyNode(self.name + "_solid")
+            body = bt.BulletRigidBodyNode(name)
             self.bodies.append(body)
             self._set_properties(body)
             shape = bt.BulletSphereShape(self.radius)
             body.add_shape(shape)
         # Scene graph
-        self.path = NodePath(body) if self.phys else NodePath(self.name)
+        self.path = NodePath(body) if self.phys else NodePath(name)
         # Geometry
         if self.geom is not None:
             n_seg = 2**5 if self.geom == 'HD' else 2**4
@@ -280,16 +283,17 @@ class Box(PrimitiveBase):
         self.extents = extents
 
     def create(self):
+        name = self.name + "_solid"
         # Physics
         if self.phys:
-            body = bt.BulletRigidBodyNode(self.name + "_solid")
+            body = bt.BulletRigidBodyNode(name)
             self.bodies.append(body)
             self._set_properties(body)
             shape = bt.BulletBoxShape(Vec3(*self.extents) / 2)
             #  shape.set_margin(.0001)
             body.add_shape(shape)
         # Scene graph
-        self.path = NodePath(body) if self.phys else NodePath(self.name)
+        self.path = NodePath(body) if self.phys else NodePath(name)
         # Geometry
         if self.geom is not None:
             self.path.attach_new_node(
@@ -326,9 +330,10 @@ class Cylinder(PrimitiveBase):
         self.center = center
 
     def create(self):
+        name = self.name + "_solid"
         # Physics
         if self.phys:
-            body = bt.BulletRigidBodyNode(self.name + "_solid")
+            body = bt.BulletRigidBodyNode(name)
             self.bodies.append(body)
             self._set_properties(body)
             r, h = self.extents
@@ -339,7 +344,7 @@ class Cylinder(PrimitiveBase):
                 body.add_shape(shape,
                                TransformState.make_pos(Point3(0, 0, h/2)))
         # Scene graph
-        self.path = NodePath(body) if self.phys else NodePath(self.name)
+        self.path = NodePath(body) if self.phys else NodePath(name)
         # Geometry
         if self.geom is not None:
             n_seg = 2**5 if self.geom == 'HD' else 2**4
@@ -377,16 +382,17 @@ class Capsule(PrimitiveBase):
         self.extents = extents
 
     def create(self):
+        name = self.name + "_solid"
         # Physics
         if self.phys:
-            body = bt.BulletRigidBodyNode(self.name + "_solid")
+            body = bt.BulletRigidBodyNode(name)
             self.bodies.append(body)
             self._set_properties(body)
             r, h = self.extents
             shape = bt.BulletCapsuleShape(r, h)
             body.add_shape(shape)
         # Scene graph
-        self.path = NodePath(body) if self.phys else NodePath(self.name)
+        self.path = NodePath(body) if self.phys else NodePath(name)
         # Geometry
         if self.geom is not None:
             n_seg = 2**5 if self.geom == 'HD' else 2**4
@@ -496,7 +502,8 @@ class Lever(PrimitiveBase):
             self.bodies += pivot.bodies
             self.constraints += pivot.constraints
         # Scene graph
-        self.path = BulletRootNodePath(self.name)
+        self.path = (BulletRootNodePath(self.name)
+                     if self.phys else NodePath(self.name))
         box.path.reparent_to(self.path)
         pivot.path.reparent_to(self.path)
         return self.path
@@ -552,7 +559,8 @@ class Pulley(PrimitiveBase):
             self.bodies += pivot.bodies
             self.constraints += pivot.constraints
         # Scene graph
-        self.path = BulletRootNodePath(self.name)
+        self.path = (BulletRootNodePath(self.name)
+                     if self.phys else NodePath(self.name))
         cyl.path.reparent_to(self.path)
         pivot.path.reparent_to(self.path)
         return self.path
@@ -576,6 +584,7 @@ class Goblet(PrimitiveBase):
         self.extents = extents
 
     def create(self):
+        name = self.name + "_solid"
         # Physics
         if self.phys:
             h, r1, r2 = self.extents
@@ -583,7 +592,7 @@ class Goblet(PrimitiveBase):
             length = math.sqrt((r1 - r2) ** 2 + h ** 2)
             eps = 1e-3
             n_seg = 2**5 if self.geom == 'HD' else 2**4
-            body = bt.BulletRigidBodyNode(self.name + "_solid")
+            body = bt.BulletRigidBodyNode(name)
             self.bodies.append(body)
             self._set_properties(body)
             # Add bottom
@@ -594,6 +603,7 @@ class Goblet(PrimitiveBase):
             # Add sides
             side = bt.BulletBoxShape(
                 Vec3(eps, 2 * math.pi * r1 / n_seg, length) / 2)
+            side.set_margin(eps)
             cz = eps + h/2 - math.cos(alpha) * eps / 2
             cr = (r1 + r2) / 2 + math.sin(alpha) * eps / 2
             for i in range(n_seg):
@@ -602,7 +612,7 @@ class Goblet(PrimitiveBase):
                 hpr = Vec3(math.degrees(ai), 0, math.degrees(alpha))
                 body.add_shape(side, TransformState.make_pos_hpr(pos, hpr))
         # Scene graph
-        self.path = NodePath(body) if self.phys else NodePath(self.name)
+        self.path = NodePath(body) if self.phys else NodePath(name)
         # Geometry
         if self.geom is not None:
             n_seg = 2**5 if self.geom == 'HD' else 2**4
@@ -653,7 +663,8 @@ class DominoRun(PrimitiveBase):
         if self.phys:
             shape = bt.BulletBoxShape(Vec3(*self.extents) / 2)
         # Scene graph
-        self.path = NodePath(self.name)
+        self.path = (BulletRootNodePath(self.name)
+                     if self.phys else NodePath(self.name))
         # Geometry
         if self.geom is not None:
             geom_path = NodePath(
@@ -669,14 +680,15 @@ class DominoRun(PrimitiveBase):
                 )
 
         for i, (x, y, head) in enumerate(self.coords):
+            name = self.name+"_solid_{}".format(i)
             # Physics
             if self.phys:
-                body = bt.BulletRigidBodyNode(self.name+"_solid_{}".format(i))
+                body = bt.BulletRigidBodyNode(name)
                 self.bodies.append(body)
                 body.add_shape(shape)
                 self._set_properties(body)
             # Scene graph + local coords
-            dom_path = NodePath(body) if self.phys else NodePath(self.name)
+            dom_path = NodePath(body) if self.phys else NodePath(name)
             dom_path.reparent_to(self.path)
             dom_path.set_pos(Point3(x, y, self.extents[2] / 2))
             dom_path.set_h(head)
@@ -1147,9 +1159,10 @@ class Track(PrimitiveBase):
         self.extents = extents
 
     def create(self):
+        name = self.name + "_solid"
         # Physics
         if self.phys:
-            body = bt.BulletRigidBodyNode(self.name + "_solid")
+            body = bt.BulletRigidBodyNode(name)
             self.bodies.append(body)
             self._set_properties(body)
             l, w, h, t = self.extents
@@ -1162,7 +1175,7 @@ class Track(PrimitiveBase):
             body.add_shape(side,
                            TransformState.make_pos(Point3(0, (w-t)/2, 0)))
         # Scene graph
-        self.path = NodePath(body) if self.phys else NodePath(self.name)
+        self.path = NodePath(body) if self.phys else NodePath(name)
         # Geometry
         if self.geom is not None:
             self.path.attach_new_node(
