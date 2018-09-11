@@ -3,5 +3,6 @@ __pycache__/
 *.np[yz]*
 *.pkl
 *.pdf
+*.bam
 *.egg
 .vim_session
