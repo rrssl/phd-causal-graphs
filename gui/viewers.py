@@ -12,6 +12,7 @@ from panda3d.core import (AmbientLight, DirectionalLight, LineSegs, NodePath,
 
 import gui.config as cfg
 from gui.coord_grid import ThreeAxisGrid
+from gui.uiwidgets import PlayerControls
 from core.primitives import World
 
 
@@ -559,10 +560,19 @@ class Replayer(Modeler):
         self.play = False
         self.current_frame = 0
         self.task_mgr.add(self.update_frame, "update_frame")
-        self.accept('r', self.reset_frame)
-        self.accept('space', self.toggle_play)
-        self.accept('n', self.go_to_next_frame)
-        self.accept('p', self.go_to_previous_frame)
+        self.accept('r', self.update_control, ["startButton"])
+        self.accept('space', self.update_control, ["ppButton"])
+        self.accept('n', self.update_control, ["nextButton"])
+        self.accept('p', self.update_control, ["prevButton"])
+
+        self.controls = PlayerControls(
+            parent=self.a2dBottomCenter,
+            frameSize=(-.5, .5, -.1, .1),
+            pos=Point3(0, 0, .25*9/16),
+            command=self.update_control,
+            currentFrame=self.current_frame+1,
+            numFrames=self.frame_end+1,
+        )
 
     def go_to_frame(self, fi):
         # Clip fi
@@ -608,7 +618,26 @@ class Replayer(Modeler):
         if self.play:
             fi = (self.current_frame + 1) % (self.frame_end + 1)
             self.go_to_frame(fi)
+            self.controls.updateCurrentFrame(self.current_frame + 1)
         return task.cont
+
+    def update_control(self, *args):
+        name = args[-1]
+        control = self.controls.component(name)
+        if name == "timelineSlider":
+            self.go_to_frame(round(control['value']) - 1)
+        if name == "startButton":
+            self.reset_frame()
+        if name == "prevButton":
+            self.go_to_previous_frame()
+        if name == "ppButton":
+            self.toggle_play()
+            self.controls.togglePlayPause(self.play)
+        if name == "nextButton":
+            self.go_to_next_frame()
+        if name == "endButton":
+            self.go_to_frame(self.frame_end)
+        self.controls.updateCurrentFrame(self.current_frame + 1)
 
     def shutdown(self):
         self.task_mgr.remove("update_frame")

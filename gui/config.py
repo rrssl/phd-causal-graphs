@@ -1,3 +1,4 @@
+from panda3d.core import Vec4
 from core.config import GRAVITY
 
 VIDEO_FRAME_RATE = 60
@@ -15,6 +16,7 @@ VISUAL_AMBIENT_LIGHT_COLOR = .8
 BACKGROUND_COLOR = (.9, .9, .9)
 DEBUG_BACKGROUND_COLOR = (.1, .1, .1)
 GRID_COLOR = .35
+BUTTON_COLOR_1 = Vec4(65, 105, 225, 255)/255
 
 PHYSICS_FRAME_RATE = 240
 

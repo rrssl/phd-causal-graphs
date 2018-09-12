@@ -3,17 +3,13 @@ UI widgets.
 
 NB: Naming conventions follow those used in other DirectObjects (camelCasing).
 """
-from panda3d.core import CardMaker
-from panda3d.core import NodePath
-from panda3d.core import PNMImage
-from panda3d.core import TextNode
-from panda3d.core import Texture
-from panda3d.core import Vec3
-from panda3d.core import Vec4
 import direct.gui.DirectGuiGlobals as DGG
-from direct.gui.DirectGui import DirectButton
-from direct.gui.DirectGui import DirectFrame
-from direct.gui.DirectGui import DirectOptionMenu
+from direct.gui.DirectGui import (DirectButton, DirectEntry, DirectFrame,
+                                  DirectLabel, DirectOptionMenu, DirectSlider)
+from panda3d.core import (CardMaker, NodePath, PNMImage, TextNode, Texture,
+                          Vec3, Vec4)
+
+import gui.config as cfg
 
 
 def make_box_shadow(width, height, shadowSize, resol=32):
@@ -409,3 +405,140 @@ class ButtonMenu(DirectOptionMenu):
             if fCommand and self['command']:
                 # Pass any extra args to command
                 self['command'](*[item] + self['extraArgs'])
+
+
+class PlayerControls(DirectFrame):
+    def __init__(self, parent=None, **kw):
+        optiondefs = (
+            ('currentFrame', 1, None),
+            ('numFrames', 2*cfg.VIDEO_FRAME_RATE, None),
+            ('framerate', cfg.VIDEO_FRAME_RATE, None),
+            ('command', None, None),
+        )
+        # Merge keyword options with default options
+        self.defineoptions(kw, optiondefs)
+        # Initialize the relevant superclass
+        super().__init__(parent)
+        # Call option initialization functions
+        self.initialiseoptions(PlayerControls)
+        # Create components
+        self._create_slider()
+        self._create_text()
+        self._create_buttons()
+
+    def _create_buttons(self):
+        fs = self['frameSize']
+        button_data = (
+            ("start", "|<<"),
+            ("prev", " <<"),
+            ("pp", " > "),
+            ("next", ">> "),
+            ("end", ">>|"),
+        )
+        for i, (label, symbol) in enumerate(button_data):
+            name = label + "Button"
+            self.createcomponent(
+                name, (), None,
+                DirectButton, (self,),
+                command=self['command'],
+                extraArgs=[name],
+                pos=(fs[1] * (.1 + .15*(i + 1)), 0, fs[2]*.7),
+                frameSize=(fs[0]*.06, fs[1]*.06, fs[0]*.02, fs[1]*.08),
+                text=symbol,
+                text_align=TextNode.ACenter,
+                text_scale=.05,
+                relief='flat',
+                # borderWidth=(.01, .01),
+                frameColor=(.6, .6, .6, 1),
+            )
+
+    def _create_entries(self):
+        fs = self['frameSize']
+        entry_data = (
+            (
+                "currentFrameEntry",
+                '1',
+                (fs[0]*.9, 0, fs[2]*.7)
+            ),
+            (
+                "numFramesEntry",
+                str(self['numFrames']),
+                (fs[0]*.6, 0, fs[2]*.7)
+            ),
+            (
+                "framerateEntry",
+                str(self['framerate']),
+                (fs[0]*.3, 0, fs[2]*.7)
+            ),
+        )
+        for name, initialText, pos in entry_data:
+            self.createcomponent(
+                name, (), None,
+                DirectEntry, (self,),
+                command=self['command'],
+                extraArgs=[name],
+                # Tip: don't use frameSize with DirectEntries!
+                scale=.05,
+                pos=pos,
+                frameColor=(1, 1, 1, 1),
+                # DirectEntry-specific args
+                initialText=initialText,
+                numLines=1,
+                width=2,
+            )
+
+    def _create_slider(self):
+        fs = self['frameSize']
+        name = "timelineSlider"
+        self.createcomponent(
+            name, (), None,
+            DirectSlider, (self,),
+            command=self['command'],
+            extraArgs=[name],
+            frameSize=(fs[0]*.8, fs[1]*.8, fs[2]*.5, fs[3]*.5),
+            pos=(0, 0, fs[3]/2),
+            # DirectSlider-specific
+            value=self['currentFrame'],
+            range=(1, self['numFrames']),
+            pageSize=1,
+            thumb_relief='flat',
+            thumb_frameColor=cfg.BUTTON_COLOR_1
+        )
+
+    def _create_text(self):
+        fs = self['frameSize']
+        label_data = (
+            {
+                'componentName': "currentFrameLabel",
+                'text': str(int(self['currentFrame'])),
+                'pos': (fs[0]*.8, 0, fs[2]*.7),
+                'textMayChange': True
+            },
+            {
+                'componentName': "numFramesLabel",
+                'text': "/ " + str(self['numFrames']),
+                'pos': (fs[0]*.6, 0, fs[2]*.7),
+                'textMayChange': False
+            },
+        )
+        for kw in label_data:
+            name = kw.pop('componentName')
+            self.createcomponent(
+                name, (), None, DirectLabel, (self,),
+                # frameSize=(fs[0]*.06, fs[1]*.06, fs[0]*.02, fs[1]*.08),
+                text_scale=.05, **kw
+            )
+
+    def togglePlayPause(self, play=True):
+        button = self.component("ppButton")
+        button['text'] = "| |" if play else " > "
+        button.setText()
+
+    def updateCurrentFrame(self, value):
+        timeline = self.component("timelineSlider")
+        # Check value equality to avoid infinite recursion. Be careful to round
+        # the stored value to avoid precision issues.
+        if value != round(timeline['value']):
+            timeline['value'] = value
+        label = self.component("currentFrameLabel")
+        label['text'] = str(int(value))
