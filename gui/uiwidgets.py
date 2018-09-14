@@ -12,7 +12,7 @@ from panda3d.core import (CardMaker, NodePath, PNMImage, TextNode, Texture,
 import gui.config as cfg
 
 
-def make_box_shadow(width, height, shadowSize, resol=32):
+def make_box_shadow(width, height, shadowSize, darkness=.5, resol=32):
     # Create grey box
     if width > height:
         resolX = int(resol * width / height)
@@ -21,7 +21,7 @@ def make_box_shadow(width, height, shadowSize, resol=32):
         resolX = resol
         resolY = int(resol * height / width)
     image = PNMImage(resolX, resolY, 1)
-    image.fill(.3)
+    image.fill(darkness)
     # Expand with black border.
     borderX = int(2 * shadowSize * resolX)
     borderY = int(2 * shadowSize * resolY)
@@ -32,17 +32,20 @@ def make_box_shadow(width, height, shadowSize, resol=32):
     image.addAlpha()
     image.copyChannel(image, 0, 3)
     image.fill(0)
+    # Remove the shadow inside the box.
+    for x in range(borderX, borderX+resolX):
+        for y in range(borderY, borderY+resolY):
+            image.setAlpha(x, y, 0)
     # Copy to 2D box.
     cm = CardMaker('card')
-    cardX = width * (1 + 4*shadowSize) / 2   # slightly expand the card
-    cardY = height * (1 + 4*shadowSize) / 2  # to see the shadow
+    cardX = width * (1 + 2*borderX/resolX) / 2   # slightly expand the card
+    cardY = height * (1 + 2*borderY/resolY) / 2  # to see the shadow
     cm.setFrame(Vec4(-cardX, cardX, -cardY, cardY))
     card = NodePath(cm.generate())
     card.setTransparency(True)
     tex = Texture()
     tex.load(image)
     card.setTexture(tex)
-    card.setBin('fixed', 0)
     return card
 
 
