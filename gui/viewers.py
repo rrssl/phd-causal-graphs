@@ -47,7 +47,7 @@ class TurntableViewer(ShowBase):
 
     """
 
-    def __init__(self, view_h=0, view_p=0):
+    def __init__(self, view_h=180, view_p=0):
         super().__init__()
 
         self.disable_mouse()
@@ -59,6 +59,9 @@ class TurntableViewer(ShowBase):
         self.start_camera_movement = False
         self.move_pivot = False
         self.reset_default_mouse_controls()
+        self.accept("1", self.view_front)
+        self.accept("3", self.view_side)
+        self.accept("7", self.view_top)
 
         # Zoom
         self.accept("wheel_up", self.zoom, [True])
@@ -109,10 +112,15 @@ class TurntableViewer(ShowBase):
         #  self.accept("mouse2-up", self.set_move_camera, [False])
         self.accept("mouse3", self.set_move_pivot_and_camera, [True])
         self.accept("mouse3-up", self.set_move_pivot_and_camera, [False])
-        #  self.accept("shift", self.set_move_pivot, [True])
-        #  self.accept("shift-up", self.set_move_pivot, [False])
-        #  self.accept("shift-mouse2", self.set_move_camera, [True])
-        #  self.accept("shift-mouse2-up", self.set_move_camera, [False])
+
+    def rotate_view_smooth(self, hpr):
+        quat = Quat()
+        quat.set_hpr(hpr)
+        length = (self.pivot.get_quat() - quat).length()
+        self.pivot.quatInterval(
+            duration=cfg.VIEW_CHANGE_SPEED*length,
+            quat=quat
+        ).start()
 
     def set_move_camera(self, move_camera):
         if self.mouseWatcherNode.has_mouse():
@@ -129,19 +137,6 @@ class TurntableViewer(ShowBase):
     def shutdown(self):
         self.task_mgr.remove("update_cam")
         super().shutdown()
-
-    def zoom(self, zoom_in, from_key=False):
-        if zoom_in:
-            if self.cam_distance > self.min_cam_distance:
-                self.cam_distance *= 1 - self.zoom_factor
-                if from_key:
-                    self.accept_once("+", self.zoom, [True, True])
-        else:
-            if self.cam_distance < self.max_cam_distance:
-                self.cam_distance *= 1 + self.zoom_factor
-                if from_key:
-                    self.accept_once("-", self.zoom, [False, True])
-        self.update_lens_near_plane()
 
     def update_cam(self, task):
         if self.mouseWatcherNode.has_mouse():
@@ -177,6 +172,28 @@ class TurntableViewer(ShowBase):
 
     def update_lens_near_plane(self):
         self.camLens.set_near(self.cam_distance * cfg.CAM_LENS_NEAR_FACTOR)
+
+    def view_front(self):
+        self.rotate_view_smooth(Vec3(180, 0, 0))
+
+    def view_side(self):
+        self.rotate_view_smooth(Vec3(-90, 0, 0))
+
+    def view_top(self):
+        self.rotate_view_smooth(Vec3(180, 90, 0))
+
+    def zoom(self, zoom_in, from_key=False):
+        if zoom_in:
+            if self.cam_distance > self.min_cam_distance:
+                self.cam_distance *= 1 - self.zoom_factor
+                if from_key:
+                    self.accept_once("+", self.zoom, [True, True])
+        else:
+            if self.cam_distance < self.max_cam_distance:
+                self.cam_distance *= 1 + self.zoom_factor
+                if from_key:
+                    self.accept_once("-", self.zoom, [False, True])
+        self.update_lens_near_plane()
 
 
 def create_axes(name):
