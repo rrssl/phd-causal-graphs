@@ -179,9 +179,9 @@ class TurntableViewer(ShowBase):
         self.camLens.set_near(self.cam_distance * cfg.CAM_LENS_NEAR_FACTOR)
 
 
-def create_axes():
+def create_axes(name):
     """Create the XYZ-axes indicator."""
-    axes = LineSegs()
+    axes = LineSegs(name)
     axes.set_thickness(2)
     axes_size = .1
 
@@ -197,7 +197,7 @@ def create_axes():
     axes.move_to(0, 0, axes_size)
     axes.draw_to(0, 0, 0)
 
-    return NodePath(axes.create())
+    return axes.create()
 
 
 class Modeler(TurntableViewer):
@@ -242,16 +242,12 @@ class Modeler(TurntableViewer):
         self.set_background_color(cfg.BACKGROUND_COLOR)
         # Axes indicator (source: panda3dcodecollection, with modifications.)
         # Load the axes that should be displayed
-        axes = create_axes()
-        corner = self.aspect2d.attach_new_node("Axes indicator")
-        corner.set_pos(self.a2dLeft+.15, 0, self.a2dBottom+.12)
-        axes.reparent_to(corner)
-        # Make sure it will be drawn above all other elements
-        axes.set_depth_test(False)
-        axes.set_bin("fixed", 0)
-        # Now make sure it will stay in the correct rotation to render.
-        self.axes = axes
-        self.task_mgr.add(self.update_axes, "update_axes")
+        axes = self.aspect2d.attach_new_node(create_axes("axes_indicator"))
+        axes.set_pos(self.a2dLeft+.15, 0, self.a2dBottom+.12)
+        axes.set_depth_test(True)   # make sure axes are drawn
+        axes.set_depth_write(True)  # in the right order
+        self.task_mgr.add(self.update_axes, "update_axes", extraArgs=[axes],
+                          appendTask=True)
         # Ground plane
         if grid is not None:
             grid_maker = ThreeAxisGrid(
@@ -267,11 +263,11 @@ class Modeler(TurntableViewer):
         # Show models
         self.accept('l', self.models.ls)
 
-    def update_axes(self, task):
+    def update_axes(self, axes, task):
         # Point of reference for each rotation is super important here.
         # We want the axes have the same orientation wrt the screen (render2d),
         # as the orientation of the scene (render) wrt the camera.
-        self.axes.set_hpr(self.render2d, self.render.get_hpr(self.camera))
+        axes.set_hpr(self.render2d, self.render.get_hpr(self.camera))
         return task.cont
 
     def shutdown(self):
