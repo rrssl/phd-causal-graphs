@@ -83,6 +83,7 @@ class TurntableViewer(ShowBase):
         self.camera.reparent_to(self.pivot)
         self.camera.set_y(self.cam_distance)
         self.update_lens_near_plane()
+        self.camera.look_at(self.pivot)
 
         # Framerate
         self.video_frame_rate = cfg.VIDEO_FRAME_RATE
