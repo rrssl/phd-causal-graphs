@@ -56,8 +56,6 @@ class TurntableViewer(ShowBase):
 
         # Camera movement
         self.mouse_pos = None
-        self.start_camera_movement = False
-        self.move_pivot = False
         self.reset_default_mouse_controls()
         self.accept("1", self.view_front)
         self.accept("3", self.view_side)
@@ -78,13 +76,13 @@ class TurntableViewer(ShowBase):
         self.mouse_speed = cfg.MOUSE_SPEED
 
         # Pivot node
-        self.pivot = self.render.attach_new_node("Pivot point")
+        self.pivot = self.render.attach_new_node("pivot_point")
         self.pivot.set_pos(0, 0, 0)
         self.pivot.set_h(self.pivot, view_h)
         self.pivot.set_p(self.pivot, view_p)
         self.camera.reparent_to(self.pivot)
-
-        self.task_mgr.add(self.update_cam, "update_cam")
+        self.camera.set_y(self.cam_distance)
+        self.update_lens_near_plane()
 
         # Framerate
         self.video_frame_rate = cfg.VIDEO_FRAME_RATE
@@ -95,6 +93,8 @@ class TurntableViewer(ShowBase):
 
     def center_view_on(self, nodepath):
         bounds = nodepath.get_bounds()
+        if bounds.is_empty():
+            return
         center = bounds.get_center()
         radius = bounds.get_radius()
         fov = math.radians(
@@ -106,12 +106,13 @@ class TurntableViewer(ShowBase):
         self.accept_once("home", self.center_view_on, [nodepath])
 
     def reset_default_mouse_controls(self):
-        self.accept("mouse1", self.set_move_camera, [True])
-        self.accept("mouse1-up", self.set_move_camera, [False])
+        self.accept("mouse3", self.set_move_camera, [True, 'rotate'])
+        self.accept(
+            "shift-mouse3", self.set_move_camera, [True, 'translate']
+        )
+        self.accept("mouse3-up", self.set_move_camera, [False])
         #  self.accept("mouse2", self.set_move_camera, [True])
         #  self.accept("mouse2-up", self.set_move_camera, [False])
-        self.accept("mouse3", self.set_move_pivot_and_camera, [True])
-        self.accept("mouse3-up", self.set_move_pivot_and_camera, [False])
 
     def rotate_view_smooth(self, hpr):
         quat = Quat()
@@ -122,49 +123,41 @@ class TurntableViewer(ShowBase):
             quat=quat
         ).start()
 
-    def set_move_camera(self, move_camera):
-        if self.mouseWatcherNode.has_mouse():
+    def set_move_camera(self, move, mode=None):
+        if move:
             self.mouse_pos = self.mouseWatcherNode.get_mouse()
-        self.start_camera_movement = move_camera
-
-    def set_move_pivot(self, move_pivot):
-        self.move_pivot = move_pivot
-
-    def set_move_pivot_and_camera(self, move):
-        self.set_move_pivot(move)
-        self.set_move_camera(move)
+            self.task_mgr.add(self.update_cam, "update_cam", extraArgs=[mode],
+                              appendTask=True)
+        else:
+            self.task_mgr.remove("update_cam")
 
     def shutdown(self):
         self.task_mgr.remove("update_cam")
         super().shutdown()
 
-    def update_cam(self, task):
-        if self.mouseWatcherNode.has_mouse():
-            x = self.mouseWatcherNode.get_mouse_x()
-            y = self.mouseWatcherNode.get_mouse_y()
+    def update_cam(self, mode, task):
+        mwn = self.mouseWatcherNode
+        if mwn.has_mouse():
+            x = mwn.get_mouse_x()
+            y = mwn.get_mouse_y()
+            dt = self.task_mgr.globalClock.get_dt()
 
-            # Move the camera if a mouse key is pressed and the mouse moved
-            if self.mouse_pos is not None and self.start_camera_movement:
-                move_x = (self.mouse_pos.get_x() - x) * (
-                        self.mouse_speed + self.task_mgr.globalClock.get_dt())
-                move_y = (self.mouse_pos.get_y() - y) * (
-                        self.mouse_speed + self.task_mgr.globalClock.get_dt())
-                self.mouse_pos = Point2(x, y)
+            move_x = (self.mouse_pos.get_x() - x) * (self.mouse_speed + dt)
+            move_y = (self.mouse_pos.get_y() - y) * (self.mouse_speed + dt)
+            self.mouse_pos = Point2(x, y)  # deep copy is needed
 
-                if not self.move_pivot:
-                    # Rotate the pivot point
-                    pre_p = self.pivot.get_p()
-                    self.pivot.set_p(0)
-                    self.pivot.set_h(self.pivot, move_x)
-                    self.pivot.set_p(pre_p)
-                    self.pivot.set_p(self.pivot, move_y)
-                else:
-                    # Move the pivot point
-                    ratio = self.cam_distance / self.max_cam_distance
-                    self.pivot.set_x(self.pivot, -move_x * ratio)
-                    self.pivot.set_z(self.pivot,  move_y * ratio)
-        # Set the camera zoom
-        self.camera.set_y(self.cam_distance)
+            if mode == 'translate':
+                # Move the pivot point
+                ratio = self.cam_distance / self.max_cam_distance
+                self.pivot.set_x(self.pivot, -move_x * ratio)
+                self.pivot.set_z(self.pivot,  move_y * ratio)
+            elif mode == 'rotate':
+                # Rotate the pivot point
+                pre_p = self.pivot.get_p()
+                self.pivot.set_p(0)
+                self.pivot.set_h(self.pivot, move_x)
+                self.pivot.set_p(pre_p)
+                self.pivot.set_p(self.pivot, move_y)
         # Always look at the pivot point
         self.camera.look_at(self.pivot)
 
@@ -193,6 +186,7 @@ class TurntableViewer(ShowBase):
                 self.cam_distance *= 1 + self.zoom_factor
                 if from_key:
                     self.accept_once("-", self.zoom, [False, True])
+        self.camera.set_y(self.cam_distance)
         self.update_lens_near_plane()
 
 
