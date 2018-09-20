@@ -1,8 +1,6 @@
-# -*- coding: utf-8 -*-
 """
 Various UI functionalities.
 
-@author: Robin Roussel
 """
 import datetime
 import math
@@ -11,7 +9,9 @@ import numpy as np
 from direct.interval.IntervalGlobal import Func, LerpFunc, Parallel, Sequence
 from panda3d.core import (CardMaker, CollisionHandlerQueue, CollisionNode,
                           CollisionRay, CollisionTraverser, GeomNode, LineSegs,
-                          Plane, Point2, Point3, Vec3, Vec4)
+                          Plane, Point2, Point3, Quat, Vec3, Vec4)
+
+from gui.uiwidgets import PlayerControls
 
 
 class Focusable:
@@ -263,3 +263,108 @@ class Pickerable:
                 if picked_obj.get_python_tag('pickable'):
                         return picked_obj.get_ancestor(self.pick_level)
         return None
+
+
+class Animable:
+    """Give modeler the ability to play a sequence of frames.
+
+    The input frame rate is automatically remapped to the current video frame
+    rate.
+
+    """
+    def __init__(self):
+        self._frames = None
+        self._remapping_factor = 1
+        self._frame_start = 0
+        self._frame_end = 0
+
+        self.play = False
+        self.current_frame = 0
+
+    def go_to_frame(self, fi):
+        # Clip fi
+        fs = self._frame_start
+        fe = self._frame_end
+        fi = fs if fi < fs else fe if fi > fe else fi
+        self.current_frame = fi
+        # Update transforms
+        fi_original = self.remap_frame(fi)
+        for nopa, frame in self._frames[fi_original]:
+            if nopa.has_tag('save_scale'):
+                nopa.set_scale(Vec3(*frame[-3:]))
+            nopa.set_pos(Point3(*frame[:3]))
+            nopa.set_quat(Quat(*frame[3:7]))
+
+    def go_to_next_frame(self):
+        self.go_to_frame(self.current_frame + 1)
+
+    def go_to_previous_frame(self):
+        self.go_to_frame(self.current_frame - 1)
+
+    def load_frames(self, objects_frames, fps):
+        # Total length is the highest time found in the list of states of
+        # each object.
+        length = max(o_frames[-1][0] for o_frames in objects_frames.values())
+        n_frames = int(length * fps) + 1
+        # Instead of having objects mapped to a sequence of states, make a list
+        # mapping fi to (object, state) at fi.
+        fi2object_state = [[] for _ in range(n_frames)]
+        name2path = {}
+        for o_name, o_frames in objects_frames.items():
+            try:
+                nopa = name2path[o_name]
+            except KeyError:
+                nopa = self.models.find("**/{}".format(o_name))
+                name2path[o_name] = nopa
+            for frame in o_frames:
+                t = frame[0]
+                fi = int(t * fps)
+                fi2object_state[fi].append((nopa, frame[1:]))
+        self._frames = fi2object_state
+        self._remapping_factor = fps / self.video_frame_rate
+        self._frame_start = 0
+        self._frame_end = int((n_frames - 1) / self._remapping_factor)
+
+    def make_controls(self):
+        return PlayerControls(
+            parent=self.a2dBottomCenter,
+            frameSize=(-.5, .5, -.1, .1),
+            pos=Point3(0, 0, .25*9/16),
+            command=self.update_control,
+            currentFrame=self.current_frame+1,
+            numFrames=self._frame_end+1,
+        )
+
+    def remap_frame(self, fi):
+        return int(fi * self._remapping_factor)
+
+    def reset_frame(self):
+        self.go_to_frame(0)
+
+    def toggle_play(self):
+        self.play = not self.play
+
+    def update_frame(self, task):
+        if self.play:
+            fi = (self.current_frame + 1) % (self._frame_end + 1)
+            self.go_to_frame(fi)
+            self.controls.updateCurrentFrame(self.current_frame + 1)
+        return task.cont
+
+    def update_control(self, *args):
+        name = args[-1]
+        control = self.controls.component(name)
+        if name == "timelineSlider":
+            self.go_to_frame(round(control['value']) - 1)
+        if name == "startButton":
+            self.reset_frame()
+        if name == "prevButton":
+            self.go_to_previous_frame()
+        if name == "ppButton":
+            self.toggle_play()
+            self.controls.togglePlayPause(self.play)
+        if name == "nextButton":
+            self.go_to_next_frame()
+        if name == "endButton":
+            self.go_to_frame(self._frame_end)
+        self.controls.updateCurrentFrame(self.current_frame + 1)

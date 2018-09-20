@@ -12,7 +12,7 @@ from panda3d.core import (AmbientLight, DirectionalLight, LineSegs, NodePath,
 
 import gui.config as cfg
 from gui.coord_grid import ThreeAxisGrid
-from gui.uiwidgets import PlayerControls
+from gui.uimixins import Animable
 from core.primitives import World
 
 
@@ -523,8 +523,10 @@ class ScenarioViewer(PhysicsViewer):
         super().shutdown()
 
 
-class Replayer(Modeler):
-    """Replay a sequence captured with a StateObserver.
+class Replayer(Animable, Modeler):
+    """Replay a recorded simulation.
+
+    This simulation is a sequence of states captured with a StateObserver.
 
     The original (simulator) frame rate is automatically remapped to the
     current video frame rate.
@@ -538,7 +540,8 @@ class Replayer(Modeler):
 
     """
     def __init__(self, scene, simu_data, **viewer_kwargs):
-        super().__init__(**viewer_kwargs)
+        Modeler.__init__(self, **viewer_kwargs)
+        Animable.__init__(self)
         # Load the scene.
         scene = self.loader.load_model(scene)
         scene.reparent_to(self.models)
@@ -546,106 +549,14 @@ class Replayer(Modeler):
         with open(simu_data, 'rb') as f:
             simu_data = pickle.load(f)
         simu_frame_rate = simu_data['metadata']['fps']
-        length = max(states[-1][0] for states in simu_data['states'].values())
-        n_frames = int(length * simu_frame_rate) + 1
-        frames = [[] for _ in range(n_frames)]
-        name2path = {}
-        for name, states in simu_data['states'].items():
-            try:
-                nopa = name2path[name]
-            except KeyError:
-                nopa = scene.find("**/{}".format(name))
-                name2path[name] = nopa
-            for state in states:
-                t = state[0]
-                fi = int(t * simu_frame_rate)
-                frames[fi].append((nopa, state[1:]))
-        self.frames = frames
-        self.remapping_factor = simu_frame_rate / self.video_frame_rate
-        self.frame_start = 0
-        self.frame_end = int((n_frames - 1) / self.remapping_factor)
+        self.load_frames(simu_data['states'], simu_frame_rate)
 
-        self.play = False
-        self.current_frame = 0
+        self.controls = self.make_controls()
         self.task_mgr.add(self.update_frame, "update_frame")
         self.accept('r', self.update_control, ["startButton"])
         self.accept('space', self.update_control, ["ppButton"])
         self.accept('n', self.update_control, ["nextButton"])
         self.accept('p', self.update_control, ["prevButton"])
-
-        self.controls = PlayerControls(
-            parent=self.a2dBottomCenter,
-            frameSize=(-.5, .5, -.1, .1),
-            pos=Point3(0, 0, .25*9/16),
-            command=self.update_control,
-            currentFrame=self.current_frame+1,
-            numFrames=self.frame_end+1,
-        )
-
-    def go_to_frame(self, fi):
-        # Clip fi
-        fs = self.frame_start
-        fe = self.frame_end
-        fi = fs if fi < fs else fe if fi > fe else fi
-        self.current_frame = fi
-        # Update transforms
-        fi_original = self.remap_frame(fi)
-        for nopa, state in self.frames[fi_original]:
-            if nopa.has_tag('save_scale'):
-                nopa.set_scale(Vec3(*state[-3:]))
-            nopa.set_pos(Point3(*state[:3]))
-            nopa.set_quat(Quat(*state[3:7]))
-
-    def go_to_next_frame(self):
-        self.go_to_frame(self.current_frame + 1)
-
-    def go_to_previous_frame(self):
-        self.go_to_frame(self.current_frame - 1)
-
-    def import_frames(self, filename):
-        with open(filename, 'rb') as f:
-            frames = pickle.load(f)
-        nodepaths = self.scene.find_all_matches("**/=anim_id")
-        nodepaths_and_frames = []
-        for nopa in nodepaths:
-            nodepaths_and_frames.append(
-                (nopa, frames[nopa.get_tag('anim_id')])
-            )
-        return nodepaths_and_frames
-
-    def remap_frame(self, fi):
-        return int(fi * self.remapping_factor)
-
-    def reset_frame(self):
-        self.go_to_frame(0)
-
-    def toggle_play(self):
-        self.play = not self.play
-
-    def update_frame(self, task):
-        if self.play:
-            fi = (self.current_frame + 1) % (self.frame_end + 1)
-            self.go_to_frame(fi)
-            self.controls.updateCurrentFrame(self.current_frame + 1)
-        return task.cont
-
-    def update_control(self, *args):
-        name = args[-1]
-        control = self.controls.component(name)
-        if name == "timelineSlider":
-            self.go_to_frame(round(control['value']) - 1)
-        if name == "startButton":
-            self.reset_frame()
-        if name == "prevButton":
-            self.go_to_previous_frame()
-        if name == "ppButton":
-            self.toggle_play()
-            self.controls.togglePlayPause(self.play)
-        if name == "nextButton":
-            self.go_to_next_frame()
-        if name == "endButton":
-            self.go_to_frame(self.frame_end)
-        self.controls.updateCurrentFrame(self.current_frame + 1)
 
     def shutdown(self):
         self.task_mgr.remove("update_frame")
