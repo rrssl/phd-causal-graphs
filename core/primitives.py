@@ -1199,3 +1199,8 @@ class Track(PrimitiveBase):
         geom_node = GeomNode(name)
         geom_node.add_geom(geom)
         return geom_node
+
+
+def get_primitives():
+    return (Plane, Ball, Box, Cylinder, Lever, Pulley, Goblet, DominoRun,
+            RopePulley, RopePulleyPivot, Track)
