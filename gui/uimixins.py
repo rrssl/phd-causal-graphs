@@ -11,6 +11,7 @@ from panda3d.core import (CardMaker, CollisionHandlerQueue, CollisionNode,
                           CollisionRay, CollisionTraverser, GeomNode, LineSegs,
                           Plane, Point2, Point3, Quat, Vec3, Vec4)
 
+from gui.geom2d import make_circle
 from gui.uiwidgets import PlayerControls
 
 
@@ -170,6 +171,11 @@ class Drawable:
         self.pencil.set_color(color)
         self.pencil.set_thickness(thickness)
         self.sketch_np = self.render2d.attach_new_node("sketches")
+        self.tip = self.pixel2d.attach_new_node(
+            make_circle("tip", thickness, resol=8)
+        )
+        self.tip.set_color(color)
+        self.tip.hide()
 
     def set_draw(self, draw):
         if draw:
@@ -180,6 +186,14 @@ class Drawable:
             self.task_mgr.add(self._update_drawing, "update_drawing")
         else:
             self.task_mgr.remove("update_drawing")
+
+    def set_show_tip(self, show):
+        if show:
+            self.tip.show()
+            self.task_mgr.add(self._update_tip_pos, "update_tip_pos")
+        else:
+            self.tip.hide()
+            self.task_mgr.remove("update_tip_pos")
 
     def _update_drawing(self, task):
         if self.mouseWatcherNode.has_mouse():
@@ -195,6 +209,15 @@ class Drawable:
                 node.replace_node(self.sketch_np.get_children()[-1].node())
             else:
                 self.sketch_np.attach_new_node(node)
+        return task.cont
+
+    def _update_tip_pos(self, task):
+        mwn = self.mouseWatcherNode
+        if mwn.has_mouse():
+            mouse_pos = self.pixel2d.get_relative_point(
+                self.render2d, (mwn.get_mouse_x(), 0, mwn.get_mouse_y())
+            )
+            self.tip.set_pos(mouse_pos)
         return task.cont
 
     def _draw_stroke(self, stroke):
