@@ -13,10 +13,10 @@ from panda3d.egg import EggPolygon
 from shapely.geometry import box
 
 
-def make_circle(radius=1, angle_start=0, angle_end=360, resol=16):
+def make_circle(name, radius=1, angle_start=0, angle_end=360, resol=16):
     data = EggData()
 
-    vp = EggVertexPool("circle")
+    vp = EggVertexPool(name)
     data.add_child(vp)
 
     poly = EggPolygon()
@@ -37,10 +37,10 @@ def make_circle(radius=1, angle_start=0, angle_end=360, resol=16):
     return load_egg_data(data)  # PandaNode
 
 
-def make_rectangle(width, height, radius=0, resol=8):
+def make_rectangle(name, width, height, radius=0, resol=8):
     data = EggData()
 
-    vp = EggVertexPool("rectangle")
+    vp = EggVertexPool(name)
     data.add_child(vp)
 
     poly = EggPolygon()
@@ -48,7 +48,7 @@ def make_rectangle(width, height, radius=0, resol=8):
 
     # Generate the shape.
     b = box(-width/2 + radius, -height/2 + radius,
-             width/2 - radius,  height/2 - radius)
+            width/2 - radius,  height/2 - radius)
     if radius:
         b = b.buffer(radius, resolution=resol, join_style=1)
 
