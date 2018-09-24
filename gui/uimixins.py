@@ -325,6 +325,7 @@ class Animable:
         self._remapping_factor = fps / self.video_frame_rate
         self._frame_start = 0
         self._frame_end = int((n_frames - 1) / self._remapping_factor)
+        self.current_frame = 0
 
     def make_player_controls(self):
         if self._play_controls is not None:
