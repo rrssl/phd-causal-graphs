@@ -483,3 +483,66 @@ class PlayerControls(DirectFrame):
         add_shadow_to_frame(self, shadowSize=self['shadowSize'])
 
 
+class ParameterEditor(DirectGuiWidget):
+    """Generic parameter editor, displayed as a list of (name, field) lines.
+
+    NB: To resize the fields, use 'param_scale' rather than 'param_frameSize'.
+
+    """
+    def __init__(self, parent=None, **kw):
+        optiondefs = (
+            ('paramData', [], None),
+            ('command', None, None),
+            ('shadowSize', 0, self.setShadow),
+        )
+        # Merge keyword options with default options
+        self.defineoptions(kw, optiondefs, dynamicGroups=('title', 'param'))
+        # Initialize the relevant superclass
+        super().__init__(parent)
+        # Components
+        fs = self['frameSize']
+        title = self.createcomponent(
+            "editorTitle", (), 'title', DirectLabel, (self,),
+            frameSize=(fs[0], fs[1], -.02, .05),
+            pos=Point3(0, 0, fs[3]+.02),
+            textMayChange=False,
+        )
+        self.createcomponent(
+            "closeButton", (), 'close', DirectButton, (title,),
+            pos=Point3(fs[1]*.8, 0, 0),
+            text='x', textMayChange=False,
+            command=self.click_close_button,
+        )
+        for i, (paramName, paramValue) in enumerate(self['paramData']):
+            pos = Point3(fs[0]*.9, 0, fs[3] - (i+1)*.1)
+            self.createcomponent(
+                paramName+"Label", (), 'param',
+                DirectLabel, (self,),
+                text=paramName,
+                text_align=TextNode.ALeft,
+                relief=None,
+                pos=pos,
+            )
+            pos[0] = fs[1] * .1
+            self.createcomponent(
+                paramName+"Entry", (), 'entry',
+                DirectEntry, (self,),
+                command=self['command'],
+                extraArgs=[paramName],
+                pos=pos,
+                # DirectEntry-specific args
+                initialText=str(paramValue),
+                numLines=1,
+            )
+        # Call option initialization functions
+        self.initialiseoptions(ParameterEditor)
+
+    def click_close_button(self):
+        self.hide()
+
+    def setShadow(self):
+        if not self['shadowSize']:
+            return
+        add_shadow_to_frame(self, shadowSize=self['shadowSize'])
+
+
