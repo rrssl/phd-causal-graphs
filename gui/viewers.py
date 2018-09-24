@@ -57,9 +57,9 @@ class TurntableViewer(ShowBase):
         # Camera movement
         self.mouse_pos = None
         self.reset_default_mouse_controls()
-        self.accept("1", self.view_front)
-        self.accept("3", self.view_side)
-        self.accept("7", self.view_top)
+        self.accept("control-1", self.view_front)
+        self.accept("control-3", self.view_side)
+        self.accept("control-7", self.view_top)
 
         # Zoom
         self.accept("wheel_up", self.zoom, [True])
