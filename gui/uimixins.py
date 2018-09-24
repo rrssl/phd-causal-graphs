@@ -275,16 +275,17 @@ class Pickerable:
         if self.mouseWatcherNode.has_mouse():
             pos = self.mouseWatcherNode.get_mouse()
             self.picker_ray.set_from_lens(
-                    self.camNode, pos.get_x(), pos.get_y())
+                self.camNode, pos.get_x(), pos.get_y()
+            )
             self.pick_traverser.traverse(self.models)
             pick_queue = self.pick_queue
             if pick_queue.get_num_entries() > 0:
                 pick_queue.sort_entries()
                 picked_obj = pick_queue.get_entry(0).get_into_node_path()
                 picked_obj = picked_obj.find_net_python_tag('pickable')
-                # False and None are equivqlent here
+                # False and None are equivalent here
                 if picked_obj.get_python_tag('pickable'):
-                        return picked_obj.get_ancestor(self.pick_level)
+                    return picked_obj.get_ancestor(self.pick_level)
         return None
 
 
