@@ -5,6 +5,8 @@ Utility functions for domino runs.
 import numpy as np
 from panda3d.core import NodePath, Point3, TransformState, Vec3
 
+import core.spline2d as spl
+
 
 def rotate_around(pos: Point3, hpr: Vec3, initial: NodePath):
     """Rotate in place the NodePath around a 3D point.
@@ -191,4 +193,14 @@ def create_x_switch(origin, angle, width, n_doms):
     coords[(n_doms-1)//2, 2] = 0
     coords = np.delete(coords, n_doms+(n_doms-1)/2, 0)
     _linear_transform_2D(coords, origin, 0)
+    return coords
+
+
+def create_smooth_path(coords, smoothing, n_doms):
+    # Smooth the path
+    k = min(3, len(coords)-1)
+    spline = spl.splprep(list(zip(*coords)), k=k, s=smoothing)[0]
+    # Sample positions
+    u = spl.linspace(spline, n_doms)
+    coords = np.column_stack(spl.splev(u, spline) + [spl.splang(u, spline)])
     return coords
