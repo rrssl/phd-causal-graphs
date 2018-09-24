@@ -407,3 +407,32 @@ class Animable:
         if name == "endButton":
             self.go_to_frame(self._frame_end)
         self._play_controls.updateCurrentFrame(self.current_frame + 1)
+
+
+class WithViewHelpers:
+    """Mixin providing useful screen-space-to-3D-space geometric functions.
+
+    """
+    def compute_view_orthogonal_plane(self, obj):
+        # Get the vector going through the center of the lens...
+        axis = Vec3()
+        self.camLens.extrude_vec(0, axis)
+        # ... in the frame of the 3d objects
+        axis = self.models.get_relative_vector(self.camera, axis)
+        return Plane(axis, obj.get_pos())
+
+    def project_mouse_onto_plane(self, plane):
+        mwn = self.mouseWatcherNode
+        if mwn.has_mouse():
+            return self._project_mouse_pos_onto_plane(mwn.get_mouse(), plane)
+
+    def _project_mouse_pos_onto_plane(self, mouse_pos, plane):
+        near = Point3()
+        far = Point3()
+        self.camLens.extrude(mouse_pos, near, far)
+        ref = self.models
+        near = ref.get_relative_point(self.camera, near)
+        far = ref.get_relative_point(self.camera, far)
+        target = Point3()
+        do_intersect = plane.intersects_line(target, near, far)
+        return target if do_intersect else None
