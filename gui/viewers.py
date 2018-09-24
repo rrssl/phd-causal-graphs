@@ -241,6 +241,7 @@ class Modeler(TurntableViewer):
                 cfg.MODELS_WIREFRAME_COLOR)
         # Lights
         dlight = DirectionalLight("models_dlight")
+        dlight.set_color(cfg.MODELS_DIRECTIONAL_COLOR)
         dlnp = self.camera.attach_new_node(dlight)
         dlnp.look_at(-self.cam.get_pos())
         self.models.set_light(dlnp)
