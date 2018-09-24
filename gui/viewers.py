@@ -555,7 +555,7 @@ class Replayer(Animable, Modeler):
         simu_frame_rate = simu_data['metadata']['fps']
         self.load_frames(simu_data['states'], simu_frame_rate)
 
-        self.controls = self.make_controls()
+        self.controls = self.make_player_controls()
         self.task_mgr.add(self.update_frame, "update_frame")
         self.accept('r', self.update_control, ["startButton"])
         self.accept('space', self.update_control, ["ppButton"])
