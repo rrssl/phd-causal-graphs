@@ -280,6 +280,7 @@ class Animable:
 
         self.play = False
         self.current_frame = 0
+        self._play_controls = None
 
     def go_to_frame(self, fi):
         # Clip fi
@@ -325,14 +326,26 @@ class Animable:
         self._frame_start = 0
         self._frame_end = int((n_frames - 1) / self._remapping_factor)
 
-    def make_controls(self):
-        return PlayerControls(
+    def make_player_controls(self):
+        if self._play_controls is not None:
+            self._play_controls.destroy()
+            self._play_controls.remove_node()
+        self._play_controls = PlayerControls(
+            frameSize=(-.45, .45, -.06, .06),
+            frameColor=Vec4(.2, .2, .2, 1),
+            # Labels
+            label_text_fg=Vec4(1, 1),
+            # Buttons
+            button_frameColor=Vec4(.25, .25, .25, 1),
+            button_text_fg=Vec4(1, 1),
+            # Position
             parent=self.a2dBottomCenter,
-            frameSize=(-.5, .5, -.1, .1),
             pos=Point3(0, 0, .25*9/16),
+            # Specific
             command=self.update_control,
             currentFrame=self.current_frame+1,
             numFrames=self._frame_end+1,
+            shadowSize=.2,
         )
 
     def remap_frame(self, fi):
@@ -348,12 +361,14 @@ class Animable:
         if self.play:
             fi = (self.current_frame + 1) % (self._frame_end + 1)
             self.go_to_frame(fi)
-            self.controls.updateCurrentFrame(self.current_frame + 1)
+            self._play_controls.updateCurrentFrame(self.current_frame + 1)
         return task.cont
 
     def update_control(self, *args):
+        if self._play_controls is None:
+            return
         name = args[-1]
-        control = self.controls.component(name)
+        control = self._play_controls.component(name)
         if name == "timelineSlider":
             self.go_to_frame(round(control['value']) - 1)
         if name == "startButton":
@@ -362,9 +377,9 @@ class Animable:
             self.go_to_previous_frame()
         if name == "ppButton":
             self.toggle_play()
-            self.controls.togglePlayPause(self.play)
+            self._play_controls.togglePlayPause(self.play)
         if name == "nextButton":
             self.go_to_next_frame()
         if name == "endButton":
             self.go_to_frame(self._frame_end)
-        self.controls.updateCurrentFrame(self.current_frame + 1)
+        self._play_controls.updateCurrentFrame(self.current_frame + 1)
