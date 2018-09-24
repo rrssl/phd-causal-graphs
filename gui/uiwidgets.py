@@ -49,6 +49,16 @@ def make_box_shadow(width, height, shadowSize, darkness=.5, resol=32):
     return card
 
 
+def add_shadow_to_frame(frame, **shadowArgs):
+    left, right, bottom, top = frame['frameSize']
+    width = right - left
+    height = top - bottom
+    shadowPos = Point3((left + right) / 2, 0, (top + bottom) / 2)
+    shadow = make_box_shadow(width, height, **shadowArgs)
+    shadow.setPos(shadowPos)
+    shadow.reparentTo(frame)
+
+
 class DropdownMenu(DirectButton):
     def __init__(self, parent=None, **kw):
         # Define options. Why use this complicated system instead of a simple
@@ -372,17 +382,19 @@ class PlayerControls(DirectFrame):
             ('numFrames', 2*cfg.VIDEO_FRAME_RATE, None),
             ('framerate', cfg.VIDEO_FRAME_RATE, None),
             ('command', None, None),
+            ('shadowSize', 0, self.setShadow),
         )
         # Merge keyword options with default options
-        self.defineoptions(kw, optiondefs)
+        self.defineoptions(kw, optiondefs,
+                           dynamicGroups=('button', 'label', 'slider'))
         # Initialize the relevant superclass
         super().__init__(parent)
-        # Call option initialization functions
-        self.initialiseoptions(PlayerControls)
         # Create components
         self._create_slider()
         self._create_text()
         self._create_buttons()
+        # Call option initialization functions
+        self.initialiseoptions(PlayerControls)
 
     def _create_buttons(self):
         fs = self['frameSize']
@@ -396,7 +408,7 @@ class PlayerControls(DirectFrame):
         for i, (label, symbol) in enumerate(button_data):
             name = label + "Button"
             self.createcomponent(
-                name, (), None,
+                name, (), 'button',
                 DirectButton, (self,),
                 command=self['command'],
                 extraArgs=[name],
@@ -407,42 +419,6 @@ class PlayerControls(DirectFrame):
                 text_scale=.05,
                 relief='flat',
                 # borderWidth=(.01, .01),
-                frameColor=(.6, .6, .6, 1),
-            )
-
-    def _create_entries(self):
-        fs = self['frameSize']
-        entry_data = (
-            (
-                "currentFrameEntry",
-                '1',
-                (fs[0]*.9, 0, fs[2]*.7)
-            ),
-            (
-                "numFramesEntry",
-                str(self['numFrames']),
-                (fs[0]*.6, 0, fs[2]*.7)
-            ),
-            (
-                "framerateEntry",
-                str(self['framerate']),
-                (fs[0]*.3, 0, fs[2]*.7)
-            ),
-        )
-        for name, initialText, pos in entry_data:
-            self.createcomponent(
-                name, (), None,
-                DirectEntry, (self,),
-                command=self['command'],
-                extraArgs=[name],
-                # Tip: don't use frameSize with DirectEntries!
-                scale=.05,
-                pos=pos,
-                frameColor=(1, 1, 1, 1),
-                # DirectEntry-specific args
-                initialText=initialText,
-                numLines=1,
-                width=2,
             )
 
     def _create_slider(self):
@@ -453,14 +429,15 @@ class PlayerControls(DirectFrame):
             DirectSlider, (self,),
             command=self['command'],
             extraArgs=[name],
-            frameSize=(fs[0]*.8, fs[1]*.8, fs[2]*.5, fs[3]*.5),
+            frameSize=(fs[0]*.95, fs[1]*.95, fs[2]*.2, fs[3]*.2),
             pos=(0, 0, fs[3]/2),
             # DirectSlider-specific
             value=self['currentFrame'],
             range=(1, self['numFrames']),
             pageSize=1,
             thumb_relief='flat',
-            thumb_frameColor=cfg.BUTTON_COLOR_1
+            thumb_frameColor=cfg.BUTTON_COLOR_1,
+            thumb_frameSize=(fs[0]*.05, fs[1]*.05, fs[2]*.3, fs[3]*.3),
         )
 
     def _create_text(self):
@@ -469,22 +446,21 @@ class PlayerControls(DirectFrame):
             {
                 'componentName': "currentFrameLabel",
                 'text': str(int(self['currentFrame'])),
-                'pos': (fs[0]*.8, 0, fs[2]*.7),
+                'pos': (fs[0]*.85, 0, fs[2]*.7),
                 'textMayChange': True
             },
             {
                 'componentName': "numFramesLabel",
-                'text': "/ " + str(self['numFrames']),
-                'pos': (fs[0]*.6, 0, fs[2]*.7),
+                'text': "/" + str(self['numFrames']),
+                'pos': (fs[0]*.65, 0, fs[2]*.7),
                 'textMayChange': False
             },
         )
         for kw in label_data:
             name = kw.pop('componentName')
             self.createcomponent(
-                name, (), None, DirectLabel, (self,),
-                # frameSize=(fs[0]*.06, fs[1]*.06, fs[0]*.02, fs[1]*.08),
-                text_scale=.05, **kw
+                name, (), 'label', DirectLabel, (self,),
+                text_scale=.05, relief=None, **kw
             )
 
     def togglePlayPause(self, play=True):
@@ -500,3 +476,10 @@ class PlayerControls(DirectFrame):
             timeline['value'] = value
         label = self.component("currentFrameLabel")
         label['text'] = str(int(value))
+
+    def setShadow(self):
+        if not self['shadowSize']:
+            return
+        add_shadow_to_frame(self, shadowSize=self['shadowSize'])
+
+
