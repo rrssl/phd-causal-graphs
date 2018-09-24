@@ -2,6 +2,7 @@
 Custom classes to improve on the basic Panda3D viewer.
 
 """
+import inspect
 import math
 import pickle
 
@@ -10,9 +11,11 @@ from panda3d.bullet import BulletDebugNode
 from panda3d.core import (AmbientLight, DirectionalLight, LineSegs, NodePath,
                           Point2, Point3, Quat, ShadeModelAttrib, Vec3, Vec4)
 
+import core.events as events
 import gui.config as cfg
 from gui.coord_grid import ThreeAxisGrid
 from gui.uimixins import Animable
+from gui.uiwidgets import DropdownMenu, EventWidget
 from core.primitives import World
 
 
@@ -562,3 +565,53 @@ class Replayer(Animable, Modeler):
     def shutdown(self):
         self.task_mgr.remove("update_frame")
         super().shutdown()
+
+
+class CausalGraphEditor(ShowBase):
+    def __init__(self, causal_graph=None):
+        super().__init__()
+        self.disable_mouse()
+
+        self.objects = ["ball", "run", "plank"]
+        self.causal_graph = causal_graph
+
+        events_in_module = inspect.getmembers(events, inspect.isclass)
+        self.event_types = [name for name, _ in events_in_module]
+        self.event_num_objects = {
+            name: clss._num_objects for name, clss in events_in_module
+        }
+
+        self.add_menu = DropdownMenu(
+            command=self.add_event,
+            items=self.event_types,
+            # Button shape
+            relief='flat',
+            frameSize=(-.2, .2, -.05, .09),
+            frameColor=Vec4(.2, .2, .2, 1),
+            highlightColor=Vec4(.3, .3, .3, 1),
+            # Text
+            text="Add event",
+            text_scale=.07,
+            text_fg=Vec4(1, 1, 1, 1),
+            # Shadow
+            shadowSize=.2,
+            # Items
+            dropUp=True,
+            item_frameColor=Vec4(.25, .25, .25, 1),
+            # Position
+            parent=self.a2dBottomRight,
+            pos=Point3(-.3, 0, .25*9/16),
+        )
+        self.add_menu.set_bin('gui-popup', 0)
+
+    def add_event(self, event):
+        EventWidget(
+            frameSize=(-.3, .3, -.2, .2),
+            frameColor=Vec4(.3, .3, .3, .9),
+            # Position
+            pos=Point3(0, 0, 0),
+            # Specific
+            eventName=event,
+            objectList=self.objects,
+            numObjects=self.event_num_objects[event],
+        )

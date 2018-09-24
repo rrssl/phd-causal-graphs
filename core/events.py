@@ -1,4 +1,6 @@
 class Contact:
+    _num_objects = 2
+
     def __init__(self, first, second, world):
         self.first = first
         self.second = second
@@ -12,11 +14,15 @@ class Contact:
 
 
 class Dummy:
+    _num_objects = 0
+
     def __call__(self):
         return True
 
 
 class Falling:
+    _num_objects = 1
+
     def __init__(self, body, min_linvel=0):
         self.body = body
         self.min_linvel = abs(min_linvel)
@@ -27,6 +33,8 @@ class Falling:
 
 
 class Inclusion:
+    _num_objects = 2
+
     def __init__(self, inside, outside):
         self.inside = inside
         self.outside = outside
@@ -42,6 +50,8 @@ class Inclusion:
 
 
 class NoContact:
+    _num_objects = 2
+
     def __init__(self, first, second, world):
         self.first = first
         self.second = second
@@ -55,6 +65,8 @@ class NoContact:
 
 
 class Pivoting:
+    _num_objects = 1
+
     def __init__(self, body, min_angvel=0):
         self.body = body
         self.min_angvel_sq = min_angvel ** 2
@@ -65,6 +77,8 @@ class Pivoting:
 
 
 class Rising:
+    _num_objects = 1
+
     def __init__(self, body, min_linvel=0):
         self.body = body
         self.min_linvel = abs(min_linvel)
@@ -75,6 +89,8 @@ class Rising:
 
 
 class RollingOn:
+    _num_objects = 2
+
     def __init__(self, rolling, support, world, min_rollang=0):
         self.rolling = rolling
         self.support = support
@@ -98,6 +114,8 @@ class RollingOn:
 
 
 class Stopping:
+    _num_objects = 1
+
     def __init__(self, body, max_linvel=1e-3, max_angvel=1):
         self.body = body
         self.max_linvel_sq = max_linvel ** 2
@@ -111,6 +129,8 @@ class Stopping:
 
 
 class Toppling:
+    _num_objects = 1
+
     def __init__(self, body, angle):
         self.body = body
         self.angle = angle

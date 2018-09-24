@@ -6,10 +6,15 @@ NB: Naming conventions follow those used in other DirectObjects (camelCasing).
 import direct.gui.DirectGuiGlobals as DGG
 from direct.gui.DirectGui import (DirectButton, DirectEntry, DirectFrame,
                                   DirectLabel, DirectOptionMenu, DirectSlider)
+from direct.gui.DirectGuiBase import DirectGuiWidget
+from direct.showbase.ShowBaseGlobal import aspect2d
+from direct.showutil.Rope import Rope
+from direct.task.TaskManagerGlobal import taskMgr
 from panda3d.core import (CardMaker, NodePath, PNMImage, Point3, TextNode,
                           Texture, Vec4)
 
 import gui.config as cfg
+from gui.geom2d import make_circle
 
 
 def make_box_shadow(width, height, shadowSize, darkness=.5, resol=32):
@@ -546,3 +551,166 @@ class ParameterEditor(DirectGuiWidget):
         add_shadow_to_frame(self, shadowSize=self['shadowSize'])
 
 
+class EventWidget(DirectFrame):
+    def __init__(self, parent=None, **kw):
+        optiondefs = (
+            # Make frame clickable
+            ('state', DGG.NORMAL, None),
+            # Event data
+            ('eventName', "", None),
+            ('objectList', [], None),
+            ('numObjects', 0, None),
+        )
+        # Merge keyword options with default options
+        self.defineoptions(kw, optiondefs)
+        # Initialize the relevant superclass
+        super().__init__(parent)
+        # Call option initialization functions
+        self.initialiseoptions(EventWidget)
+        # Move behavior
+        self.bind(DGG.B1PRESS, self.setMove, [True])
+        self.bind(DGG.B1RELEASE, self.setMove, [False])
+        # Components
+        fs = self['frameSize']
+        self.createcomponent(
+            "eventNameLabel", (), None, DirectLabel, (self,),
+            text=self['eventName'],
+            text_scale=.08,
+            text_fg=(1, 1, 1, 1),
+            frameSize=(fs[0], fs[1], fs[2]*.15, fs[3]*.35),
+            frameColor=(.2, .2, .2, 1),
+            pos=(0, 0, fs[3]*.65),
+            textMayChange=False,
+        )
+        inPort = self.createcomponent(
+            "inPort", (), None,
+            DirectFrame, (self,),
+            frameSize=(fs[0]*.1, fs[1]*.1, fs[2], fs[3]),
+            frameColor=(.8, .8, .8, .8),
+            pos=(fs[0]*1.1, 0, 0),
+            state=DGG.NORMAL,
+        )
+        inPort.bind(DGG.WITHIN, self._highlightPort, [True, "inPort"])
+        inPort.bind(DGG.WITHOUT, self._highlightPort, [False, "inPort"])
+        outPort = self.createcomponent(
+            "outPort", (), None,
+            DirectFrame, (self,),
+            frameSize=(fs[0]*.1, fs[1]*.1, fs[2], fs[3]),
+            frameColor=(.8, .8, .8, .8),
+            pos=(fs[1]*1.1, 0, 0),
+            state=DGG.NORMAL,
+        )
+        outPort.bind(DGG.B1PRESS, self.setLink, [True])
+        outPort.bind(DGG.B1RELEASE, self.setLink, [False])
+        outPort.bind(DGG.WITHIN, self._highlightPort, [True, "outPort"])
+        outPort.bind(DGG.WITHOUT, self._highlightPort, [False, "outPort"])
+        for i in range(self['numObjects']):
+            self.createcomponent(
+                "objectSelector{}".format(i+1), (), None,
+                DirectOptionMenu, (self,),
+                scale=.08,
+                text_fg=Vec4(1),
+                item_text_fg=Vec4(1),
+                frameColor=(.2, .2, .2, .8),
+                item_frameColor=(.2, .2, .2, 1),
+                highlightColor=(.25, .25, .25, 1),
+                pos=(fs[0]*.9, 0, fs[2]*.7*i),
+                item_pad=(.1, .1),
+                relief='flat',
+                popupMarker_relief='flat',
+                item_relief='flat',
+                items=self['objectList'],
+            )
+        # Shadow
+        width = (fs[1] - fs[0])*1.2
+        height = fs[3] - fs[2]
+        shadowSize = .2
+        shadow = make_box_shadow(width, height, shadowSize)
+        shadow.setZ((fs[2] + fs[3]) / 2)
+        shadow.reparentTo(self)
+        # Useful pointers
+        self.parent.setPythonTag('activeLink', None)
+        self.parent.setPythonTag('activeLinkTarget', None)
+        self.parent.setPythonTag('highlightedPort', None)
+        self.mouseWatcher = aspect2d.node().getMouseWatcher()
+
+    def _highlightPort(self, highlight, portName, event):
+        port = self.component(portName)
+        fc = port['frameColor']
+        if highlight:
+            port['frameColor'] = (fc[0]*2, fc[1]*2, fc[2]*2, .8)
+            self.parent.setPythonTag('highlightedPort', (portName, port))
+        else:
+            port['frameColor'] = (fc[0]/2, fc[1]/2, fc[2]/2, .8)
+            self.parent.setPythonTag('highlightedPort', None)
+
+    def setLink(self, link, event):
+        if link:
+            outPort = self.component("outPort")
+            # Create the link
+            activeLinkTarget = outPort.attachNewNode(
+                make_circle("activeLink", .02)
+            )
+            activeLink = Rope("link")
+            activeLink.setup(
+                3,
+                ((outPort, 0),
+                 (outPort, (.1, 0, 0)),
+                 (activeLinkTarget, (-.1, 0, 0)),
+                 (activeLinkTarget, 0),
+                 )
+            )
+            activeLink.reparentTo(outPort)
+            # Set pointers
+            self.parent.setPythonTag('activeLink', activeLink)
+            self.parent.setPythonTag('activeLinkTarget', activeLinkTarget)
+            # Start task
+            taskMgr.add(self.runLinkTask, "run_link_task")
+        else:
+            hp = self.parent.getPythonTag('highlightedPort')
+            selfIn = self.component("inPort")
+            if hp is None or hp[0].startswith("out") or hp[1] is selfIn:
+                self.parent.getPythonTag('activeLink').removeNode()
+                self.parent.getPythonTag('activeLinkTarget').removeNode()
+            else:
+                activeLinkTarget = self.parent.getPythonTag('activeLinkTarget')
+                activeLinkTarget.reparentTo(hp[1])
+                activeLinkTarget.setPos(0)
+            # Clean up pointers
+            self.parent.setPythonTag('activeLink', None)
+            self.parent.setPythonTag('activeLinkTarget', None)
+            # Stop task
+            taskMgr.remove("run_link_task")
+
+    def runLinkTask(self, task):
+        mw = self.mouseWatcher
+        if mw.hasMouse():
+            mousePos = Point3(mw.getMouseX(), 0, mw.getMouseY())
+            render2d = self.parent.getParent()
+            outPort = self.component("outPort")
+            mousePos = outPort.getRelativePoint(render2d, mousePos)
+            activeLinkTarget = self.parent.getPythonTag('activeLinkTarget')
+            activeLinkTarget.setPos(mousePos)
+        return task.cont
+
+    def setMove(self, move, event):
+        if move:
+            mousePos = Point3(event.getMouse()[0], 0, event.getMouse()[1])
+            render2d = self.parent.getParent()
+            mousePos = self.parent.getRelativePoint(render2d, mousePos)
+            self._moveOffset = mousePos - self.getPos()
+            # Rendering trick to bring the event to the front:
+            self.reparentTo(self.parent)
+            taskMgr.add(self.runMoveTask, "run_move_task")
+        else:
+            taskMgr.remove("run_move_task")
+
+    def runMoveTask(self, task):
+        mw = self.mouseWatcher
+        if mw.hasMouse():
+            mousePos = Point3(mw.getMouseX(), 0, mw.getMouseY())
+            render2d = self.parent.getParent()
+            mousePos = self.parent.getRelativePoint(render2d, mousePos)
+            newPos = mousePos - self._moveOffset
+            self.setPos(newPos)
+        return task.cont
