@@ -36,18 +36,18 @@ class Event:
             if self.precondition is None or self.precondition():
                 self.state = EventState.awake
                 self.wake_time = time
-                if self.verbose:
+                if verbose:
                     print("{} is waiting to happen.".format(self))
         if self.state is EventState.awake:
             if self.condition():
                 self.state = EventState.success
-                if self.verbose:
+                if verbose:
                     print("{} has happened.".format(self))
                 if self.outcome:
                     self.outcome(self.condition)
             elif time - self.wake_time > cfg.MAX_WAIT_TIME:
                 self.state = EventState.failure
-                if self.verbose:
+                if verbose:
                     print("{} has not happened.".format(self))
 
 
