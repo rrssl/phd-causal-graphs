@@ -19,8 +19,8 @@ from core.scenario import (StateObserver, load_scenario_instance,  # noqa: E402
                            load_scene)
 from gui.viewers import Replayer  # noqa: E402
 
-FPS = 600
-DURATION = 2
+FPS = 500
+DURATION = 4
 
 
 def load_module(name, path):
