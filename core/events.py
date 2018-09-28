@@ -1,3 +1,6 @@
+from panda3d.core import Vec3
+
+
 class Contact:
     _num_objects = 2
 
@@ -35,18 +38,29 @@ class Falling:
 class Inclusion:
     _num_objects = 2
 
-    def __init__(self, inside, outside):
+    def __init__(self, inside, outside, world):
         self.inside = inside
         self.outside = outside
+        self.world = world
 
     def __call__(self):
-        in_bounds = self.inside.node().get_shape_bounds()
-        out_bounds = self.outside.node().get_shape_bounds()
-        in_center = in_bounds.get_center() + self.inside.get_pos()
-        out_center = out_bounds.get_center() + self.outside.get_pos()
-        include = ((in_center - out_center).length()
-                   + in_bounds.get_radius()) <= out_bounds.get_radius()
-        return include
+        ci = self.inside.get_net_transform().get_pos()
+        co = self.outside.get_net_transform().get_pos()
+        # Check if there's any body between the two bodies.
+        closest = self.world.ray_test_closest(co, ci).get_node()
+        if closest != self.inside.node():
+            return False
+        # Check for visibility of inside body.
+        # Shape bounds are always SphereBounds for BulletBodyNodes.
+        out_radius = self.outside.node().get_shape_bounds().get_radius()
+        # Check in all XY directions.
+        directions = [Vec3(-out_radius, 0, 0),
+                      Vec3(out_radius, 0, 0),
+                      Vec3(0, -out_radius, 0),
+                      Vec3(0, out_radius, 0)]
+        hits = [self.world.ray_test_closest(ci, ci+d).get_node()
+                for d in directions]
+        return all(hit == self.outside.node() for hit in hits)
 
 
 class NoContact:
@@ -138,3 +152,7 @@ class Toppling:
 
     def __call__(self):
         return abs(self.body.get_r() - self.start_angle) >= self.angle + 1
+
+
+def needs_world(event_type):
+    return event_type in (Contact, Inclusion, NoContact, RollingOn)
