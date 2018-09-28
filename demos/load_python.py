@@ -16,7 +16,7 @@ from panda3d.core import load_prc_file_data
 
 sys.path.insert(0, os.path.abspath(".."))
 from core.scenario import (StateObserver, load_scenario_instance,  # noqa: E402
-                           simulate_scene)
+                           load_scene)
 from gui.viewers import Replayer  # noqa: E402
 
 FPS = 600
@@ -38,14 +38,15 @@ def main():
     DATA = script.DATA
     dir_ = tempfile.mkdtemp()
     # Create the scene geometry.
-    instance = load_scenario_instance(DATA, geom='HD', phys=False)
+    scene_data = DATA['scene']
+    scene = load_scene(scene_data, geom='HD', phys=False)
     scene_path = os.path.join(dir_, "scene")
-    instance.scene.export_scene_to_egg(scene_path)
+    scene.export_scene_to_egg(scene_path)
     # Run the instance.
     instance = load_scenario_instance(DATA, geom=None, phys=True)
     obs = StateObserver(instance.scene)
-    simulate_scene(instance.scene, duration=DURATION, timestep=1/FPS,
-                   callbacks=[obs])
+    print("Physically valid: ", instance.scene.check_physically_valid())
+    instance.simulate(duration=DURATION, timestep=1/FPS, callbacks=[obs])
     simu_path = os.path.join(dir_, "simu.pkl")
     obs.export(simu_path, fps=FPS)
     # Show the simulation.
