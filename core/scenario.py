@@ -289,10 +289,12 @@ class ScenarioInstance:
         self.embedded_causal_graph = embedded_causal_graph
 
     def simulate(self, duration, timestep, callbacks=None):
-        callbacks = [] if callbacks is None else list(callbacks)
-        callbacks.insert(0, self.embedded_causal_graph.update)
+        if self.embedded_causal_graph is not None:
+            callbacks = [] if callbacks is None else list(callbacks)
+            callbacks.insert(0, self.embedded_causal_graph.update)
         simulate_scene(self.scene, duration, timestep, callbacks)
-        return self.success
+        if self.embedded_causal_graph is not None:
+            return self.success
 
     @property
     def success(self):
