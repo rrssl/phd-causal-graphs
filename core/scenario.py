@@ -9,7 +9,6 @@ from shapely.geometry import LineString
 
 import core.config as cfg
 from core import causal_graph as causal
-from core import events
 from core import primitives
 from core.export import VectorFile
 
@@ -242,10 +241,62 @@ class Scene:
 
 
 class Scenario:
-    def __init__(self, scene: Scene, causal_graph, domain):
-        self.scene = scene
+    """Abstract representation of a scenario.
+
+    This is just a convenient, "stateless" high-level representation,
+    not unlike a dict-like specification but with a number of preprocessing
+    operations already done.
+    Specifying a position in the design space (or equivalently, a transform for
+    each object) via instantiante_from_xforms() yields a ScenarioInstance that
+    can be used for simulation and visualization.
+
+    Parameters
+    ----------
+    prim_graph : network.DiGraph
+      Tree of primitives reflecting the scene graph hierarchy.
+    causal_graph : network.DiGraph
+      Directed acyclic graph of events.
+    design_space : design_space.DesignSpace
+      Design space of the scenario.
+
+    """
+    def __init__(self, prim_graph, causal_graph, design_space):
+        self.prim_graph = prim_graph
         self.causal_graph = causal_graph
-        self.domain = domain
+        self.design_space = design_space
+
+    def check_physically_valid_sample(self, sample):
+        scene = Scene(geom=None, phys=True)
+        xforms = self.design_space.sample2xforms(sample)
+        scene.populate(self.prim_graph, xforms)
+        return self.check_physically_valid()
+
+    def instantiate_from_sample(self, sample, geom='LD', phys=True):
+        xforms = self.design_space.sample2xforms(sample)
+        return self.instantiante_from_xforms(xforms, geom, phys)
+
+    def instantiante_from_xforms(self, xforms, geom='LD', phys=True):
+        scene = Scene(geom, phys)
+        scene.populate(self.prim_graph, xforms)
+        emb_causal_graph = causal.embed_causal_graph(self.causal_graph, scene)
+        return ScenarioInstance(scene, emb_causal_graph)
+
+
+class ScenarioInstance:
+    def __init__(self, scene: Scene,
+                 embedded_causal_graph: causal.CausalGraphTraverser):
+        self.scene = scene
+        self.embedded_causal_graph = embedded_causal_graph
+
+    def simulate(self, duration, timestep, callbacks=None):
+        callbacks = [] if callbacks is None else list(callbacks)
+        callbacks.insert(0, self.embedded_causal_graph.update)
+        simulate_scene(self.scene, duration, timestep, callbacks)
+        return self.success
+
+    @property
+    def success(self):
+        return self.embedded_causal_graph.success
 
 
 class StateObserver:
@@ -308,51 +359,6 @@ def load_domain(scene_data):
     return domain
 
 
-def load_causal_graph(graph_data, scene, verbose=False):
-    graph = scene.graph
-    world = scene.world
-    name2path = {}
-    name2event = {}
-    event2children = {}
-    root = None
-    # First pass: create the events
-    for event_data in graph_data:
-        name = event_data['name']
-        EventType = getattr(events, event_data['type'])
-        args = event_data['args'].copy()
-        for key, value in args.items():
-            if type(value) is str:
-                try:
-                    path = name2path[value]
-                except KeyError:
-                    path = graph.find("**/" + value + "_solid")
-                    if path.is_empty():
-                        path = None
-                    name2path[value] = path
-                if path is not None:
-                    args[key] = path
-        if EventType in (events.Contact, events.NoContact, events.RollingOn):
-            args['world'] = world
-        event = causal.Event(name, EventType(**args))
-        name2event[name] = event
-        try:
-            children = event_data['children']
-        except KeyError:
-            children = []
-        event2children[event] = children
-    # Second pass: connect the events
-    has_parent = set()
-    for event, children in event2children.items():
-        for child in children:
-            causal.connect(event, name2event[child])
-            has_parent.add(name2event[child])
-    root = (event2children.keys() - has_parent).pop()
-    graph = causal.CausalGraphTraverser(
-        root=root, verbose=verbose
-    )
-    return graph
-
-
 def load_primitives(scene_data):
     """Load a primitive graph from a scene data dict."""
     prim_graph = nx.DiGraph()
@@ -384,11 +390,24 @@ def load_primitives(scene_data):
     return prim_graph
 
 
-def load_scenario(scenario_data, geom='LD', phys=True):
-    scene = load_scene(scenario_data['scene'], geom, phys)
-    domain = load_domain(scenario_data['scene'])
-    causal_graph = load_causal_graph(scenario_data['causal_graph'], scene)
-    return Scenario(scene, causal_graph, domain)
+def load_scenario(scenario_data):
+    """Load an abstract scenario from a data dict."""
+    prim_graph = load_primitives(scenario_data['scene'])
+    design_space = load_design_space(scenario_data['scene'])
+    try:
+        graph_data = scenario_data['causal_graph']
+    except KeyError:
+        graph_data = None
+    causal_graph = causal.load_causal_graph(graph_data)
+    scenario = Scenario(prim_graph, causal_graph, design_space)
+    return scenario
+
+
+def load_scenario_instance(scenario_data, geom='LD', phys=True):
+    """Load a scenario directly instantiated from a data dict."""
+    scenario = load_scenario(scenario_data)
+    xforms = load_xforms(scenario_data['scene'])
+    return scenario.instantiante_from_xforms(xforms, geom, phys)
 
 
 def load_scene(scene_data, geom='LD', phys=True):

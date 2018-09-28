@@ -3,7 +3,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath(".."))
-from core.scenario import (StateObserver, load_scenario,  # noqa:E402
+from core.scenario import (StateObserver, load_scenario_instance,  # noqa:E402
                            simulate_scene)
 
 
@@ -18,9 +18,9 @@ def main():
     out_dir = sys.argv[2]
     with open(json_path, 'r') as f:
         scenario_data = json.load(f)
-    scenario = load_scenario(scenario_data, geom='HD', phys=False)
+    scenario = load_scenario_instance(scenario_data, geom='HD', phys=False)
     scenario.scene.export_scene_to_egg(out_dir + "scene.egg")
-    scenario = load_scenario(scenario_data, geom=None, phys=True)
+    scenario = load_scenario_instance(scenario_data, geom=None, phys=True)
     obs = StateObserver(scenario.scene)
     simulate_scene(scenario.scene, duration=DURATION, timestep=1/FPS,
                    callbacks=[obs])

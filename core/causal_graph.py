@@ -1,9 +1,11 @@
 from enum import Enum
 from tempfile import NamedTemporaryFile
 
-from graphviz import Digraph
+import graphviz
+import networkx
 
 import core.config as cfg
+from core import events
 
 
 class EventState(Enum):
@@ -202,7 +204,7 @@ class CausalGraphViewer:
 
     def render(self, filename=None, compact=True):
         filename = filename if filename else self._file.name
-        g = Digraph('G', filename=filename)
+        g = graphviz.Digraph('G', filename=filename)
         g.attr('node', shape='circle')
         g.attr('node', fontname='Linux Biolinum O')
         to_process = {self.root}
@@ -253,3 +255,49 @@ def increment_str(s):
     new_s = lpart[:-1] + increment_char(lpart[-1]) if lpart else 'A'
     new_s += 'A' * num_replacements
     return new_s
+
+
+def load_causal_graph(graph_data):
+    g = networkx.DiGraph()
+    if not graph_data:
+        return g
+    # First pass for the nodes
+    for event_data in graph_data:
+        event = getattr(events, event_data['type'])
+        g.add_node(event_data['name'], event=event, args=event_data['args'])
+    # Second pass for the edges
+    for event_data in graph_data:
+        name = event_data['name']
+        try:
+            children = event_data['children']
+        except KeyError:
+            children = []
+        for child in children:
+            g.add_edge(name, child)
+    # Find the root
+    g.graph['root'] = next(n for n, d in g.in_degree() if d == 0)
+    return g
+
+
+def embed_event(scene, name, event_type, **event_kwargs):
+    kw = event_kwargs.copy()
+    for key, value in kw.items():
+        if type(value) is str:
+            path = scene.graph.find("**/" + value + "_solid")
+            if not path.is_empty():
+                kw[key] = path
+    if events.needs_world(event_type):
+        kw['world'] = scene.world
+    return Event(name, event_type(**kw))
+
+
+def embed_causal_graph(causal_graph, scene, verbose=True):
+    if not len(causal_graph):
+        return None
+    events = {name: embed_event(scene, name, data['event'], **data['args'])
+              for name, data in causal_graph.nodes.data()}
+    for parent, child in causal_graph.edges:
+        connect(events[parent], events[child])
+    root = events[causal_graph.graph['root']]
+    embedded_causal_graph = CausalGraphTraverser(root=root, verbose=verbose)
+    return embedded_causal_graph

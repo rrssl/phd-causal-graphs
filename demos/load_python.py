@@ -15,7 +15,7 @@ import tempfile
 from panda3d.core import load_prc_file_data
 
 sys.path.insert(0, os.path.abspath(".."))
-from core.scenario import (StateObserver, load_scenario,  # noqa: E402
+from core.scenario import (StateObserver, load_scenario_instance,  # noqa: E402
                            simulate_scene)
 from gui.viewers import Replayer  # noqa: E402
 
@@ -38,13 +38,13 @@ def main():
     DATA = script.DATA
     dir_ = tempfile.mkdtemp()
     # Create the scene geometry.
-    scenario = load_scenario(DATA, geom='HD', phys=False)
+    instance = load_scenario_instance(DATA, geom='HD', phys=False)
     scene_path = os.path.join(dir_, "scene")
-    scenario.scene.export_scene_to_egg(scene_path)
-    # Run the scenario.
-    scenario = load_scenario(DATA)
-    obs = StateObserver(scenario.scene)
-    simulate_scene(scenario.scene, duration=DURATION, timestep=1/FPS,
+    instance.scene.export_scene_to_egg(scene_path)
+    # Run the instance.
+    instance = load_scenario_instance(DATA, geom=None, phys=True)
+    obs = StateObserver(instance.scene)
+    simulate_scene(instance.scene, duration=DURATION, timestep=1/FPS,
                    callbacks=[obs])
     simu_path = os.path.join(dir_, "simu.pkl")
     obs.export(simu_path, fps=FPS)
