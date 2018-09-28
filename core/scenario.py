@@ -3,6 +3,7 @@ import subprocess
 from itertools import count
 from math import ceil
 
+import networkx as nx
 from panda3d.core import GeomVertexReader, NodePath, TransformState
 from shapely.geometry import LineString
 
@@ -65,9 +66,15 @@ class LegacyScenario:
 
 
 class Scene:
-    def __init__(self, graph: NodePath, world: primitives.World):
-        self.graph = graph
-        self.world = world
+    def __init__(self, geom='LD', phys=True):
+        self.geom = geom
+        self.phys = phys
+        self.graph = NodePath("scene")
+        if phys:
+            self.world = primitives.World()
+            self.world.set_gravity(cfg.GRAVITY)
+        else:
+            self.world = None
 
     def check_physically_valid(self):
         return self.get_physical_validity_constraint() > -1e-3
@@ -200,6 +207,39 @@ class Scene:
         TransformState.garbage_collect()
         return constraint
 
+    def populate(self, prim_graph, xforms):
+        """Populate the scene with primitive instances.
+
+        Parameters
+        ----------
+        prim_graph : networkx.DiGraph
+          Tree of primitives reflecting the scene graph hierarchy (as given to
+          Scenario).
+        xforms : dict
+          Dictionary of o_name: o_xform pairs, where o_xform is a 6-tuple
+          corresponding to panda3d's (x,y,z,h,p,r) values.
+
+        """
+        graph = self.graph
+        world = self.world
+        name2nopa = {}
+        # First pass: create and attach objects to the scene graph and world
+        for name, prim in prim_graph.nodes(data='prim'):
+            prim.geom = self.geom
+            prim.phys = self.phys
+            nopa = prim.create()
+            nopa.set_pos_hpr(*xforms[name])
+            name2nopa[name] = nopa
+            prim.attach_to(graph, world)
+        # Second pass: scene graph hierarchy.
+        for parent, child in prim_graph.edges:
+            name2nopa[child].reparent_to(name2nopa[parent])
+            if self.phys:
+                try:
+                    name2nopa[child].node().set_transform_dirty()
+                except AttributeError:
+                    pass
+
 
 class Scenario:
     def __init__(self, scene: Scene, causal_graph, domain):
@@ -254,59 +294,6 @@ class StateObserver:
         data = {'metadata': metadata, 'states': self.states}
         with open(filename, 'wb') as f:
             pickle.dump(data, f)
-
-
-def init_scene():
-    """Initialize the Panda3D scene."""
-    graph = NodePath("scene")
-    world = primitives.World()
-    world.set_gravity(cfg.GRAVITY)
-    return Scene(graph, world)
-
-
-def load_scene(scene_data, geom='LD', phys=True):
-    scene = init_scene()
-    name2path = {}
-    path2parent = {}
-    # First pass: create scene graph nodes
-    for obj_data in scene_data:
-        name = obj_data['name']
-        # Instantiate factory
-        PrimitiveType = getattr(primitives, obj_data['type'])
-        geom_args = {}
-        bullet_args = {}
-        for k, v in obj_data['args'].items():
-            if k.startswith("b_"):
-                bullet_args[k[2:]] = v
-            else:
-                geom_args[k] = v
-        obj = PrimitiveType(
-            name, **geom_args, geom=geom, phys=phys, **bullet_args
-        )
-        # Create object
-        obj_path = obj.create()
-        name2path[name] = obj_path
-        # Set object transform
-        try:
-            xform = obj_data['xform']['value']
-        except KeyError:
-            xform = [0, 0, 0, 0, 0, 0]
-        obj_path.set_pos_hpr(*xform)
-        # Attach object to the root
-        obj.attach_to(scene.graph, scene.world)
-        # Keep track of potential parent
-        try:
-            parent = obj_data['parent']
-        except KeyError:
-            parent = None
-        if parent is not None:
-            path2parent[obj_path] = parent
-    # Second pass for scene graph hierarchy
-    for obj_path, parent in path2parent.items():
-        obj_path.reparent_to(name2path[parent])
-        if phys:
-            obj_path.node().set_transform_dirty()
-    return scene
 
 
 def load_domain(scene_data):
@@ -366,11 +353,64 @@ def load_causal_graph(graph_data, scene, verbose=False):
     return graph
 
 
+def load_primitives(scene_data):
+    """Load a primitive graph from a scene data dict."""
+    prim_graph = nx.DiGraph()
+    # First pass for primitives.
+    for obj_data in scene_data:
+        name = obj_data['name']
+        PrimitiveType = getattr(primitives, obj_data['type'])
+        # Separate geometry and physics arguments.
+        geom_args = {}
+        bullet_args = {}
+        for k, v in obj_data['args'].items():
+            if k.startswith("b_"):
+                bullet_args[k[2:]] = v
+            else:
+                geom_args[k] = v
+        # Create primitive.
+        prim = PrimitiveType(
+            name, **geom_args, **bullet_args
+        )
+        prim_graph.add_node(name, prim=prim)
+    # Second pass for scene hierarchy.
+    for obj_data in scene_data:
+        try:
+            parent = obj_data['parent']
+        except KeyError:
+            parent = None
+        if parent is not None:
+            prim_graph.add_edge(parent, obj_data['name'])
+    return prim_graph
+
+
 def load_scenario(scenario_data, geom='LD', phys=True):
     scene = load_scene(scenario_data['scene'], geom, phys)
     domain = load_domain(scenario_data['scene'])
     causal_graph = load_causal_graph(scenario_data['causal_graph'], scene)
     return Scenario(scene, causal_graph, domain)
+
+
+def load_scene(scene_data, geom='LD', phys=True):
+    """Load a scene from a scene data dict."""
+    prim_graph = load_primitives(scene_data)
+    xforms = load_xforms(scene_data)
+    scene = Scene(geom, phys)
+    scene.populate(prim_graph, xforms)
+    return scene
+
+
+def load_xforms(scene_data):
+    """Load a transforms dict from a scene data dict."""
+    xforms = {}
+    for obj_data in scene_data:
+        name = obj_data['name']
+        try:
+            xform = obj_data['xform']['value']
+        except KeyError:
+            xform = [0, 0, 0, 0, 0, 0]
+        xforms[name] = xform
+    return xforms
 
 
 def simulate_scene(scene: Scene, duration, timestep, callbacks=None):

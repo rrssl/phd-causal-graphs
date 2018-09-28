@@ -9,8 +9,7 @@ from direct.gui.DirectGui import DirectButton
 sys.path.insert(0, os.path.abspath(".."))
 from core import primitives  # noqa: E402
 from core.dominoes import create_line, create_smooth_path  # noqa: E402
-from core.scenario import (StateObserver, init_scene,  # noqa: E402
-                           simulate_scene)
+from core.scenario import Scene, StateObserver, simulate_scene  # noqa: E402
 from gui.uimixins import (Animable, Drawable, Pickerable,  # noqa: E402
                           WithViewHelpers)
 from gui.uiwidgets import DropdownMenu, ParameterEditor  # noqa: E402
@@ -385,7 +384,7 @@ class Designer(Animable, Drawable, Pickerable, WithViewHelpers, Modeler):
             self.ignore('delete')
 
     def ui_simulate_scene(self, duration=2., fps=500):
-        scene = init_scene()
+        scene = Scene(geom=None, phys=True)
         for o in self.models.get_children():
             prim_name = o.get_tag('primitive')
             args = o.get_python_tag('parameters').copy()
