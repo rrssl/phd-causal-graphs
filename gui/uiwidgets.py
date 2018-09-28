@@ -109,6 +109,8 @@ class DropdownMenu(DirectButton):
         # NB: calling this function in __init__ with the new subclass as an
         # argument is ESSENTIAL, yet poorly documented.
         # https://www.panda3d.org/forums/viewtopic.php?p=12111#p12111
+        # NB2: for group_option-type options to be properly applied, you have
+        # to create the components from that group _before_ this call.
         self.initialiseoptions(DropdownMenu)
 
     def _highlightItem(self, item):
