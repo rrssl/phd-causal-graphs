@@ -189,6 +189,12 @@ class CausalGraphTraverser:
                 self.state = CausalGraphState.success
                 if self.verbose:
                     print("Success of {} with {}".format(self, event))
+        return not self.terminated
+
+    @property
+    def terminated(self):
+        return self.state in (CausalGraphState.success,
+                              CausalGraphState.failure)
 
 
 class CausalGraphViewer:
