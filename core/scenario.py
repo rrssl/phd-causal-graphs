@@ -70,7 +70,7 @@ class Scene:
         self.world = world
 
     def check_physically_valid(self):
-        return True
+        return self.get_physical_validity_constraint() > -1e-3
 
     def export_scene_to_egg(self, filename):
         if filename[-4:] == ".egg":
@@ -163,7 +163,42 @@ class Scene:
         vec.save()
 
     def get_physical_validity_constraint(self):
-        return 0
+        """Compute the sum of all physical constraint violations (<= 0)."""
+        world = self.world
+        constraint = 0
+        # Get pulleys' constraint
+        for pulley_cb in world._callbacks:
+            constraint += min(0, pulley_cb.__self__._get_loose_rope_length())
+        # Check unwanted collisions.
+        bodies = world.get_rigid_bodies()
+        # Enable collisions for static objects
+        static = []
+        for body in bodies:
+            if body.is_static():
+                static.append(body)
+                body.set_static(False)
+                body.set_active(True)
+        # Check penetrations
+        for a, b in zip(bodies[:-1], bodies[1:]):
+            # contact_test_pair() ignores all collision flags, so we need
+            # to check that these bodies are meant to collide.
+            if a.check_collision_with(b):
+                result = world.contact_test_pair(a, b)
+                if result.get_num_contacts():
+                    # Sometimes Bullet detects a collision even though the
+                    # distance is positive. Ignore such positive distances.
+                    penetration = sum(
+                        min(0, c.get_manifold_point().get_distance())
+                        for c in result.get_contacts()
+                    )
+                    constraint += penetration
+        # Re-disable collisions for static objects
+        for body in static:
+            body.set_static(True)
+            body.set_active(False)
+        # Same issue as described in simulate_scene
+        TransformState.garbage_collect()
+        return constraint
 
 
 class Scenario:

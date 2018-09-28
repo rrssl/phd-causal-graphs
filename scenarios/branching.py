@@ -142,7 +142,7 @@ DATA = {
             'xform': {
                 'value': [SUPPORT2_LWH[0]/4,
                           0,
-                          SUPPORT2_LWH[2]/2,
+                          SUPPORT2_LWH[2]/2+.001,
                           0, 0, 0]
             }
         },
