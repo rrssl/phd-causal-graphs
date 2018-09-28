@@ -586,13 +586,13 @@ class Goblet(PrimitiveBase):
 
     def create(self):
         name = self.name + "_solid"
+        eps = 2e-3
         # Physics
         if self.phys:
             h, r1, r2 = self.extents
             alpha = math.atan2(r1 - r2, h)
             length = math.sqrt((r1 - r2) ** 2 + h ** 2)
-            eps = 1e-3
-            n_seg = 2**5 if self.geom == 'HD' else 2**4
+            n_seg = 2**5
             body = bt.BulletRigidBodyNode(name)
             self.bodies.append(body)
             self._set_properties(body)
@@ -618,15 +618,14 @@ class Goblet(PrimitiveBase):
         if self.geom is not None:
             n_seg = 2**5 if self.geom == 'HD' else 2**4
             self.path.attach_new_node(
-                self.make_geom(self.name+"_geom", self.extents, n_seg)
+                self.make_geom(self.name+"_geom", self.extents, eps, n_seg)
             )
         return self.path
 
     @staticmethod
-    def make_geom(name, extents, n_seg=2**4):
+    def make_geom(name, extents, eps=1e-3, n_seg=2**4):
         h, r1, r2 = extents
         cos_alpha_inv = math.sqrt(1 + ((r1 - r2) / h)**2)
-        eps = 1e-3
         h_ext = h + eps
         r1_ext = r1 + eps * cos_alpha_inv
         r2_ext = r1_ext - (r1 - r2) * h_ext / h
@@ -700,7 +699,7 @@ class DominoRun(PrimitiveBase):
                 geom_path.instance_to(dom_path)
         # Initial condition
         if self.tilt_angle:
-            tilt_domino_forward(self.path.get_child(1), self.extents,
+            tilt_domino_forward(self.path.get_child(0), self.extents,
                                 self.tilt_angle)
         return self.path
 
