@@ -1,22 +1,42 @@
 import json
 import os
 import sys
+import tempfile
+
+from panda3d.core import load_prc_file_data
 
 sys.path.insert(0, os.path.abspath(".."))
-from core.scenario import load_scenario_instance  # noqa:E402
-from gui.viewers import PhysicsViewer  # noqa:E402
+from core.scenario import (StateObserver, load_scenario_instance,  # noqa:E402
+                           load_scene)
+from gui.viewers import Replayer  # noqa: E402
+
+
+FPS = 500
+DURATION = 2
 
 
 def main():
-    with open("../scenarios/simple.json", 'r') as f:
+    if len(sys.argv) < 2:
+        return
+    path = sys.argv[1]
+    with open(path, 'r') as f:
         scenario_data = json.load(f)
-    scenario = load_scenario_instance(scenario_data, geom='HD')
-    app = PhysicsViewer(world=scenario.scene.world)
-    app.cam_distance = 1
-    app.min_cam_distance = .01
-    app.camLens.set_near(.01)
-    app.zoom_speed = .01
-    scenario.scene.graph.reparent_to(app.models)
+    dir_ = tempfile.mkdtemp()
+    # Create the scene geometry.
+    scene_data = scenario_data['scene']
+    scene = load_scene(scene_data, geom='HD', phys=False)
+    scene_path = os.path.join(dir_, "scene")
+    scene.export_scene_to_egg(scene_path)
+    # Run the instance.
+    instance = load_scenario_instance(scenario_data, geom=None, phys=True)
+    obs = StateObserver(instance.scene)
+    print("Physically valid: ", instance.scene.check_physically_valid())
+    instance.simulate(duration=DURATION, timestep=1/FPS, callbacks=[obs])
+    simu_path = os.path.join(dir_, "simu.pkl")
+    obs.export(simu_path, fps=FPS)
+    # Show the simulation.
+    load_prc_file_data("", "win-origin 500 200")
+    app = Replayer(scene_path+".bam", simu_path)
     app.run()
 
 
