@@ -192,6 +192,10 @@ class CausalGraphTraverser:
         return not self.terminated
 
     @property
+    def success(self):
+        return self.state is CausalGraphState.success
+
+    @property
     def terminated(self):
         return self.state in (CausalGraphState.success,
                               CausalGraphState.failure)
