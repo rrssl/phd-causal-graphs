@@ -68,7 +68,41 @@
 			"args": {
 				"rolling": "ball",
 				"support": "track"
-			}
-		}
+			},
+            "children": [
+                "ball_hits_first_dom"
+            ]
+		},
+		{
+			"name": "ball_hits_first_dom",
+			"type": "Contact",
+			"args": {
+				"first": "ball",
+				"second": "run_dom_0"
+			},
+            "children": [
+                "last_dom_topples"
+            ]
+		},
+		{
+			"name": "last_dom_topples",
+			"type": "Toppling",
+			"args": {
+				"body": "run_dom_2",
+				"angle": 15
+			},
+            "children": [
+                "last_dom_stops"
+            ]
+        },
+        {
+            "name": "last_dom_stops",
+            "type": "Stopping",
+            "args": {
+                "body": "run_dom_2",
+                "max_linvel": 1e-2,
+                "max_angvel": 1
+            }
+        }
 	]
 }
