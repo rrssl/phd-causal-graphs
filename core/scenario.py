@@ -10,6 +10,7 @@ from shapely.geometry import LineString
 import core.config as cfg
 from core import causal_graph as causal
 from core import primitives
+from core.design_space import load_design_space
 from core.export import VectorFile
 
 
@@ -347,18 +348,6 @@ class StateObserver:
         data = {'metadata': metadata, 'states': self.states}
         with open(filename, 'wb') as f:
             pickle.dump(data, f)
-
-
-def load_domain(scene_data):
-    domain = {}
-    for obj_data in scene_data:
-        name = obj_data['name']
-        try:
-            range_ = obj_data['xform']['range']
-        except KeyError:
-            range_ = None
-        domain[name] = range_
-    return domain
 
 
 def load_primitives(scene_data):
