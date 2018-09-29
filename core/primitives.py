@@ -87,13 +87,9 @@ class PrimitiveBase:
     def __init__(self, name, geom=None, phys=True, **bt_props):
         self.name = name
         self.geom = geom
-        self.path = None
         self.phys = phys
-        if phys:
-            self.bt_props = bt_props
-            self.bodies = []
-            self.constraints = []
-            self.physics_callback = None
+        self.bt_props = bt_props
+        self.reset()
 
     def attach_to(self, path: NodePath, world: World):
         """Attach the object to the scene.
@@ -115,6 +111,13 @@ class PrimitiveBase:
                 cs.set_debug_draw_size(.05)
             if self.physics_callback is not None:
                 world._callbacks.append(self.physics_callback)
+
+    def reset(self):
+        self.path = None
+        if self.phys:
+            self.bodies = []
+            self.constraints = []
+            self.physics_callback = None
 
     def create(self):
         raise NotImplementedError

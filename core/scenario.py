@@ -227,6 +227,7 @@ class Scene:
         for name, prim in prim_graph.nodes(data='prim'):
             prim.geom = self.geom
             prim.phys = self.phys
+            prim.reset()
             nopa = prim.create()
             nopa.set_pos_hpr(*xforms[name])
             name2nopa[name] = nopa
