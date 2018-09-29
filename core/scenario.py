@@ -273,14 +273,18 @@ class Scenario:
         scene.populate(self.prim_graph, xforms)
         return scene.check_physically_valid()
 
-    def instantiate_from_sample(self, sample, geom='LD', phys=True):
+    def instantiate_from_sample(self, sample, geom='LD', phys=True,
+                                verbose_causal_graph=True):
         xforms = self.design_space.sample2xforms(sample)
-        return self.instantiante_from_xforms(xforms, geom, phys)
+        return self.instantiante_from_xforms(xforms, geom, phys,
+                                             verbose_causal_graph)
 
-    def instantiante_from_xforms(self, xforms, geom='LD', phys=True):
+    def instantiante_from_xforms(self, xforms, geom='LD', phys=True,
+                                 verbose_causal_graph=True):
         scene = Scene(geom, phys)
         scene.populate(self.prim_graph, xforms)
-        emb_causal_graph = causal.embed_causal_graph(self.causal_graph, scene)
+        emb_causal_graph = causal.embed_causal_graph(self.causal_graph, scene,
+                                                     verbose_causal_graph)
         return ScenarioInstance(scene, emb_causal_graph)
 
 
