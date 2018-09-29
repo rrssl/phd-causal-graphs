@@ -270,7 +270,7 @@ class Scenario:
         scene = Scene(geom=None, phys=True)
         xforms = self.design_space.sample2xforms(sample)
         scene.populate(self.prim_graph, xforms)
-        return self.check_physically_valid()
+        return scene.check_physically_valid()
 
     def instantiate_from_sample(self, sample, geom='LD', phys=True):
         xforms = self.design_space.sample2xforms(sample)
