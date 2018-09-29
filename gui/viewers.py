@@ -488,18 +488,18 @@ class ScenarioViewer(PhysicsViewer):
 
     Parameters
     ----------
-    scenario : Scenario
-      Instance of a class from scenario.py.
+    scenario : core.scenario.ScenarioInstance
+      Scenario instance.
 
     """
     def __init__(self, scenario, **viewer_kwargs):
-        super().__init__(world=scenario.world, **viewer_kwargs)
+        super().__init__(world=scenario.scene.world, **viewer_kwargs)
         self.scenario = scenario
-        scenario.scene.reparent_to(self.models)
-        if not scenario.check_physically_valid():
+        scenario.scene.graph.reparent_to(self.models)
+        if not scenario.scene.check_physically_valid():
             scenario.scene.set_render_mode_filled_wireframe(
                 Vec4(*cfg.SCENARIO_INVALID_COLOR))
-        self.status = None
+        self.terminated = False
         self.task_mgr.add(self.update_status, "update_status")
         self.accept('r', self.reset_scenario)
         if hasattr(scenario, 'graph_view'):
@@ -507,19 +507,22 @@ class ScenarioViewer(PhysicsViewer):
 
     def update_status(self, task):
         scenario = self.scenario
-        scenario.terminate.update_and_check(self.world_time)
-        if scenario.terminate.status != self.status:
-            self.status = scenario.terminate.status
-            if self.status == 'success':
-                scenario.scene.set_color(Vec4(*cfg.SCENARIO_SUCCESS_COLOR))
-            elif self.status == 'failure':
-                scenario.scene.set_color(Vec4(*cfg.SCENARIO_TIMEOUT_COLOR))
+        nopa = scenario.scene.graph
+        cg = scenario.embedded_causal_graph
+        cg.update(self.world_time)
+        if cg.terminated != self.terminated:
+            self.terminated = cg.terminated
+            if self.terminated:
+                if cg.success:
+                    nopa.set_color(Vec4(*cfg.SCENARIO_SUCCESS_COLOR))
+                else:
+                    nopa.set_color(Vec4(*cfg.SCENARIO_TIMEOUT_COLOR))
             else:
                 scenario.scene.clear_color()
         return task.cont
 
     def reset_scenario(self):
-        self.scenario.terminate.reset()
+        self.scenario.embedded_causal_graph.reset()
         self.reset_physics()
 
     def shutdown(self):
