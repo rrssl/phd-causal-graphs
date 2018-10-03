@@ -50,6 +50,10 @@ class Event:
                 if verbose:
                     print("{} has not happened.".format(self))
 
+    @property
+    def success(self):
+        return self.state is EventState.success
+
 
 class Transition:
     def __init__(self, source=None, dest=None):
@@ -145,6 +149,9 @@ class CausalGraphTraverser:
                         to_traverse.add(trans.dest)
             traversed.append(event)
         return traversed
+
+    def get_successful_events(self):
+        return [e for e in self.get_events() if e.success]
 
     def reset(self):
         self.state = None
