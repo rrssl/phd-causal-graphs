@@ -235,11 +235,10 @@ class Scene:
         # Second pass: scene graph hierarchy.
         for parent, child in prim_graph.edges:
             name2nopa[child].reparent_to(name2nopa[parent])
-            if self.phys:
-                try:
-                    name2nopa[child].node().set_transform_dirty()
-                except AttributeError:
-                    pass
+        # Last pass: propagate new global transforms to bullet nodes.
+        if self.phys:
+            for body in world.get_rigid_bodies():
+                body.set_transform_dirty()
 
 
 class Scenario:
