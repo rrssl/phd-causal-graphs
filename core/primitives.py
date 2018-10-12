@@ -702,7 +702,7 @@ class DominoRun(PrimitiveBase):
                 geom_path.instance_to(dom_path)
         # Initial condition
         if self.tilt_angle:
-            tilt_domino_forward(self.path.get_child(0), self.extents,
+            tilt_domino_forward(self.path.find("*_dom_0_solid"), self.extents,
                                 self.tilt_angle)
         return self.path
 
