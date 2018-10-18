@@ -461,7 +461,7 @@ def simulate_scene(scene: Scene, duration, timestep, callbacks=None):
                 do_break = True
         if do_break:
             break
-        world.do_physics(timestep, 2, timestep)
+        world.do_physics(timestep, 0)
         time += timestep
     # Transforms are globally cached by default. Out of the regular
     # Panda3D task process, we need to empty this cache by hand when
