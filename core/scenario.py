@@ -1,6 +1,6 @@
 import pickle
 import subprocess
-from itertools import count
+from itertools import combinations, count
 from math import ceil
 
 import networkx as nx
@@ -186,7 +186,7 @@ class Scene:
                 body.set_static(False)
                 body.set_active(True)
         # Check penetrations
-        for a, b in zip(bodies[:-1], bodies[1:]):
+        for a, b in combinations(bodies, 2):
             # contact_test_pair() ignores all collision flags, so we need
             # to check that these bodies are meant to collide.
             if a.check_collision_with(b):
