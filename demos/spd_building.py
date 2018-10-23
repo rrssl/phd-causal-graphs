@@ -1,4 +1,3 @@
-import json
 import os
 import sys
 
@@ -11,7 +10,8 @@ from matplotlib.colors import LinearSegmentedColormap
 sys.path.insert(0, os.path.abspath(".."))
 from core.robustness import (find_successful_samples_adaptive,  # noqa: E402
                              learn_success_probability)
-from core.scenario import load_scenario  # noqa: E402
+from core.scenario import (StateObserver, import_scenario_data,  # noqa: E402
+                           load_scenario)
 from gui.viewers import ScenarioViewer  # noqa: E402
 
 memory = Memory(cachedir=".cache")
@@ -53,8 +53,7 @@ def main():
     if len(sys.argv) < 2:
         return
     path = sys.argv[1]
-    with open(path, 'r') as f:
-        scenario_data = json.load(f)
+    scenario_data = import_scenario_data(path)
     estimator = learn_proba(scenario_data)
     # Make the figure.
     seaborn.set()

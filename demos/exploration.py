@@ -1,4 +1,3 @@
-import json
 import os
 import sys
 
@@ -9,15 +8,16 @@ import seaborn
 sys.path.insert(0, os.path.abspath(".."))
 from core.robustness import (find_successful_samples_adaptive,  # noqa: E402
                              find_successful_samples_uniform)
-from core.scenario import load_scenario  # noqa: E402
+from core.scenario import import_scenario_data, load_scenario  # noqa: E402
 
 
 def main():
     if len(sys.argv) < 2:
         return
     path = sys.argv[1]
-    with open(path, 'r') as f:
-        scenario_data = json.load(f)
+    scenario_data = import_scenario_data(path)
+    if scenario_data is None:
+        return
     scenario = load_scenario(scenario_data)
     print("Number of dimensions:", len(scenario.design_space))
     totals_u = []

@@ -1,3 +1,5 @@
+import importlib.util
+import json
 import pickle
 import subprocess
 from itertools import combinations, count
@@ -352,6 +354,26 @@ class StateObserver:
         data = {'metadata': metadata, 'states': self.states}
         with open(filename, 'wb') as f:
             pickle.dump(data, f)
+
+
+def import_scenario_data(path):
+    if path.endswith("json"):
+        with open(path, 'r') as f:
+            scenario_data = json.load(f)
+    elif path.endswith("py"):
+        script = load_module("loaded_script", path)
+        scenario_data = script.DATA
+    else:
+        print("Unrecognized extension")
+        scenario_data = None
+    return scenario_data
+
+
+def load_module(name, path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def load_primitives(scene_data):
