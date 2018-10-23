@@ -1,15 +1,14 @@
 """
-Load, simulate and visualize a scenario instance defined as a python file.
+Import, simulate and visualize a scenario instance defined as a data file.
 
 Parameters
 ----------
 path : string
-  Path to the python file.
+  Path to the data file.
 interactive : {0,1}, optional
   Wether to run the simulation in real-time, or offline (and replay it).
 
 """
-import importlib.util
 import os
 import sys
 import tempfile
@@ -17,19 +16,12 @@ import tempfile
 from panda3d.core import load_prc_file_data
 
 sys.path.insert(0, os.path.abspath(".."))
-from core.scenario import (StateObserver, load_scenario_instance,  # noqa: E402
-                           load_scene)
+from core.scenario import (StateObserver, import_scenario_data,  # noqa: E402
+                           load_scenario_instance, load_scene)
 from gui.viewers import PhysicsViewer, Replayer  # noqa: E402
 
 FPS = 500
 DURATION = 4
-
-
-def load_module(name, path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
 
 
 def main():
@@ -41,9 +33,9 @@ def main():
         interactive = bool(sys.argv[2])
     else:
         interactive = False
-    script = load_module("scene_script", path)
-    scenario_data = script.DATA
+    scenario_data = import_scenario_data(path)
     scene_data = scenario_data['scene']
+    load_prc_file_data("", "win-origin 500 200")
     if interactive:
         scene = load_scene(scene_data, geom='LD', phys=True)
         app = PhysicsViewer(world=scene.world)
@@ -62,7 +54,6 @@ def main():
         simu_path = os.path.join(dir_, "simu.pkl")
         obs.export(simu_path, fps=FPS)
         # Show the simulation.
-        load_prc_file_data("", "win-origin 500 200")
         app = Replayer(scene_path+".bam", simu_path)
     app.cam_distance = 1
     app.min_cam_distance = .01
