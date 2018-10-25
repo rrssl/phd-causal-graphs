@@ -24,11 +24,11 @@ def learn_proba(scenario_data):
     print("Number of dimensions:", len(scenario.design_space))
     np.random.seed(123)
     init_samples, init_labels = find_successful_samples_adaptive(
-        scenario, n_succ=100, n_0=100, n_k=10, k_max=100, sigma=.01,
+        scenario, n_succ=200, n_0=300, n_k=20, k_max=100, sigma=.01,
         duration=3, timestep=1/500
     )
     estimator = learn_success_probability(
-        scenario, init_samples, init_labels, accuracy=.9, n_k=50, k_max=10,
+        scenario, init_samples, init_labels, accuracy=.95, n_k=100, k_max=10,
         duration=3, timestep=1/500
     )
     return estimator
