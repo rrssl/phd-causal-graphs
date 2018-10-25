@@ -174,7 +174,8 @@ def train_svc(samples, values, probability=False, verbose=True):
         'svc__C': C_range,
         'svc__class_weight': class_weight_options
     }
-    grid = GridSearchCV(pipeline, param_grid=param_grid, n_jobs=cfg.NCORES)
+    grid = GridSearchCV(pipeline, param_grid=param_grid, cv=5,
+                        n_jobs=cfg.NCORES)
     grid.fit(samples, values)
     if verbose:
         print("The best parameters are {}".format(grid.best_params_))
