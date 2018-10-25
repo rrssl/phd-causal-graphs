@@ -48,6 +48,7 @@ def visualize_proba(ax, estimator):
     # Plot
     m = ax.pcolormesh(xx, yy, proba, cmap=cm)
     m.set_rasterized(True)
+    ax.figure.colorbar(m)
 
 
 def main():
