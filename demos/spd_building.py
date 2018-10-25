@@ -1,5 +1,6 @@
 import os
 import sys
+import tempfile
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,7 +13,7 @@ from core.robustness import (find_successful_samples_adaptive,  # noqa: E402
                              learn_success_probability)
 from core.scenario import (StateObserver, import_scenario_data,  # noqa: E402
                            load_scenario)
-from gui.viewers import ScenarioViewer  # noqa: E402
+from gui.viewers import Replayer  # noqa: E402
 
 memory = Memory(cachedir=".cache")
 
@@ -71,10 +72,27 @@ def main():
     fig.canvas.mpl_connect('button_release_event', onpick)
     plt.show()
 
-    for c in clicked:
+    dir_ = tempfile.mkdtemp()
+    for i, c in enumerate(clicked):
+        p = c + [third_val]
+        print("Sample: {}; probablity of success: {}".format(
+            p, estimator.predict_proba([p])
+        ))
         scenario = load_scenario(scenario_data)
-        instance = scenario.instantiate_from_sample(c + [.5], geom='HD')
-        app = ScenarioViewer(instance, frame_rate=240)
+        # Create the scene geometry.
+        instance = scenario.instantiate_from_sample(p, geom='HD', phys=False)
+        scene_path = os.path.join(dir_, "scene")
+        instance.scene.export_scene_to_egg(scene_path)
+        instance.scene.export_scene_to_egg("scene_{}".format(i))
+        # Run the instance.
+        instance = scenario.instantiate_from_sample(p, geom=None, phys=True)
+        obs = StateObserver(instance.scene)
+        print("Physically valid: ", instance.scene.check_physically_valid())
+        instance.simulate(duration=3, timestep=1/500, callbacks=[obs])
+        simu_path = os.path.join(dir_, "simu.pkl")
+        obs.export(simu_path, fps=500)
+        # Show the simulation.
+        app = Replayer(scene_path+".bam", simu_path)
         try:
             app.run()
         except SystemExit:
