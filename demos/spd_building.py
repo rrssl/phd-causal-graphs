@@ -34,12 +34,14 @@ def learn_proba(scenario_data):
     return estimator
 
 
-def visualize_proba(ax, estimator):
+def visualize_proba(ax, estimator, extra_params=None):
     n = 300
     xx, yy = np.meshgrid(np.linspace(0, 1, n), np.linspace(0, 1, n))
     # Get probabilities
-    X = np.column_stack((xx.ravel(), yy.ravel(), np.ones(xx.size)*.5))
-    proba = estimator.predict_proba(X)[:, 1].reshape(xx.shape)
+    samples = np.column_stack((xx.ravel(), yy.ravel()))
+    if extra_params:
+        samples = np.hstack((samples, np.tile(extra_params, (xx.size, 1))))
+    proba = estimator.predict_proba(samples)[:, 1].reshape(xx.shape)
     # proba = estimator.decision_function(X).reshape(xx.shape)
     # Set colormap
     blue = np.array([31, 120, 180]) / 255
@@ -60,7 +62,8 @@ def main():
     # Make the figure.
     seaborn.set()
     fig, ax = plt.subplots()
-    visualize_proba(ax, estimator)
+    extra_params = [.2]
+    visualize_proba(ax, estimator, extra_params)
     fig.tight_layout()
     # Interactive point picker
     clicked = []
@@ -75,7 +78,7 @@ def main():
 
     dir_ = tempfile.mkdtemp()
     for i, c in enumerate(clicked):
-        p = c + [third_val]
+        p = c + extra_params
         print("Sample: {}; probablity of success: {}".format(
             p, estimator.predict_proba([p])
         ))
