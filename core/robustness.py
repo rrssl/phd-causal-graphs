@@ -182,10 +182,11 @@ def train_svc(samples, values, probability=False, verbose=True):
     return grid.best_estimator_
 
 
-def learn_success_probability(scenario, init_samples, init_labels,
-                              accuracy=.9, n_k=10, k_max=10, **simu_kw):
+def train_and_add_uniform_samples(scenario, init_samples, init_labels,
+                                  accuracy=.9, n_k=10, k_max=10,
+                                  step_data=None, **simu_kw):
     """
-    Learn the success probability distribution for this scenario.
+    Train the SVC and add more uniform samples until accuracy is reached.
 
     Returns
     -------
@@ -207,6 +208,50 @@ def learn_success_probability(scenario, init_samples, init_labels,
         estimator = train_svc(X, y)
         score = estimator.score(X, y)
         print("Total score:", score)
+        if step_data is not None:
+            step_data.append((X, y, estimator))
+        if score >= accuracy:
+            break
+        # Generate the new samples.
+        samples_k = find_physically_valid_samples(
+            scenario, MultivariateUniform(ndims), n_k, 5*n_k
+        )
+        samples += samples_k
+        labels += [_simulate_and_get_success(scenario, s, **simu_kw)
+                   for s in samples_k]
+    # Calibrate
+    estimator = train_svc(samples, labels, probability=True)
+    return estimator
+
+
+def train_and_consolidate_boundary(scenario, init_samples, init_labels,
+                                   accuracy=.9, n_k=10, k_max=10,
+                                   step_data=None, **simu_kw):
+    """
+    Train the SVC and consolidate its boundary until accuracy is reached.
+
+    Returns
+    -------
+    estimator : sklearn.pipeline.Pipeline
+      Trained estimator.
+
+    """
+    # Initialization
+    samples = list(init_samples)
+    labels = list(init_labels)
+    # Main loop
+    k = 0
+    while k < k_max:
+        k += 1
+        # Train the SVC.
+        X = np.asarray(samples)
+        y = np.asarray(labels)
+        estimator = train_svc(X, y)
+        scale = np.diagflat(1 / estimator.named_steps['standardscaler'].scale_)
+        score = estimator.score(X, y)
+        print("Total score:", score)
+        if step_data is not None:
+            step_data.append((X, y, estimator))
         if score >= accuracy:
             break
         # Retrieve the misclassified samples.
@@ -218,8 +263,58 @@ def learn_success_probability(scenario, init_samples, init_labels,
         weights = abs(wrong_f)
         weights /= weights.sum()
         # Generate the new samples.
-        mixture_params = [(ws, wsf*np.eye(ndims))
+        mixture_params = [(ws, wsf*scale)
                           for ws, wsf in zip(wrong_X, abs(wrong_f))]
+        dist = MultivariateMixtureOfGaussians(mixture_params, weights)
+        samples_k = find_physically_valid_samples(scenario, dist, n_k, 5*n_k)
+        samples += samples_k
+        labels += [_simulate_and_get_success(scenario, s, **simu_kw)
+                   for s in samples_k]
+    # Calibrate
+    estimator = train_svc(samples, labels, probability=True)
+    return estimator
+
+
+def train_and_consolidate_boundary2(scenario, init_samples, init_labels,
+                                    accuracy=.9, n_k=10, k_max=10,
+                                    step_data=None, **simu_kw):
+    """
+    Train the SVC and consolidate its boundary until accuracy is reached.
+
+    Returns
+    -------
+    estimator : sklearn.pipeline.Pipeline
+      Trained estimator.
+
+    """
+    # ndims = len(scenario.design_space)
+    # Initialization
+    samples = list(init_samples)
+    labels = list(init_labels)
+    # Main loop
+    k = 0
+    while k < k_max:
+        k += 1
+        # Train the SVC.
+        X = np.asarray(samples)
+        y = np.asarray(labels)
+        estimator = train_svc(X, y)
+        scale = np.diagflat(1 / estimator.named_steps['standardscaler'].scale_)
+        score = estimator.score(X, y)
+        print("Total score:", score)
+        if step_data is not None:
+            step_data.append((X, y, estimator))
+        if score >= accuracy:
+            break
+        # Retrieve the support vectors.
+        support = estimator.named_steps['svc'].support_
+        f = estimator.decision_function(X[support])
+        # Compute their PMF.
+        weights = abs(f)
+        weights /= weights.sum()
+        # Generate the new samples.
+        mixture_params = [(s, sf*scale)
+                          for s, sf in zip(X[support], abs(f))]
         dist = MultivariateMixtureOfGaussians(mixture_params, weights)
         samples_k = find_physically_valid_samples(scenario, dist, n_k, 5*n_k)
         samples += samples_k
