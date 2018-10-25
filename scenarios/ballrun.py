@@ -2,7 +2,7 @@ from math import atan, degrees
 
 BALL_RADIUS = 0.015 / 2  # [m]
 BALL_MASS = 0.01 / 6  # [kg]
-TOP_TRACK_LWHT = (0.3, 0.025, 0.005, 0.001)  # [m]
+TOP_TRACK_LWHT = (0.3, 0.025, 0.005, 0.002)  # [m]
 BOTTOM_TRACK_LWHT = TOP_TRACK_LWHT  # [m]
 HIGH_PLANK_LWH = (0.235, 0.023, 0.008)  # [m]
 HIGH_PLANK_MASS = 0.021  # [kg]
@@ -56,13 +56,13 @@ DATA = {
             'xform': {
                 'value': [-.1, TOP_TRACK_LWHT[1]/2+.01, .3, 0, 0, 20],
                 'range': [
-                    [-BASE_PLANK_LWH[0]/2, BASE_PLANK_LWH[0]/4],
+                    [-BASE_PLANK_LWH[0]/4, BASE_PLANK_LWH[0]/4],
                     None,
                     [HIGH_PLANK_LWH[0]/2,
                      HIGH_PLANK_LWH[0]+TOP_TRACK_LWHT[0]/2],
                     None,
                     None,
-                    [5, 45]
+                    [5, 35]
                 ]
             }
         },
@@ -77,10 +77,10 @@ DATA = {
                 'range': [
                     None,
                     None,
-                    [LOW_PLANK_LWH[0]/2, HIGH_PLANK_LWH[0]],
+                    [0, LOW_PLANK_LWH[0]],
                     None,
                     None,
-                    [-45, -5]
+                    [-35, -5]
                 ]
             }
         },
@@ -100,6 +100,15 @@ DATA = {
                     HIGH_PLANK_LWH[0]/2 + BASE_PLANK_LWH[2]/2,
                     0, 0, 90
                 ],
+                'range': [
+                    [BASE_PLANK_LWH[0]/4,
+                     BASE_PLANK_LWH[0]/2-HIGH_PLANK_LWH[2]/2],
+                    None,
+                    None,
+                    None,
+                    None,
+                    None
+                ]
             }
         },
         {
@@ -117,6 +126,15 @@ DATA = {
                     LOW_PLANK_LWH[0]/2 + BASE_PLANK_LWH[2]/2,
                     0, 0, 90
                 ],
+                'range': [
+                    [-BASE_PLANK_LWH[0]/4,
+                     -BASE_PLANK_LWH[0]/2+LOW_PLANK_LWH[2]/2],
+                    None,
+                    None,
+                    None,
+                    None,
+                    None
+                ]
             }
         },
         {
@@ -179,12 +197,12 @@ DATA = {
                 ]
             },
             'xform': {
-                'value': [-.35, GOBLET_R1, -.05, 0, 0, 45],
+                'value': [-.35, GOBLET_R1, -.08, 0, 0, 45],
                 'range': [
                     [-BASE_PLANK_LWH[0],
                      -BASE_PLANK_LWH[0]/2-GOBLET_R1/2],
                     None,
-                    [-LOW_PLANK_LWH[0]/2, LOW_PLANK_LWH[0]/2],
+                    [-LOW_PLANK_LWH[0]/2, LOW_PLANK_LWH[0]/4],
                     None,
                     None,
                     [0, 60]
