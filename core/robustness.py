@@ -78,7 +78,7 @@ def find_successful_samples_uniform(scenario, n_succ=20, n_0=100, n_k=10,
     ndims = len(scenario.design_space)
     # Initialization
     samples = find_physically_valid_samples(
-        scenario, MultivariateUniform(ndims), n_0, 5*n_0
+        scenario, MultivariateUniform(ndims), n_0, 100*n_0
     )
     labels = [_simulate_and_get_success(scenario, s, **simu_kw)
               for s in samples]
@@ -93,7 +93,7 @@ def find_successful_samples_uniform(scenario, n_succ=20, n_0=100, n_k=10,
             break
         k += 1
         samples_k = find_physically_valid_samples(
-            scenario, MultivariateUniform(ndims), n_k, 5*n_k
+            scenario, MultivariateUniform(ndims), n_k, 100*n_k
         )
         samples += samples_k
         labels += [_simulate_and_get_success(scenario, s, **simu_kw)
@@ -119,7 +119,7 @@ def find_successful_samples_adaptive(scenario, n_succ=20, n_0=100, n_k=10,
     cov = sigma * np.eye(ndims)
     # Initialization
     samples = find_physically_valid_samples(
-        scenario, MultivariateUniform(ndims), n_0, 5*n_0
+        scenario, MultivariateUniform(ndims), n_0, 100*n_0
     )
     nse = [_simulate_and_get_nse(scenario, s, **simu_kw) for s in samples]
     labels = [nse_i == nevents for nse_i in nse]
@@ -144,7 +144,7 @@ def find_successful_samples_adaptive(scenario, n_succ=20, n_0=100, n_k=10,
         # Generate the new samples.
         mixture_params = [(ts, cov) for ts in top_samples]
         dist = MultivariateMixtureOfGaussians(mixture_params, weights)
-        samples_k = find_physically_valid_samples(scenario, dist, n_k, 5*n_k)
+        samples_k = find_physically_valid_samples(scenario, dist, n_k, 100*n_k)
         samples += samples_k
         nse_k = [_simulate_and_get_nse(scenario, s, **simu_kw)
                  for s in samples_k]
@@ -215,7 +215,7 @@ def train_and_add_uniform_samples(scenario, init_samples, init_labels,
             break
         # Generate the new samples.
         samples_k = find_physically_valid_samples(
-            scenario, MultivariateUniform(ndims), n_k, 5*n_k
+            scenario, MultivariateUniform(ndims), n_k, 100*n_k
         )
         samples += samples_k
         labels += [_simulate_and_get_success(scenario, s, **simu_kw)
@@ -267,7 +267,7 @@ def train_and_consolidate_boundary(scenario, init_samples, init_labels,
         mixture_params = [(ws, wsf*scale)
                           for ws, wsf in zip(wrong_X, abs(wrong_f))]
         dist = MultivariateMixtureOfGaussians(mixture_params, weights)
-        samples_k = find_physically_valid_samples(scenario, dist, n_k, 5*n_k)
+        samples_k = find_physically_valid_samples(scenario, dist, n_k, 100*n_k)
         samples += samples_k
         labels += [_simulate_and_get_success(scenario, s, **simu_kw)
                    for s in samples_k]
@@ -317,7 +317,7 @@ def train_and_consolidate_boundary2(scenario, init_samples, init_labels,
         mixture_params = [(s, sf*scale)
                           for s, sf in zip(X[support], abs(f))]
         dist = MultivariateMixtureOfGaussians(mixture_params, weights)
-        samples_k = find_physically_valid_samples(scenario, dist, n_k, 5*n_k)
+        samples_k = find_physically_valid_samples(scenario, dist, n_k, 100*n_k)
         samples += samples_k
         labels += [_simulate_and_get_success(scenario, s, **simu_kw)
                    for s in samples_k]
