@@ -9,7 +9,7 @@ from core.dominoes import (create_branch, create_line,  # noqa: E402
 SUPPORT_LWH = [.175, .33, .093]
 DOMINO_LWH = [.007, .02, .044]
 DOMINO_MASS = .00305
-PLANK_LWH = [.024, .008, .118]
+PLANK_LWH = [.008, .024, .118]
 PLANK_MASS = .01
 TRACK_LWHT = [.30, .024, .005, .001]
 BALL_RADIUS = .01
@@ -21,10 +21,11 @@ WAVE_LENGTH = .4
 WAVE_WIDTH = .08
 SWITCH_WIDTH = BRANCH_WIDTH
 
-LEFT_FASTER = 1
-if LEFT_FASTER:
-    FASTER_SIDE = 'left'
-    SLOWER_SIDE = 'right'
+LEFT_FASTER = 0
+FASTER_END = ('left', 'right')[LEFT_FASTER]
+SLOWER_END = ('right', 'left')[LEFT_FASTER]
+FASTER_DOM_ID = (16, 8)[LEFT_FASTER]
+SLOWER_DOM_ID = (8, 16)[LEFT_FASTER]
 
 DATA = {
     'scene': [
@@ -141,7 +142,7 @@ DATA = {
                 'b_mass': PLANK_MASS
             },
             'xform': {
-                'value': [BRANCH_WIDTH/2, .01, PLANK_LWH[2]/2, 0, 0, 0]
+                'value': [BRANCH_WIDTH/2, .01, PLANK_LWH[2]/2, 90, 0, 0]
             }
         },
         {
@@ -214,6 +215,8 @@ DATA = {
             'name': "first_dom_topples",
             'type': "Toppling",
             'args': {
+                'body': "branch_run_dom_0",
+                'angle': 15
             },
             'children': [
                 "left_dom_of_branch_hits_ball",
@@ -224,6 +227,8 @@ DATA = {
             'name': "left_dom_of_branch_hits_ball",
             'type': "Contact",
             'args': {
+                'first': "branch_run_dom_9",
+                'second': "ball"
             },
             'children': [
                 "ball_rolls_on_track",
@@ -233,6 +238,9 @@ DATA = {
             'name': "ball_rolls_on_track",
             'type': "RollingOn",
             'args': {
+                'rolling': "ball",
+                'support': "track",
+                'min_rollang': 90,
             },
             'children': [
                 "ball_hits_first_dom_of_left_row",
@@ -242,6 +250,8 @@ DATA = {
             'name': "ball_hits_first_dom_of_left_row",
             'type': "Contact",
             'args': {
+                'first': "ball",
+                'second': "straight_run_dom_0"
             },
             'children': [
                 "first_dom_of_left_row_topples",
@@ -251,6 +261,8 @@ DATA = {
             'name': "first_dom_of_left_row_topples",
             'type': "Toppling",
             'args': {
+                'body': "straight_run_dom_0",
+                'angle': 15
             },
             'children': [
                 "left_dom_of_switch_topples",
@@ -260,6 +272,8 @@ DATA = {
             'name': "left_dom_of_switch_topples",
             'type': "Toppling",
             'args': {
+                'body': "switch_run_dom_0",
+                'angle': 15
             },
             'children': [
                 "center_dom_of_switch_topples",
@@ -269,6 +283,8 @@ DATA = {
             'name': "right_dom_of_branch_hits_plank",
             'type': "Contact",
             'args': {
+                'first': "smol_run_dom_1",
+                'second': "plank"
             },
             'children': [
                 "plank_topples",
@@ -278,6 +294,8 @@ DATA = {
             'name': "plank_topples",
             'type': "Toppling",
             'args': {
+                'body': "plank",
+                'angle': 15
             },
             'children': [
                 "plank_hits_first_dom_of_wave",
@@ -287,6 +305,8 @@ DATA = {
             'name': "plank_hits_first_dom_of_wave",
             'type': "Contact",
             'args': {
+                'first': "plank",
+                'second': "wavey_run_dom_0"
             },
             'children': [
                 "first_dom_of_wave_topples",
@@ -296,6 +316,8 @@ DATA = {
             'name': "first_dom_of_wave_topples",
             'type': "Toppling",
             'args': {
+                'body': "wavey_run_dom_0",
+                'angle': 15
             },
             'children': [
                 "right_dom_of_switch_topples",
@@ -305,6 +327,8 @@ DATA = {
             'name': "right_dom_of_switch_topples",
             'type': "Toppling",
             'args': {
+                'body': "switch_run_dom_9",
+                'angle': 15
             },
             'children': [
                 "center_dom_of_switch_topples",
@@ -314,24 +338,29 @@ DATA = {
             'name': "center_dom_of_switch_topples",
             'type': "Toppling",
             'args': {
+                'body': "switch_run_dom_4",
+                'angle': 15
             },
             'children': [
-                "{}_end_dom_of_switch_topples".format(FASTER_SIDE),
+                "{}_end_dom_of_switch_topples".format(FASTER_END),
             ]
         },
         {
-            'name': "{}_end_dom_of_switch_topples".format(FASTER_SIDE),
+            'name': "{}_end_dom_of_switch_topples".format(FASTER_END),
             'type': "Toppling",
             'args': {
+                'body': "switch_run_dom_{}".format(FASTER_DOM_ID),
+                'angle': 15
             },
             'children': [
-                "{}_end_dom_of_switch_remains".format(SLOWER_SIDE),
+                "{}_end_dom_of_switch_remains".format(SLOWER_END),
             ]
         },
         {
-            'name': "{}_end_dom_of_switch_remains".format(SLOWER_SIDE),
-            'type': "Toppling",
+            'name': "{}_end_dom_of_switch_remains".format(SLOWER_END),
+            'type': "NotMoving",
             'args': {
+                'body': "switch_run_dom_{}".format(SLOWER_DOM_ID),
             }
         },
     ]
