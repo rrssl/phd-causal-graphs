@@ -78,6 +78,26 @@ class NoContact:
         return not contact
 
 
+class NotMoving:
+    _num_objects = 1
+
+    def __init__(self, body, pos_tol=1e-3, hpr_tol=1):
+        self.body = body
+        init_xform = body.get_net_transform()
+        self.init_pos = init_xform.get_pos()
+        self.init_hpr = init_xform.get_hpr()
+        self.pos_tol = pos_tol
+        self.hpr_tol = hpr_tol
+
+    def __call__(self):
+        xform = self.body.get_net_transform()
+        pos = xform.get_pos()
+        hpr = xform.get_hpr()
+        # compare_to returns 0 if vectors are equal within tolerance.
+        return (not pos.compare_to(self.init_pos, self.pos_tol)
+                and not hpr.compare_to(self.init_hpr, self.hpr_tol))
+
+
 class Pivoting:
     _num_objects = 1
 
