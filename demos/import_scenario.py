@@ -18,7 +18,7 @@ from panda3d.core import load_prc_file_data
 sys.path.insert(0, os.path.abspath(".."))
 from core.scenario import (StateObserver, import_scenario_data,  # noqa: E402
                            load_scenario_instance, load_scene)
-from gui.viewers import PhysicsViewer, Replayer  # noqa: E402
+from gui.viewers import PhysicsViewer, ScenarioViewer, Replayer  # noqa: E402
 
 FPS = 500
 DURATION = 4
@@ -37,9 +37,14 @@ def main():
     scene_data = scenario_data['scene']
     load_prc_file_data("", "win-origin 500 200")
     if interactive:
-        scene = load_scene(scene_data, geom='LD', phys=True)
-        app = PhysicsViewer(world=scene.world)
-        scene.graph.reparent_to(app.models)
+        if scenario_data['causal_graph']:
+            instance = load_scenario_instance(scenario_data,
+                                              geom='LD', phys=True)
+            app = ScenarioViewer(instance)
+        else:
+            scene = load_scene(scene_data, geom='LD', phys=True)
+            app = PhysicsViewer(world=scene.world)
+            scene.graph.reparent_to(app.models)
     else:
         dir_ = tempfile.mkdtemp()
         # Create the scene geometry.
