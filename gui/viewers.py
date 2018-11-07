@@ -518,7 +518,7 @@ class ScenarioViewer(PhysicsViewer):
                 else:
                     nopa.set_color(Vec4(*cfg.SCENARIO_TIMEOUT_COLOR))
             else:
-                scenario.scene.clear_color()
+                scenario.scene.graph.clear_color()
         return task.cont
 
     def reset_scenario(self):
