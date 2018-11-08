@@ -497,7 +497,7 @@ class ScenarioViewer(PhysicsViewer):
         self.scenario = scenario
         scenario.scene.graph.reparent_to(self.models)
         if not scenario.scene.check_physically_valid():
-            scenario.scene.set_render_mode_filled_wireframe(
+            scenario.scene.graph.set_render_mode_filled_wireframe(
                 Vec4(*cfg.SCENARIO_INVALID_COLOR))
         self.terminated = False
         self.task_mgr.add(self.update_status, "update_status")
