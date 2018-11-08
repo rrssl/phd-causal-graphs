@@ -4,6 +4,7 @@ Utility functions for domino runs.
 """
 import numpy as np
 from panda3d.core import NodePath, Point3, TransformState, Vec3
+from shapely.geometry import LineString
 
 import core.spline2d as spl
 
@@ -148,22 +149,33 @@ def create_wave(origin, angle, length, width, n_doms):
     length : float
       Length of the row.
     width : float
-      Width of the row (approximate, within 4 decimals).
+      Width of the row.
     n_doms : int
       Number of dominoes.
 
     """
     coords = np.zeros((n_doms, 3))
-    x = np.linspace(0, length, n_doms)
-    coords[:, 0] = x
-    x = np.pi * (2*x/length - 1)
-    k = (width/2) / (np.pi/6)  # this is an approximation
-    gauss = np.exp(-x**2 / 2)
-    sin = np.sin(x)
-    cos = np.cos(x)
-    coords[:, 1] = k * gauss * sin
+    # Compute dense (x,y) samples.
+    x = np.linspace(0, length, 2*n_doms)
+    x_ = np.pi * (2*x/length - 1)  # transform x range to [-pi,pi]
+    k = (width/2) / .523573  # the denominator is ~ max{exp(-x**2/2)sin(x)}
+    gauss = np.exp(-x_**2 / 2)
+    sin = np.sin(x_)
+    y = k * gauss * sin
+    # Compute equidistant (x,y) samples.
+    polyline = LineString(np.column_stack((x, y)))
+    uniform = np.array(
+        [polyline.interpolate(i/(n_doms-1), normalized=True).coords[0]
+         for i in range(n_doms)]
+    )
+    coords[:, :2] = uniform
+    # Compute local arc tangent.
+    x_ = np.pi * (2*uniform[:, 0]/length - 1)
+    gauss = np.exp(-x_**2 / 2)
+    sin = np.sin(x_)
+    cos = np.cos(x_)
     coords[:, 2] = np.degrees(
-        np.arctan2(k * gauss * (2*np.pi/length) * (cos - x*sin), 1)
+        np.arctan2(k * gauss * (2*np.pi/length) * (cos - x_*sin), 1)
     )
     _linear_transform_2D(coords, origin, angle)
     return coords
