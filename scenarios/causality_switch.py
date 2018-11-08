@@ -16,12 +16,12 @@ BALL_RADIUS = .01
 BALL_MASS = .01
 BRANCH_LENGTH = .20
 BRANCH_WIDTH = .12
-STRAIGHT_LENGTH = .13
-WAVE_LENGTH = .4
-WAVE_WIDTH = .08
-SWITCH_WIDTH = BRANCH_WIDTH
+STRAIGHT_LENGTH = .08
+WAVE_LENGTH = .3
+WAVE_WIDTH = .11
+SWITCH_WIDTH = .12
 
-LEFT_FASTER = 0
+LEFT_FASTER = 1
 FASTER_END = ('left', 'right')[LEFT_FASTER]
 SLOWER_END = ('right', 'left')[LEFT_FASTER]
 FASTER_DOM_ID = (16, 8)[LEFT_FASTER]
@@ -122,16 +122,29 @@ DATA = {
             }
         },
         {
+            'name': "track_joint",
+            'type': "Empty",
+            'args': {
+            },
+            'parent': "support",
+            'xform': {
+                'value': [-BRANCH_WIDTH/2, SUPPORT_LWH[1]/2,
+                          SUPPORT_LWH[2]/2-TRACK_LWHT[3],
+                          0, -13, 0]
+            }
+        },
+        {
             'name': "track",
             'type': "Track",
             'args': {
                 'extents': TRACK_LWHT,
             },
+            'parent': "track_joint",
             'xform': {
-                'value': [-BRANCH_WIDTH/2,
-                          TRACK_LWHT[0]/2-.004,
-                          SUPPORT_LWH[2]/2+.008,
-                          90, 0, 15]
+                'value': [0,
+                          TRACK_LWHT[0]/2,
+                          TRACK_LWHT[2]/2,
+                          90, 0, 0]
             }
         },
         {
@@ -142,7 +155,7 @@ DATA = {
                 'b_mass': PLANK_MASS
             },
             'xform': {
-                'value': [BRANCH_WIDTH/2, .01, PLANK_LWH[2]/2, 90, 0, 0]
+                'value': [BRANCH_WIDTH/2, .03, PLANK_LWH[2]/2, 90, 0, 0]
             }
         },
         {
@@ -150,11 +163,12 @@ DATA = {
             'type': "DominoRun",
             'args': {
                 'extents': DOMINO_LWH,
-                'coords': create_line([0, 0], 0, STRAIGHT_LENGTH, 7),
+                'coords': create_line([0, 0], 0, STRAIGHT_LENGTH, 5),
                 'b_mass': DOMINO_MASS
             },
+            'parent': "switch_run",
             'xform': {
-                'value': [-BRANCH_WIDTH/2, .31, 0, 90, 0, 0]
+                'value': [-STRAIGHT_LENGTH-.02, 0, 0, 0, 0, 0]
             }
         },
         {
@@ -162,11 +176,12 @@ DATA = {
             'type': "DominoRun",
             'args': {
                 'extents': DOMINO_LWH,
-                'coords': create_wave([0, 0], 0, WAVE_LENGTH, WAVE_WIDTH, 20),
+                'coords': create_wave([0, 0], 0, WAVE_LENGTH, WAVE_WIDTH, 22),
                 'b_mass': DOMINO_MASS
             },
+            'parent': "switch_run",
             'xform': {
-                'value': [BRANCH_WIDTH/2, .04, 0, 90, 0, 0]
+                'value': [-WAVE_LENGTH-.02, -SWITCH_WIDTH, 0, 0, 0, 0]
             }
         },
         {
@@ -178,7 +193,7 @@ DATA = {
                 'b_mass': DOMINO_MASS
             },
             'xform': {
-                'value': [-SWITCH_WIDTH/2, .46, 0, 90, 0, 0]
+                'value': [-SWITCH_WIDTH/2, .43, 0, 90, 0, 0]
             }
         },
         {
