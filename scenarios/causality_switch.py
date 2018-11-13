@@ -128,9 +128,18 @@ DATA = {
             },
             'parent': "support",
             'xform': {
-                'value': [-BRANCH_WIDTH/2, SUPPORT_LWH[1]/2,
+                'value': [-BRANCH_WIDTH/2,
+                          SUPPORT_LWH[1]/2,
                           SUPPORT_LWH[2]/2-TRACK_LWHT[3],
-                          0, -13, 0]
+                          0, -13, 0],
+                'range': [
+                    None,
+                    None,
+                    [0, SUPPORT_LWH[2]/2-TRACK_LWHT[3]],
+                    None,
+                    [-18, 0],
+                    None
+                ]
             }
         },
         {
@@ -155,7 +164,8 @@ DATA = {
                 'b_mass': PLANK_MASS
             },
             'xform': {
-                'value': [BRANCH_WIDTH/2, .03, PLANK_LWH[2]/2, 90, 0, 0]
+                'value': [BRANCH_WIDTH/2, .03, PLANK_LWH[2]/2, 90, 0, 0],
+                'range': [None, [.01, .04], None, None, None, None]
             }
         },
         {
@@ -193,7 +203,8 @@ DATA = {
                 'b_mass': DOMINO_MASS
             },
             'xform': {
-                'value': [-SWITCH_WIDTH/2, .43, 0, 90, 0, 0]
+                'value': [-SWITCH_WIDTH/2, .43, 0, 90, 0, 0],
+                'range': [None, [.40, .46], None, None, None, None]
             }
         },
         {
