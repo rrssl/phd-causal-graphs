@@ -111,22 +111,58 @@ def main():
     print("The test set had {} failures and {} successes.".format(ntf, nts))
     # ref_spd = compute_reference_spd(*test_set)
     # Run the algorithms.
-    n_k = 50
-    k_max = 10
     np.random.seed(222)
     init_samples, init_labels = initialize(
         scenario_data, duration=3, timestep=1/500
     )
     # Make the figure.
     seaborn.set()
-    fig, ax = plt.subplots(figsize=(6, 3))
-    ax.plot(ns_unif, acc_unif, 'b--', linewidth=3,
-            label="uniform sampling")
-    ax.plot(ns_cons, acc_cons, 'g', linewidth=3,
-            label="boundary consolidation")
-    # ax.plot(ns_cons2, acc_cons2, 'r', linewidth=3,
-    #         label="boundary consolidation2")
-    ax.legend()
+    if 0:
+        n_k_rng = [5, 10, 20, 50]
+        k_max = 10
+        fig, axes = plt.subplots(2, 2, figsize=(12, 6))
+        for n_k, ax in zip(n_k_rng, axes.ravel()):
+            np.random.seed(333)
+            data_unif = run_uniform(scenario_data, init_samples, init_labels,
+                                    n_k, k_max)
+            ns_unif, acc_unif = process_data(data_unif, test_set)
+            np.random.seed(333)
+            data_cons = run_consol(scenario_data, init_samples, init_labels,
+                                   n_k, k_max)
+            ns_cons, acc_cons = process_data(data_cons, test_set)
+            np.random.seed(333)
+            data_cons2 = run_consol2(scenario_data, init_samples, init_labels,
+                                     n_k, k_max)
+            ns_cons2, acc_cons2 = process_data(data_cons2, test_set)
+            ax.plot(ns_unif, acc_unif, 'b--', linewidth=3,
+                    label="uniform sampling")
+            ax.plot(ns_cons, acc_cons, 'g', linewidth=3,
+                    label="boundary consolidation_mis")
+            ax.set_title("n_k = {}".format(n_k))
+            ax.plot(ns_cons2, acc_cons2, 'r', linewidth=3,
+                    label="boundary consolidation_sup")
+        axes[0, 0].legend()
+    if 1:
+        n_k = 5
+        k_max = 10
+        fig, ax = plt.subplots(figsize=(6, 3))
+        np.random.seed(333)
+        data_unif = run_uniform(scenario_data, init_samples, init_labels,
+                                n_k, k_max)
+        ns_unif, acc_unif = process_data(data_unif, test_set)
+        np.random.seed(333)
+        data_cons = run_consol(scenario_data, init_samples, init_labels,
+                               n_k, k_max)
+        ns_cons, acc_cons = process_data(data_cons, test_set)
+        np.random.seed(333)
+        data_cons2 = run_consol2(scenario_data, init_samples, init_labels,
+                                 n_k, k_max)
+        ns_cons2, acc_cons2 = process_data(data_cons2, test_set)
+        ax.plot(ns_unif, acc_unif, 'b--', linewidth=3,
+                label="uniform sampling")
+        ax.plot(ns_cons2, acc_cons2, 'g', linewidth=3,
+                label="boundary consolidation")
+        ax.legend()
     fig.tight_layout()
     plt.show()
 
