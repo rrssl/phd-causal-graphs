@@ -104,8 +104,10 @@ def main():
         return
     np.random.seed(111)
     # Create reference dataset.
-    test_set = create_reference_dataset(scenario_data, 10000,
-                                        duration=3, timestep=1/500)
+    # test_set = create_reference_dataset(scenario_data, 1000,
+    #                                     duration=3, timestep=1/500)
+    test_set = initialize(scenario_data, n_succ=500, n_0=250, n_k=50,
+                          duration=3, timestep=1/500)
     nts = sum(test_set[1])
     ntf = len(test_set[1]) - nts
     print("The test set had {} failures and {} successes.".format(ntf, nts))
