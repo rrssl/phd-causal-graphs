@@ -88,7 +88,7 @@ class Scene:
         subprocess.run(["bam2egg", "-o", filename + ".egg", filename + ".bam"])
 
     def export_layout_to_pdf(self, filename, sheetsize, plane='xy',
-                             exclude=None):
+                             exclude=None, flip_u=False, flip_v=False):
         if exclude is None:
             exclude = []
         geom_nodes = self.graph.find_all_matches("**/+GeomNode")
@@ -103,11 +103,14 @@ class Scene:
             mat = node_path.get_net_transform().get_mat()
             objects.append([])
             for geom in geom_node.get_geoms():
+                if geom.get_primitive_type() is not geom.PT_polygons:
+                    objects.pop()
+                    break
                 vertex = GeomVertexReader(geom.get_vertex_data(), 'vertex')
                 while not vertex.is_at_end():
                     point = mat.xform_point(vertex.get_data3f())
-                    u = getattr(point, plane[0]) * -100
-                    v = getattr(point, plane[1]) * -100
+                    u = getattr(point, plane[0]) * 100 * (1, -1)[flip_u]
+                    v = getattr(point, plane[1]) * 100 * (1, -1)[flip_v]
                     objects[-1].append([u, v])
                     # Update the min and max.
                     if u < min_u:
