@@ -83,13 +83,14 @@ def run_consol2(scenario_data, init_samples, init_labels, n_k, k_max):
 def process_data(step_data, test_set):
     num_samples = []
     scores = []
-    for X, y, estimator in step_data:
+    for X, y, estimator, score in step_data:
         num_samples.append(len(X))
         # est_score = estimator.score(X, y)
         # est_score = estimator.score(*test_set)
         est_score = metrics.balanced_accuracy_score(
             test_set[1], estimator.predict(test_set[0])
         )
+        # est_score = score
         scores.append(est_score)
     # return np.arange(len(step_data)), scores
     return num_samples, scores
@@ -110,7 +111,8 @@ def main():
                           duration=3, timestep=1/500)
     nts = sum(test_set[1])
     ntf = len(test_set[1]) - nts
-    print("The test set had {} failures and {} successes.".format(ntf, nts))
+    print("Number of dimensions:", len(test_set[0][0]))
+    print("The test set has {} failures and {} successes.".format(ntf, nts))
     # ref_spd = compute_reference_spd(*test_set)
     # Run the algorithms.
     np.random.seed(222)
