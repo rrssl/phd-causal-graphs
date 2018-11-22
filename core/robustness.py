@@ -209,11 +209,10 @@ def train_and_add_uniform_samples(scenario, init_samples, init_labels,
         # Train the SVC.
         X = np.asarray(samples)
         y = np.asarray(labels)
-        estimator = train_svc(X, y)
-        score = estimator.score(X, y)
+        estimator, score = train_svc(X, y, score=True)
         print("Total score:", score)
         if step_data is not None:
-            step_data.append((X, y, estimator))
+            step_data.append((X, y, estimator, score))
         if score >= accuracy:
             break
         # Generate the new samples.
@@ -250,25 +249,24 @@ def train_and_consolidate_boundary(scenario, init_samples, init_labels,
         # Train the SVC.
         X = np.asarray(samples)
         y = np.asarray(labels)
-        estimator = train_svc(X, y)
+        estimator, score = train_svc(X, y, score=True)
         scale = np.diagflat(1 / estimator.named_steps['standardscaler'].scale_)
-        score = estimator.score(X, y)
         print("Total score:", score)
         if step_data is not None:
-            step_data.append((X, y, estimator))
+            step_data.append((X, y, estimator, score))
         if score >= accuracy:
             break
         # Retrieve the misclassified samples.
-        f = estimator.decision_function(X)
-        is_wrong = (f >= 0) != y
+        is_wrong = estimator.predict(X) != y
+        if not is_wrong.any():
+            break
         wrong_X = X[is_wrong]
-        wrong_f = f[is_wrong]
-        # Compute their PMF.
-        weights = abs(wrong_f)
-        weights /= weights.sum()
+        wrong_af = np.abs(estimator.decision_function(wrong_X))
+        # Compute their weight.
+        weights = wrong_af / wrong_af.sum()
         # Generate the new samples.
-        mixture_params = [(ws, wsf*scale)
-                          for ws, wsf in zip(wrong_X, abs(wrong_f))]
+        mixture_params = [(xi, afi*scale)
+                          for xi, afi in zip(wrong_X, wrong_af)]
         dist = MultivariateMixtureOfGaussians(mixture_params, weights)
         samples_k = find_physically_valid_samples(scenario, dist, n_k, 100*n_k)
         samples += samples_k
@@ -291,7 +289,6 @@ def train_and_consolidate_boundary2(scenario, init_samples, init_labels,
       Trained estimator.
 
     """
-    # ndims = len(scenario.design_space)
     # Initialization
     samples = list(init_samples)
     labels = list(init_labels)
@@ -302,23 +299,25 @@ def train_and_consolidate_boundary2(scenario, init_samples, init_labels,
         # Train the SVC.
         X = np.asarray(samples)
         y = np.asarray(labels)
-        estimator = train_svc(X, y)
+        estimator, score = train_svc(X, y, score=True)
         scale = np.diagflat(1 / estimator.named_steps['standardscaler'].scale_)
-        score = estimator.score(X, y)
         print("Total score:", score)
         if step_data is not None:
-            step_data.append((X, y, estimator))
+            step_data.append((X, y, estimator, score))
         if score >= accuracy:
+            break
+        # Retrieve the misclassified samples.
+        is_wrong = estimator.predict(X) != y
+        if not is_wrong.any():
             break
         # Retrieve the support vectors.
         support = estimator.named_steps['svc'].support_
-        f = estimator.decision_function(X[support])
-        # Compute their PMF.
-        weights = abs(f)
-        weights /= weights.sum()
+        af = np.abs(estimator.decision_function(X[support]))
+        # Compute their weights.
+        weights = af / af.sum()
         # Generate the new samples.
-        mixture_params = [(s, sf*scale)
-                          for s, sf in zip(X[support], abs(f))]
+        mixture_params = [(X[si], afi*scale)
+                          for si, afi in zip(support, af)]
         dist = MultivariateMixtureOfGaussians(mixture_params, weights)
         samples_k = find_physically_valid_samples(scenario, dist, n_k, 100*n_k)
         samples += samples_k
