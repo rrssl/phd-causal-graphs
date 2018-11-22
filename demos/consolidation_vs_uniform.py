@@ -33,12 +33,11 @@ def compute_reference_spd(samples, labels):
 
 
 @memory.cache
-def initialize(scenario_data):
-    #
+def initialize(scenario_data, n_succ=100, n_0=50, n_k=10, **simu_kw):
     scenario = load_scenario(scenario_data)
     return rob.find_successful_samples_adaptive(
-        scenario, n_succ=100, n_0=50, n_k=10, k_max=500, sigma=.01,
-        duration=3, timestep=1/500
+        scenario, n_succ=n_succ, n_0=n_0, n_k=n_k, k_max=500, sigma=.01,
+        **simu_kw
     )
 
 
@@ -115,16 +114,9 @@ def main():
     n_k = 50
     k_max = 10
     np.random.seed(222)
-    init_samples, init_labels = initialize(scenario_data)
-    data_unif = run_uniform(scenario_data, init_samples, init_labels, n_k,
-                            k_max)
-    ns_unif, acc_unif = process_data(data_unif, test_set)
-    data_cons = run_consol(scenario_data, init_samples, init_labels, n_k,
-                           k_max)
-    ns_cons, acc_cons = process_data(data_cons, test_set)
-    # data_cons2 = run_consol2(scenario_data, init_samples, init_labels, n_k,
-    #                          k_max)
-    # ns_cons2, acc_cons2 = process_data(data_cons2, test_set)
+    init_samples, init_labels = initialize(
+        scenario_data, duration=3, timestep=1/500
+    )
     # Make the figure.
     seaborn.set()
     fig, ax = plt.subplots(figsize=(6, 3))
