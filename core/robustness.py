@@ -153,7 +153,7 @@ def find_successful_samples_adaptive(scenario, n_succ=20, n_0=100, n_k=10,
     return samples, labels
 
 
-def train_svc(samples, values, probability=False, verbose=True):
+def train_svc(samples, values, probability=False, score=False, verbose=True):
     samples = np.asarray(samples)
     if verbose:
         print("Number of samples:", samples.shape[0])
@@ -180,7 +180,10 @@ def train_svc(samples, values, probability=False, verbose=True):
     if verbose:
         print("The best parameters are {}".format(grid.best_params_))
         print("Score on the training set: {}".format(grid.best_score_))
-    return grid.best_estimator_
+    if score:
+        return grid.best_estimator_, grid.best_score_
+    else:
+        return grid.best_estimator_
 
 
 def train_and_add_uniform_samples(scenario, init_samples, init_labels,
