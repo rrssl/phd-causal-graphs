@@ -1,17 +1,17 @@
 from math import atan, degrees
 
-BALL_RADIUS = 0.015 / 2  # [m]
-BALL_MASS = 0.01 / 6  # [kg]
+BALL_RADIUS = 0.0105  # [m]
+BALL_MASS = 0.013  # [kg]
+BALL_RESTITUTION = 0.8
 TOP_TRACK_LWHT = (0.3, 0.025, 0.005, 0.002)  # [m]
 BOTTOM_TRACK_LWHT = TOP_TRACK_LWHT  # [m]
 HIGH_PLANK_LWH = (0.235, 0.023, 0.008)  # [m]
+HIGH_PLANK_RESTITUTION = 0.8
 HIGH_PLANK_MASS = 0.021  # [kg]
 LOW_PLANK_LWH = (0.1175, 0.023, 0.016)  # [m]
 LOW_PLANK_MASS = 0.02  # [kg]
 BASE_PLANK_LWH = (0.35, 0.025, 0.005)  # [m]
 BASE_PLANK_MASS = 0.021  # [kg]
-# ROUND_SUPPORT_RADIUS = 0.014  # [m]
-# ROUND_SUPPORT_HEIGHT = 0.04   # [m]
 FLAT_SUPPORT_LWH = (.02, .025, .005)  # [m]
 GOBLET_HEIGHT = 0.119  # [m]
 GOBLET_R1 = 0.0455  # [m]
@@ -39,7 +39,7 @@ DATA = {
             'args': {
                 'radius': BALL_RADIUS,
                 'b_mass': BALL_MASS,
-                'b_restitution': .5
+                'b_restitution': BALL_RESTITUTION
             },
             'parent': "top_track",
             'xform': {
@@ -56,13 +56,28 @@ DATA = {
             'xform': {
                 'value': [-.1, TOP_TRACK_LWHT[1]/2+.01, .3, 0, 0, 20],
                 'range': [
-                    [-BASE_PLANK_LWH[0]/4, BASE_PLANK_LWH[0]/4],
+                    [-BASE_PLANK_LWH[0]/3, 0],
                     None,
-                    [HIGH_PLANK_LWH[0]/2,
-                     HIGH_PLANK_LWH[0]+TOP_TRACK_LWHT[0]/2],
+                    [HIGH_PLANK_LWH[0]/2, HIGH_PLANK_LWH[0]],
                     None,
                     None,
                     [5, 35]
+                ]
+            }
+        },
+        {
+            'name': "bottom_track_joint",
+            'type': "Empty",
+            'args': {},
+            'xform': {
+                'value': [BOTTOM_TRACK_LWHT[0]/2-.001, 0, .1, 0, 0, -5],
+                'range': [
+                    None,
+                    None,
+                    [.03, HIGH_PLANK_LWH[0]-BALL_RADIUS],
+                    None,
+                    None,
+                    [-45, -5]
                 ]
             }
         },
@@ -72,16 +87,12 @@ DATA = {
             'args': {
                 'extents': BOTTOM_TRACK_LWHT,
             },
+            'parent': "bottom_track_joint",
             'xform': {
-                'value': [0, TOP_TRACK_LWHT[1]/2+.01, .1, 0, 0, -10],
-                'range': [
-                    None,
-                    None,
-                    [0, LOW_PLANK_LWH[0]],
-                    None,
-                    None,
-                    [-35, -5]
-                ]
+                'value': [-BOTTOM_TRACK_LWHT[0]/2,
+                          BOTTOM_TRACK_LWHT[1]/2+.01,
+                          BOTTOM_TRACK_LWHT[2]/2,
+                          0, 0, 0],
             }
         },
         {
@@ -90,7 +101,7 @@ DATA = {
             'args': {
                 'extents': HIGH_PLANK_LWH,
                 'b_mass': HIGH_PLANK_MASS,
-                'b_restitution': .5
+                'b_restitution': HIGH_PLANK_RESTITUTION
             },
             'parent': "base_plank",
             'xform': {
@@ -100,15 +111,6 @@ DATA = {
                     HIGH_PLANK_LWH[0]/2 + BASE_PLANK_LWH[2]/2,
                     0, 0, 90
                 ],
-                'range': [
-                    [BASE_PLANK_LWH[0]/4,
-                     BASE_PLANK_LWH[0]/2-HIGH_PLANK_LWH[2]/2],
-                    None,
-                    None,
-                    None,
-                    None,
-                    None
-                ]
             }
         },
         {
@@ -126,15 +128,21 @@ DATA = {
                     LOW_PLANK_LWH[0]/2 + BASE_PLANK_LWH[2]/2,
                     0, 0, 90
                 ],
-                'range': [
-                    [-BASE_PLANK_LWH[0]/4,
-                     -BASE_PLANK_LWH[0]/2+LOW_PLANK_LWH[2]/2],
-                    None,
-                    None,
-                    None,
-                    None,
-                    None
-                ]
+            }
+        },
+        {
+            'name': "wall",
+            'type': "Box",
+            'args': {
+                'extents': LOW_PLANK_LWH,
+            },
+            'xform': {
+                'value': [
+                    -BOTTOM_TRACK_LWHT[0]/2 - LOW_PLANK_LWH[0]/2,
+                    TOP_TRACK_LWHT[1]/2+.01,
+                    LOW_PLANK_LWH[0] + LOW_PLANK_LWH[2] + BASE_PLANK_LWH[2]/2,
+                    0, 0, 0
+                ],
             }
         },
         {
@@ -153,7 +161,6 @@ DATA = {
                     0,
                     BASE_PLANK_LWH[1]/2 + .01,
                     0,
-                    # ROUND_SUPPORT_RADIUS + BASE_PLANK_LWH[2]/2,
                     0, 0, 0
                 ],
             }
@@ -173,19 +180,6 @@ DATA = {
                 ],
             }
         },
-        # {
-        #     'name': "round_support",
-        #     'type': "Cylinder",
-        #     'args': {
-        #         'extents': [
-        #             ROUND_SUPPORT_RADIUS,
-        #             ROUND_SUPPORT_HEIGHT
-        #         ]
-        #     },
-        #     'xform': {
-        #         'value': [0, ROUND_SUPPORT_HEIGHT/2, 0, 0, 90, 0],
-        #     }
-        # },
         {
             'name': "goblet",
             'type': "Goblet",
@@ -202,7 +196,7 @@ DATA = {
                     [-BASE_PLANK_LWH[0],
                      -BASE_PLANK_LWH[0]/2-GOBLET_R1/2],
                     None,
-                    [-LOW_PLANK_LWH[0]/2, LOW_PLANK_LWH[0]/4],
+                    [-LOW_PLANK_LWH[0]/2-GOBLET_HEIGHT/2, -GOBLET_HEIGHT/2],
                     None,
                     None,
                     [0, 60]
