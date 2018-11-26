@@ -125,25 +125,21 @@ class Rising:
 class RollingOn:
     _num_objects = 2
 
-    def __init__(self, rolling, support, world, min_rollang=0):
+    def __init__(self, rolling, support, world, min_angvel=0):
         self.rolling = rolling
         self.support = support
         self.world = world
-        self.min_rollang = min_rollang
-        self.start_angle = None
+        self.min_angvel_sq = min_angvel ** 2
 
     def __call__(self):
         contact = self.world.contact_test_pair(
             self.rolling.node(), self.support.node()
         ).get_num_contacts()
         if contact:
-            if self.start_angle is None:
-                self.start_angle = self.rolling.get_quat().get_angle()
-                return False
-            angle = abs(self.rolling.get_quat().get_angle() - self.start_angle)
-            return angle > self.min_rollang
+            angvel_sq = self.rolling.node().get_angular_velocity(
+            ).length_squared()
+            return angvel_sq > self.min_angvel_sq
         else:
-            self.start_angle = None
             return False
 
 

@@ -18,7 +18,7 @@ GOBLET_R1 = 0.0455  # [m]
 GOBLET_R2 = 0.031  # [m]
 
 PIVOTING_ANGULAR_VELOCITY = 1
-ROLLING_ANGLE = 90
+ANGVEL = 10
 HIGH_PLANK_TOPPLING_ANGLE = degrees(atan(HIGH_PLANK_LWH[2]/HIGH_PLANK_LWH[0]))
 STOPPING_LINEAR_VELOCITY = 1e-2
 STOPPING_ANGULAR_VELOCITY = 1
@@ -211,7 +211,7 @@ DATA = {
             'args': {
                 'rolling': "ball",
                 'support': "top_track",
-                'min_rollang': ROLLING_ANGLE
+                'min_angvel': ANGVEL
             },
             'children': [
                 "ball_hits_high_plank",
@@ -246,7 +246,7 @@ DATA = {
             'args': {
                 'rolling': "ball",
                 'support': "bottom_track",
-                'min_rollang': ROLLING_ANGLE
+                'min_angvel': ANGVEL
             },
             'children': [
                 "ball_enters_goblet",

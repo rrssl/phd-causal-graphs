@@ -266,7 +266,7 @@ DATA = {
             'args': {
                 'rolling': "ball",
                 'support': "track",
-                'min_rollang': 90,
+                'min_angvel': 10,
             },
             'children': [
                 "ball_hits_first_dom_of_left_row",
