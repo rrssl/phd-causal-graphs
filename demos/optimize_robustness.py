@@ -17,10 +17,11 @@ memory = Memory(cachedir=".cache")
 
 
 @memory.cache
-def initialize(scenario_data, **simu_kw):
+def initialize(scenario_data, n_succ=100, n_0=50, n_k=10, **simu_kw):
     scenario = load_scenario(scenario_data)
     return rob.find_successful_samples_adaptive(
-        scenario, n_succ=100, n_0=50, n_k=10, k_max=500, sigma=.01, **simu_kw
+        scenario, n_succ=n_succ, n_0=n_0, n_k=n_k, k_max=500, sigma=.01,
+        **simu_kw
     )
 
 
@@ -29,7 +30,7 @@ def compute_rob(scenario_data, init_samples, init_labels, n_k, k_max,
                 **simu_kw):
     scenario = load_scenario(scenario_data)
     print("Number of dimensions:", len(scenario.design_space))
-    return rob.train_and_consolidate_boundary(
+    return rob.train_and_consolidate_boundary2(
         scenario, init_samples, init_labels, accuracy=.9, n_k=n_k, k_max=k_max,
         **simu_kw
     )
@@ -49,24 +50,33 @@ def main():
     scenario_data = import_scenario_data(path)
     if scenario_data is None:
         return
-    # Run the algorithms.
-    n_k = 50
-    k_max = 10
+    np.random.seed(111)
     duration = 4
     timestep = 1 / 500
-    smin_coeff = .1
-    np.random.seed(111)
+
+    # Initial exploration
+    n_succ = 300
+    n_0 = 200
+    n_k = 30
     init_samples, init_labels = initialize(
-        scenario_data, duration=duration, timestep=timestep
+        scenario_data, n_succ, n_0, n_k, duration=duration, timestep=timestep
     )
+
+    # Training and boundary consolidation
+    n_k = 50
+    k_max = 10
     estimator = compute_rob(
         scenario_data, init_samples, init_labels, n_k, k_max,
         duration=duration, timestep=timestep
     )
+
+    # Optimization
     x_init = init_samples[
         np.argmax(estimator.predict_proba(init_samples)[:, 1])
     ]
+    smin_coeff = .1
     x_best = optimize_rob(scenario_data, [estimator], x_init, smin_coeff)
+    # x_best = x_init
 
     scenario = load_scenario(scenario_data)
     if 0:
@@ -75,8 +85,7 @@ def main():
             x_best, geom='LD', phys=True
         )
         instance.scene.export_layout_to_pdf(
-            "right_faster_yz", (21, 29.7), plane='yz', exclude="ground_geom",
-            flip_v=True
+            "opt_xz", (21, 29.7), plane='xz', exclude="board_geom",
         )
     if 0:
         # Show the solution.
@@ -105,7 +114,7 @@ def main():
         # Show the simulation.
         app = Replayer(scene_path+".bam", simu_path)
         app.run()
-    if 1:
+    if 0:
         instance = scenario.instantiate_from_sample(
             x_best, geom='HD', phys=True
         )
