@@ -1,9 +1,11 @@
 from math import atan, degrees
 
-BALL_RADIUS = 0.0105  # [m]
-BALL_MASS = 0.013  # [kg]
+# BALL_RADIUS = 0.0105  # [m]
+BALL_RADIUS = 0.008  # [m]
+# BALL_MASS = 0.013  # [kg]
+BALL_MASS = 0.0056  # [kg]
 BALL_RESTITUTION = 0.8
-TOP_TRACK_LWHT = (0.3, 0.025, 0.005, 0.002)  # [m]
+TOP_TRACK_LWHT = (0.3, 0.025, 0.006, 0.003)  # [m]
 BOTTOM_TRACK_LWHT = TOP_TRACK_LWHT  # [m]
 HIGH_PLANK_LWH = (0.235, 0.023, 0.008)  # [m]
 HIGH_PLANK_RESTITUTION = 0.8
@@ -13,9 +15,12 @@ LOW_PLANK_MASS = 0.02  # [kg]
 BASE_PLANK_LWH = (0.35, 0.025, 0.005)  # [m]
 BASE_PLANK_MASS = 0.021  # [kg]
 FLAT_SUPPORT_LWH = (.02, .025, .005)  # [m]
-GOBLET_HEIGHT = 0.119  # [m]
-GOBLET_R1 = 0.0455  # [m]
-GOBLET_R2 = 0.031  # [m]
+# GOBLET_HEIGHT = 0.119  # [m]
+# GOBLET_R1 = 0.0455  # [m]
+# GOBLET_R2 = 0.031  # [m]
+GOBLET_HEIGHT = 0.11  # [m]
+GOBLET_R1 = 0.036  # [m]
+GOBLET_R2 = 0.025  # [m]
 
 PIVOTING_ANGULAR_VELOCITY = 1
 ANGVEL = 10
@@ -43,7 +48,7 @@ DATA = {
             },
             'parent': "top_track",
             'xform': {
-                'value': [-TOP_TRACK_LWHT[0]/2, 0, BALL_RADIUS,
+                'value': [-TOP_TRACK_LWHT[0]/2, 0, BALL_RADIUS+.002,
                           0, 0, 0]
             }
         },
