@@ -51,6 +51,10 @@ class Event:
                     print("{} has not happened.".format(self))
 
     @property
+    def failure(self):
+        return self.state is EventState.failure
+
+    @property
     def success(self):
         return self.state is EventState.success
 
