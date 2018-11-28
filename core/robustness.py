@@ -8,11 +8,13 @@ import core.config as cfg
 
 
 class MultivariateUniform:
-    def __init__(self, ndims):
+    def __init__(self, ndims, a=0., b=1.):
         self.ndims = ndims
+        self.a = a
+        self.b = b
 
     def sample(self, n):
-        return np.random.sample((n, self.ndims))
+        return (self.b - self.a) * np.random.sample((n, self.ndims)) + self.a
 
 
 class MultivariateMixtureOfGaussians:
