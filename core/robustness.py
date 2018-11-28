@@ -187,6 +187,56 @@ def train_svc(samples, values, probability=False, ret_score=False,
         return grid.best_estimator_
 
 
+def train_and_resample(scenario, init_samples, init_labels, resampler,
+                       accuracy=.9, n_k=10, k_max=10,
+                       step_data=None, **simu_kw):
+    """
+    Train the SVC and add more samples until accuracy is reached.
+
+    Returns
+    -------
+    estimator : sklearn.pipeline.Pipeline
+      Trained estimator.
+
+    """
+    # Initialization
+    samples = list(init_samples)
+    labels = list(init_labels)
+    # Main loop
+    k = 0
+    while k < k_max:
+        k += 1
+        # Train the SVC.
+        X = np.asarray(samples)
+        y = np.asarray(labels)
+        estimator, score = train_svc(X, y, ret_score=True)
+        if step_data is not None:
+            step_data.append((X, y, estimator, score))
+        if score >= accuracy:
+            break
+        # Generate the new samples.
+        samples_k, labels_k = resampler(scenario, X, y, estimator, n_k,
+                                        **simu_kw)
+        if samples_k and labels_k:
+            samples.extend(samples_k)
+            labels.extend(labels_k)
+        else:
+            break
+    # Calibrate
+    estimator = train_svc(samples, labels, probability=True)
+    return estimator
+
+
+def _sample_uniform_and_run(scenario, X, y, estimator, n, **simu_kw):
+    ndims = len(scenario.design_space)
+    samples = find_physically_valid_samples(
+        scenario, MultivariateUniform(ndims), n, 100*n
+    )
+    labels = [_simulate_and_get_success(scenario, s, **simu_kw)
+              for s in samples]
+    return samples, labels
+
+
 def train_and_add_uniform_samples(scenario, init_samples, init_labels,
                                   accuracy=.9, n_k=10, k_max=10,
                                   step_data=None, **simu_kw):
@@ -199,40 +249,38 @@ def train_and_add_uniform_samples(scenario, init_samples, init_labels,
       Trained estimator.
 
     """
-    ndims = len(scenario.design_space)
-    # Initialization
-    samples = list(init_samples)
-    labels = list(init_labels)
-    # Main loop
-    k = 0
-    while k < k_max:
-        k += 1
-        # Train the SVC.
-        X = np.asarray(samples)
-        y = np.asarray(labels)
-        estimator, score = train_svc(X, y, ret_score=True)
-        print("Total score:", score)
-        if step_data is not None:
-            step_data.append((X, y, estimator, score))
-        if score >= accuracy:
-            break
-        # Generate the new samples.
-        samples_k = find_physically_valid_samples(
-            scenario, MultivariateUniform(ndims), n_k, 100*n_k
-        )
-        samples += samples_k
-        labels += [_simulate_and_get_success(scenario, s, **simu_kw)
-                   for s in samples_k]
-    # Calibrate
-    estimator = train_svc(samples, labels, probability=True)
-    return estimator
+    return train_and_resample(
+        scenario, init_samples, init_labels, _sample_uniform_and_run,
+        accuracy, n_k, k_max,
+        step_data, **simu_kw
+    )
+
+
+def _sample_misclassified_and_run(scenario, X, y, estimator, n, **simu_kw):
+    is_wrong = estimator.predict(X) != y
+    if not is_wrong.any():
+        return [], []
+    wrong_X = X[is_wrong]
+    wrong_af = np.abs(estimator.decision_function(wrong_X))
+    # Compute weights.
+    weights = wrong_af / wrong_af.sum()
+    # Generate samples.
+    scale = np.diagflat(1 / estimator.named_steps['standardscaler'].scale_)
+    mixture_params = [(xi, afi*scale)
+                      for xi, afi in zip(wrong_X, wrong_af)]
+    dist = MultivariateMixtureOfGaussians(mixture_params, weights)
+    samples = find_physically_valid_samples(scenario, dist, n, 100*n)
+    labels = [_simulate_and_get_success(scenario, s, **simu_kw)
+              for s in samples]
+    return samples, labels
 
 
 def train_and_consolidate_boundary(scenario, init_samples, init_labels,
                                    accuracy=.9, n_k=10, k_max=10,
                                    step_data=None, **simu_kw):
     """
-    Train the SVC and consolidate its boundary until accuracy is reached.
+    Train the SVC and consolidate the boundary around its misclassified samples
+    until accuracy is reached.
 
     Returns
     -------
@@ -240,48 +288,36 @@ def train_and_consolidate_boundary(scenario, init_samples, init_labels,
       Trained estimator.
 
     """
-    # Initialization
-    samples = list(init_samples)
-    labels = list(init_labels)
-    # Main loop
-    k = 0
-    while k < k_max:
-        k += 1
-        # Train the SVC.
-        X = np.asarray(samples)
-        y = np.asarray(labels)
-        estimator, score = train_svc(X, y, ret_score=True)
-        scale = np.diagflat(1 / estimator.named_steps['standardscaler'].scale_)
-        if step_data is not None:
-            step_data.append((X, y, estimator, score))
-        if score >= accuracy:
-            break
-        # Retrieve the misclassified samples.
-        is_wrong = estimator.predict(X) != y
-        if not is_wrong.any():
-            break
-        wrong_X = X[is_wrong]
-        wrong_af = np.abs(estimator.decision_function(wrong_X))
-        # Compute their weight.
-        weights = wrong_af / wrong_af.sum()
-        # Generate the new samples.
-        mixture_params = [(xi, afi*scale)
-                          for xi, afi in zip(wrong_X, wrong_af)]
-        dist = MultivariateMixtureOfGaussians(mixture_params, weights)
-        samples_k = find_physically_valid_samples(scenario, dist, n_k, 100*n_k)
-        samples += samples_k
-        labels += [_simulate_and_get_success(scenario, s, **simu_kw)
-                   for s in samples_k]
-    # Calibrate
-    estimator = train_svc(samples, labels, probability=True)
-    return estimator
+    return train_and_resample(
+        scenario, init_samples, init_labels, _sample_misclassified_and_run,
+        accuracy, n_k, k_max,
+        step_data, **simu_kw
+    )
+
+
+def _sample_support_and_run(scenario, X, y, estimator, n, **simu_kw):
+    # Retrieve the support vectors.
+    support = estimator.named_steps['svc'].support_
+    # Compute weights.
+    af = np.abs(estimator.decision_function(X[support]))
+    weights = af / af.sum()
+    # Generate samples.
+    scale = np.diagflat(1 / estimator.named_steps['standardscaler'].scale_)
+    mixture_params = [(X[si], afi*scale)
+                      for si, afi in zip(support, af)]
+    dist = MultivariateMixtureOfGaussians(mixture_params, weights)
+    samples = find_physically_valid_samples(scenario, dist, n, 100*n)
+    labels = [_simulate_and_get_success(scenario, s, **simu_kw)
+              for s in samples]
+    return samples, labels
 
 
 def train_and_consolidate_boundary2(scenario, init_samples, init_labels,
                                     accuracy=.9, n_k=10, k_max=10,
                                     step_data=None, **simu_kw):
     """
-    Train the SVC and consolidate its boundary until accuracy is reached.
+    Train the SVC and consolidate the boundary around its support vectors until
+    accuracy is reached.
 
     Returns
     -------
@@ -289,39 +325,8 @@ def train_and_consolidate_boundary2(scenario, init_samples, init_labels,
       Trained estimator.
 
     """
-    # Initialization
-    samples = list(init_samples)
-    labels = list(init_labels)
-    # Main loop
-    k = 0
-    while k < k_max:
-        k += 1
-        # Train the SVC.
-        X = np.asarray(samples)
-        y = np.asarray(labels)
-        estimator, score = train_svc(X, y, ret_score=True)
-        scale = np.diagflat(1 / estimator.named_steps['standardscaler'].scale_)
-        if step_data is not None:
-            step_data.append((X, y, estimator, score))
-        if score >= accuracy:
-            break
-        # Retrieve the misclassified samples.
-        is_wrong = estimator.predict(X) != y
-        if not is_wrong.any():
-            break
-        # Retrieve the support vectors.
-        support = estimator.named_steps['svc'].support_
-        af = np.abs(estimator.decision_function(X[support]))
-        # Compute their weights.
-        weights = af / af.sum()
-        # Generate the new samples.
-        mixture_params = [(X[si], afi*scale)
-                          for si, afi in zip(support, af)]
-        dist = MultivariateMixtureOfGaussians(mixture_params, weights)
-        samples_k = find_physically_valid_samples(scenario, dist, n_k, 100*n_k)
-        samples += samples_k
-        labels += [_simulate_and_get_success(scenario, s, **simu_kw)
-                   for s in samples_k]
-    # Calibrate
-    estimator = train_svc(samples, labels, probability=True)
-    return estimator
+    return train_and_resample(
+        scenario, init_samples, init_labels, _sample_support_and_run,
+        accuracy, n_k, k_max,
+        step_data, **simu_kw
+    )
