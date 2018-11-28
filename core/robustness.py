@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import FunctionTransformer, StandardScaler
 from sklearn.svm import SVC
 
 import core.config as cfg
@@ -153,20 +153,24 @@ def find_successful_samples_adaptive(scenario, n_succ=20, n_0=100, n_k=10,
     return samples, labels
 
 
-def train_svc(samples, values, probability=False, ret_score=False,
+def train_svc(samples, values, probability=False, dims=None, ret_score=False,
               verbose=True):
     samples = np.asarray(samples)
     if verbose:
         print("Number of samples:", samples.shape[0])
         print("Number of features:", samples.shape[1])
-
-    if verbose:
-        print("Training the classifier")
-    pipeline = make_pipeline(
+    # Create pipeline.
+    steps = [
         StandardScaler(),
         SVC(kernel='rbf', probability=probability,
             random_state=len(samples), cache_size=512),
-    )
+    ]
+    if dims is not None:
+        selector = FunctionTransformer(np.take,
+                                       kw_args=dict(indices=dims, axis=1))
+        steps.insert(0, selector)
+    pipeline = make_pipeline(*steps)
+    # Initialize cross-validation.
     C_range = np.logspace(*cfg.SVC_C_RANGE)
     gamma_range = np.logspace(*cfg.SVC_GAMMA_RANGE)
     class_weight_options = [None, 'balanced']
@@ -176,7 +180,8 @@ def train_svc(samples, values, probability=False, ret_score=False,
         'svc__class_weight': class_weight_options
     }
     grid = GridSearchCV(pipeline, param_grid=param_grid, cv=5,
-                        n_jobs=cfg.NCORES)
+                        n_jobs=cfg.NCORES, iid=False)
+    # Run cross-validation.
     grid.fit(samples, values)
     if verbose:
         print("The best parameters are {}".format(grid.best_params_))
