@@ -69,10 +69,20 @@ def _simulate_and_get_nse(scenario, sample, **simu_kw):
     return len(instance.embedded_causal_graph.get_successful_events())
 
 
-def _simulate_and_get_success(scenario, sample, **simu_kw):
+def _simulate_and_get_success(scenario, sample, event_name=None, **simu_kw):
     instance = scenario.instantiate_from_sample(sample, geom=None, phys=True,
                                                 verbose_causal_graph=False)
-    return instance.simulate(**simu_kw)
+    global_flag = instance.simulate(**simu_kw)
+    if event_name is None:
+        return global_flag
+    else:
+        event = instance.embedded_causal_graph.get_event(event_name)
+        if event.success:
+            return True
+        elif event.failure:
+            return False
+        else:
+            return None
 
 
 def find_successful_samples_uniform(scenario, n_succ=20, n_0=100, n_k=10,
