@@ -153,7 +153,8 @@ def find_successful_samples_adaptive(scenario, n_succ=20, n_0=100, n_k=10,
     return samples, labels
 
 
-def train_svc(samples, values, probability=False, score=False, verbose=True):
+def train_svc(samples, values, probability=False, ret_score=False,
+              verbose=True):
     samples = np.asarray(samples)
     if verbose:
         print("Number of samples:", samples.shape[0])
@@ -180,7 +181,7 @@ def train_svc(samples, values, probability=False, score=False, verbose=True):
     if verbose:
         print("The best parameters are {}".format(grid.best_params_))
         print("Score on the training set: {}".format(grid.best_score_))
-    if score:
+    if ret_score:
         return grid.best_estimator_, grid.best_score_
     else:
         return grid.best_estimator_
@@ -209,7 +210,7 @@ def train_and_add_uniform_samples(scenario, init_samples, init_labels,
         # Train the SVC.
         X = np.asarray(samples)
         y = np.asarray(labels)
-        estimator, score = train_svc(X, y, score=True)
+        estimator, score = train_svc(X, y, ret_score=True)
         print("Total score:", score)
         if step_data is not None:
             step_data.append((X, y, estimator, score))
@@ -249,9 +250,8 @@ def train_and_consolidate_boundary(scenario, init_samples, init_labels,
         # Train the SVC.
         X = np.asarray(samples)
         y = np.asarray(labels)
-        estimator, score = train_svc(X, y, score=True)
+        estimator, score = train_svc(X, y, ret_score=True)
         scale = np.diagflat(1 / estimator.named_steps['standardscaler'].scale_)
-        print("Total score:", score)
         if step_data is not None:
             step_data.append((X, y, estimator, score))
         if score >= accuracy:
@@ -299,9 +299,8 @@ def train_and_consolidate_boundary2(scenario, init_samples, init_labels,
         # Train the SVC.
         X = np.asarray(samples)
         y = np.asarray(labels)
-        estimator, score = train_svc(X, y, score=True)
+        estimator, score = train_svc(X, y, ret_score=True)
         scale = np.diagflat(1 / estimator.named_steps['standardscaler'].scale_)
-        print("Total score:", score)
         if step_data is not None:
             step_data.append((X, y, estimator, score))
         if score >= accuracy:
