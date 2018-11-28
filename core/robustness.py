@@ -195,7 +195,7 @@ def train_svc(samples, values, probability=False, dims=None, ret_score=False,
 
 
 def train_and_resample(scenario, init_samples, init_labels, resampler,
-                       accuracy=.9, n_k=10, k_max=10,
+                       accuracy=.9, n_k=10, k_max=10, dims=None,
                        step_data=None, **simu_kw):
     """
     Train the SVC and add more samples until accuracy is reached.
@@ -210,19 +210,20 @@ def train_and_resample(scenario, init_samples, init_labels, resampler,
     samples = list(init_samples)
     labels = list(init_labels)
     # Main loop
+    print("Running the train-and-resample loop")
     k = 0
     while k < k_max:
         k += 1
         # Train the SVC.
         X = np.asarray(samples)
         y = np.asarray(labels)
-        estimator, score = train_svc(X, y, ret_score=True)
+        estimator, score = train_svc(X, y, dims=dims, ret_score=True)
         if step_data is not None:
             step_data.append((X, y, estimator, score))
         if score >= accuracy:
             break
         # Generate the new samples.
-        samples_k, labels_k = resampler(scenario, X, y, estimator, n_k,
+        samples_k, labels_k = resampler(scenario, X, y, estimator, n_k, dims,
                                         **simu_kw)
         if samples_k and labels_k:
             samples.extend(samples_k)
@@ -230,22 +231,31 @@ def train_and_resample(scenario, init_samples, init_labels, resampler,
         else:
             break
     # Calibrate
-    estimator = train_svc(samples, labels, probability=True)
+    print("Calibrating the classifier")
+    estimator = train_svc(samples, labels, probability=True, dims=dims,
+                          verbose=False)
     return estimator
 
 
-def _sample_uniform_and_run(scenario, X, y, estimator, n, **simu_kw):
-    ndims = len(scenario.design_space)
-    samples = find_physically_valid_samples(
-        scenario, MultivariateUniform(ndims), n, 100*n
-    )
+def _sample_uniform_and_run(scenario, X, y, estimator, n, dims=None,
+                            **simu_kw):
+    if dims is not None:
+        random_success = X[np.random.choice(np.flatnonzero(y))]
+        a = random_success.copy()
+        b = a.copy()
+        a[dims] = 0
+        b[dims] = 1
+        dist = MultivariateUniform(X.shape[1], a, b)
+    else:
+        dist = MultivariateUniform(X.shape[1])
+    samples = find_physically_valid_samples(scenario, dist, n, 100*n)
     labels = [_simulate_and_get_success(scenario, s, **simu_kw)
               for s in samples]
     return samples, labels
 
 
 def train_and_add_uniform_samples(scenario, init_samples, init_labels,
-                                  accuracy=.9, n_k=10, k_max=10,
+                                  accuracy=.9, n_k=10, k_max=10, dims=None,
                                   step_data=None, **simu_kw):
     """
     Train the SVC and add more uniform samples until accuracy is reached.
@@ -258,12 +268,13 @@ def train_and_add_uniform_samples(scenario, init_samples, init_labels,
     """
     return train_and_resample(
         scenario, init_samples, init_labels, _sample_uniform_and_run,
-        accuracy, n_k, k_max,
+        accuracy, n_k, k_max, dims,
         step_data, **simu_kw
     )
 
 
-def _sample_misclassified_and_run(scenario, X, y, estimator, n, **simu_kw):
+def _sample_misclassified_and_run(scenario, X, y, estimator, n, dims=None,
+                                  **simu_kw):
     is_wrong = estimator.predict(X) != y
     if not is_wrong.any():
         return [], []
@@ -272,7 +283,13 @@ def _sample_misclassified_and_run(scenario, X, y, estimator, n, **simu_kw):
     # Compute weights.
     weights = wrong_af / wrong_af.sum()
     # Generate samples.
-    scale = np.diagflat(1 / estimator.named_steps['standardscaler'].scale_)
+    diag = 1 / estimator.named_steps['standardscaler'].scale_
+    if dims is not None:
+        # Restore the full-sized diagonal (where non-free dims are 0)
+        fulldiag = np.zeros(X.shape[1])
+        fulldiag[dims] = diag
+        diag = fulldiag
+    scale = np.diagflat(diag)
     mixture_params = [(xi, afi*scale)
                       for xi, afi in zip(wrong_X, wrong_af)]
     dist = MultivariateMixtureOfGaussians(mixture_params, weights)
@@ -283,7 +300,7 @@ def _sample_misclassified_and_run(scenario, X, y, estimator, n, **simu_kw):
 
 
 def train_and_consolidate_boundary(scenario, init_samples, init_labels,
-                                   accuracy=.9, n_k=10, k_max=10,
+                                   accuracy=.9, n_k=10, k_max=10, dims=None,
                                    step_data=None, **simu_kw):
     """
     Train the SVC and consolidate the boundary around its misclassified samples
@@ -297,19 +314,26 @@ def train_and_consolidate_boundary(scenario, init_samples, init_labels,
     """
     return train_and_resample(
         scenario, init_samples, init_labels, _sample_misclassified_and_run,
-        accuracy, n_k, k_max,
+        accuracy, n_k, k_max, dims,
         step_data, **simu_kw
     )
 
 
-def _sample_support_and_run(scenario, X, y, estimator, n, **simu_kw):
+def _sample_support_and_run(scenario, X, y, estimator, n, dims=None,
+                            **simu_kw):
     # Retrieve the support vectors.
     support = estimator.named_steps['svc'].support_
     # Compute weights.
     af = np.abs(estimator.decision_function(X[support]))
     weights = af / af.sum()
     # Generate samples.
-    scale = np.diagflat(1 / estimator.named_steps['standardscaler'].scale_)
+    diag = 1 / estimator.named_steps['standardscaler'].scale_
+    if dims is not None:
+        # Restore the full-sized diagonal (where non-free dims are 0)
+        fulldiag = np.zeros(X.shape[1])
+        fulldiag[dims] = diag
+        diag = fulldiag
+    scale = np.diagflat(diag)
     mixture_params = [(X[si], afi*scale)
                       for si, afi in zip(support, af)]
     dist = MultivariateMixtureOfGaussians(mixture_params, weights)
@@ -320,7 +344,7 @@ def _sample_support_and_run(scenario, X, y, estimator, n, **simu_kw):
 
 
 def train_and_consolidate_boundary2(scenario, init_samples, init_labels,
-                                    accuracy=.9, n_k=10, k_max=10,
+                                    accuracy=.9, n_k=10, k_max=10, dims=None,
                                     step_data=None, **simu_kw):
     """
     Train the SVC and consolidate the boundary around its support vectors until
@@ -334,6 +358,6 @@ def train_and_consolidate_boundary2(scenario, init_samples, init_labels,
     """
     return train_and_resample(
         scenario, init_samples, init_labels, _sample_support_and_run,
-        accuracy, n_k, k_max,
+        accuracy, n_k, k_max, dims,
         step_data, **simu_kw
     )
