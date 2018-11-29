@@ -1,4 +1,5 @@
 import numpy as np
+from sklearn.feature_selection import mutual_info_classif
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import FunctionTransformer, StandardScaler
@@ -366,3 +367,56 @@ def train_and_consolidate_boundary2(scenario, init_samples, init_labels,
         accuracy, n_k, k_max, dims, event,
         step_data, **simu_kw
     )
+
+
+def map_events_to_dimensions(samples, events_labels, invar_success_rate=.95,
+                             select_coeff=.1):
+    """
+    For each event, identify the best dimensions (i.e., columns of 'samples')
+    as predictors of the event's success.
+
+    Parameters
+    ----------
+    samples : (m,n) array
+      Array of m samples with n dimensions.
+    events_labels : dict
+      Dictionary of event:labels pairs where labels is a (m,)-list of elements
+      in {True, False, None}, corresponding to the success of the event for
+      each sample.
+    invar_success_rate : float in [0,1]
+      Any event with a conditional success rate above this value is considered
+      invariant (i.e., mapped to 0 dimensions).
+    select_coeff : float in [0,1)
+      For each event, the dimension is kept if
+        score > select_coeff * max(scores).
+      Low coefficients are more conservative (i.e.m more dimensions are kept).
+
+    Returns
+    -------
+    dict
+      Dictionary of event:dims pairs where dims is a (possibly empty) list of
+      indices.
+
+    """
+    # Create initial datasets for each event.
+    datasets = {}
+    for event, labels in events_labels.items():
+        valid = [i for i, l in enumerate(labels) if l is not None]
+        event_samples = np.array([samples[i] for i in valid])
+        event_labels = np.fromiter((labels[i] for i in valid), bool)
+        datasets[event] = (event_samples, event_labels)
+    # Filter out low variance events.
+    key_events = [event for event, (_, labels) in datasets.items()
+                  if labels.mean() < invar_success_rate]
+    print("Key events:", key_events)
+    # Determine best dimensions.
+    assignments = {}
+    for event in events_labels.keys():
+        if event in key_events:
+            # scores = f_classif(*datasets[event])[0]
+            scores = mutual_info_classif(*datasets[event])
+            correlated = scores > (scores.max() * select_coeff)
+            assignments[event] = np.flatnonzero(correlated)
+        else:
+            assignments[event] = []
+    return assignments
