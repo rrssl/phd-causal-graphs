@@ -40,6 +40,16 @@ class DesignSpace:
     def __len__(self):
         return self.origin_scale_array.shape[0]
 
+    @property
+    def free_parameters_names(self):
+        return [name
+                for name, free in zip(self.parameters_names, self.is_free.flat)
+                if free]
+
+    @property
+    def parameters_names(self):
+        return [name + "_" + c for name in self.names for c in "xyzhpr"]
+
     def sample2xforms(self, sample):
         """Convert a sample to its transforms dict representation."""
         sample = (np.asarray(sample) * self.origin_scale_array[:, 1]
