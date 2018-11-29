@@ -62,27 +62,18 @@ def find_physically_valid_samples(scenario, distribution, n_valid, max_trials):
     return samples
 
 
-def _simulate_and_get_nse(scenario, sample, **simu_kw):
+def compute_label(scenario, sample, ret_event_labels=False, **simu_kw):
     instance = scenario.instantiate_from_sample(sample, geom=None, phys=True,
                                                 verbose_causal_graph=False)
-    instance.simulate(**simu_kw)
-    return len(instance.embedded_causal_graph.get_successful_events())
-
-
-def _simulate_and_get_success(scenario, sample, event_name=None, **simu_kw):
-    instance = scenario.instantiate_from_sample(sample, geom=None, phys=True,
-                                                verbose_causal_graph=False)
-    global_flag = instance.simulate(**simu_kw)
-    if event_name is None:
-        return global_flag
+    global_label = instance.simulate(**simu_kw)
+    if ret_event_labels:
+        event_labels = {
+            e.name: (True if e.success else False if e.failure else None)
+            for e in instance.embedded_causal_graph.get_events()
+        }
+        return global_label, event_labels
     else:
-        event = instance.embedded_causal_graph.get_event(event_name)
-        if event.success:
-            return True
-        elif event.failure:
-            return False
-        else:
-            return None
+        return global_label
 
 
 def find_successful_samples_uniform(scenario, n_succ=20, n_0=100, n_k=10,
@@ -92,8 +83,7 @@ def find_successful_samples_uniform(scenario, n_succ=20, n_0=100, n_k=10,
     samples = find_physically_valid_samples(
         scenario, MultivariateUniform(ndims), n_0, 100*n_0
     )
-    labels = [_simulate_and_get_success(scenario, s, **simu_kw)
-              for s in samples]
+    labels = [compute_label(scenario, s, **simu_kw) for s in samples]
     # Main loop
     k = 0
     while k < k_max:
@@ -107,34 +97,40 @@ def find_successful_samples_uniform(scenario, n_succ=20, n_0=100, n_k=10,
         samples_k = find_physically_valid_samples(
             scenario, MultivariateUniform(ndims), n_k, 100*n_k
         )
-        samples += samples_k
-        labels += [_simulate_and_get_success(scenario, s, **simu_kw)
-                   for s in samples_k]
+        samples.extend(samples_k)
+        labels.extend(compute_label(scenario, s, **simu_kw) for s in samples_k)
     return samples, labels
 
 
 def find_successful_samples_adaptive(scenario, n_succ=20, n_0=100, n_k=10,
-                                     k_max=100, sigma=.01, totals=None,
+                                     k_max=100, sigma=.01,
+                                     ret_event_labels=False, totals=None,
                                      **simu_kw):
     """Sample the design space until enough successful samples are found.
 
     Returns
     -------
-    samples : (n,n_dims) sequence
+    (n,n_dims) sequence
       All physically valid samples accumulated during the process.
-    label : (n,) sequence
+    (n,) sequence
       Success label for each sample (True = success, False = failure).
+    dict [only if ret_event_labels]
+      Dictionary of event:labels pairs where labels is a (n,)-list of elements
+      in {True, False, None}, corresponding to the success of the event for
+      each sample.
 
     """
     ndims = len(scenario.design_space)
-    nevents = len(scenario.causal_graph)
     cov = sigma * np.eye(ndims)
     # Initialization
     samples = find_physically_valid_samples(
         scenario, MultivariateUniform(ndims), n_0, 100*n_0
     )
-    nse = [_simulate_and_get_nse(scenario, s, **simu_kw) for s in samples]
-    labels = [nse_i == nevents for nse_i in nse]
+    res = [compute_label(scenario, s, True, **simu_kw) for s in samples]
+    nse = [sum(filter(None, el.values())) for _, el in res]
+    labels = [label for label, _ in res]
+    if ret_event_labels:
+        event_labels = [el for _, el in res]
     # Main loop
     k = 0
     while k < k_max:
@@ -157,12 +153,19 @@ def find_successful_samples_adaptive(scenario, n_succ=20, n_0=100, n_k=10,
         mixture_params = [(ts, cov) for ts in top_samples]
         dist = MultivariateMixtureOfGaussians(mixture_params, weights)
         samples_k = find_physically_valid_samples(scenario, dist, n_k, 100*n_k)
-        samples += samples_k
-        nse_k = [_simulate_and_get_nse(scenario, s, **simu_kw)
+        samples.extend(samples_k)
+        res_k = [compute_label(scenario, s, True, **simu_kw)
                  for s in samples_k]
-        nse += nse_k
-        labels += [nse_ki == nevents for nse_ki in nse_k]
-    return samples, labels
+        nse.extend(sum(filter(None, el.values())) for _, el in res_k)
+        labels.extend(label for label, _ in res_k)
+        if ret_event_labels:
+            event_labels.extend(el for _, el in res_k)
+    if ret_event_labels:
+        event_labels_dict = {name: [el[name] for el in event_labels]
+                             for name in event_labels[0].keys()}
+        return samples, labels, event_labels_dict
+    else:
+        return samples, labels
 
 
 def train_svc(samples, values, probability=False, dims=None, ret_score=False,
@@ -237,11 +240,16 @@ def train_and_resample(scenario, init_samples, init_labels, distrib_func,
         if D is None:
             break
         samples_k = find_physically_valid_samples(scenario, D, n_k, 100*n_k)
-        labels_k = [_simulate_and_get_success(scenario, s, event, **simu_kw)
-                    for s in samples]
-        valid = [i for i, l in enumerate(labels_k) if l is not None]
-        samples.extend([samples_k[i] for i in valid])
-        labels.extend([labels_k[i] for i in valid])
+        if event is None:
+            samples.extend(samples_k)
+            labels.extend(compute_label(scenario, s, **simu_kw)
+                          for s in samples)
+        else:
+            labels_k = [compute_label(scenario, s, True, **simu_kw)[1][event]
+                        for s in samples]
+            valid = [i for i, l in enumerate(labels_k) if l is not None]
+            samples.extend(samples_k[i] for i in valid)
+            labels.extend(labels_k[i] for i in valid)
     # Calibrate
     print("Calibrating the classifier")
     estimator = train_svc(samples, labels, probability=True, dims=dims,
