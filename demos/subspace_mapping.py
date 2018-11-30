@@ -14,11 +14,10 @@ memory = Memory(cachedir=".cache")
 
 @memory.cache
 def initialize(scenario_data, n_succ, n_0, n_k, **simu_kw):
-    #
     scenario = load_scenario(scenario_data)
     return rob.find_successful_samples_adaptive(
         scenario, n_succ=n_succ, n_0=n_0, n_k=n_k, k_max=500, sigma=.01,
-        ret_event_labels=True, **simu_kw
+        ret_events_labels=True, **simu_kw
     )
 
 
@@ -53,13 +52,14 @@ def main():
     n_succ = 300
     n_0 = 200
     n_k = 30
-    init_samples, _, init_event_labels = initialize(
+    init_samples, _, init_events_labels = initialize(
         scenario_data, n_succ, n_0, n_k, duration=duration, timestep=timestep
     )
 
     # Subspace mapping
-    assignments = rob.map_events_to_dimensions(init_samples, init_event_labels,
-                                               select_coeff=.2)
+    assignments = rob.map_events_to_dimensions(
+        init_samples, init_events_labels, select_coeff=.2
+    )
     dim_names = load_scenario(scenario_data).design_space.free_parameters_names
     plot_mapping(assignments, dim_names)
 

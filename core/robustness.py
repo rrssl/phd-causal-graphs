@@ -63,16 +63,16 @@ def find_physically_valid_samples(scenario, distribution, n_valid, max_trials):
     return samples
 
 
-def compute_label(scenario, sample, ret_event_labels=False, **simu_kw):
+def compute_label(scenario, sample, ret_events_labels=False, **simu_kw):
     instance = scenario.instantiate_from_sample(sample, geom=None, phys=True,
                                                 verbose_causal_graph=False)
     global_label = instance.simulate(**simu_kw)
-    if ret_event_labels:
-        event_labels = {
+    if ret_events_labels:
+        events_labels = {
             e.name: (True if e.success else False if e.failure else None)
             for e in instance.embedded_causal_graph.get_events()
         }
-        return global_label, event_labels
+        return global_label, events_labels
     else:
         return global_label
 
@@ -105,7 +105,7 @@ def find_successful_samples_uniform(scenario, n_succ=20, n_0=100, n_k=10,
 
 def find_successful_samples_adaptive(scenario, n_succ=20, n_0=100, n_k=10,
                                      k_max=100, sigma=.01,
-                                     ret_event_labels=False, totals=None,
+                                     ret_events_labels=False, totals=None,
                                      **simu_kw):
     """Sample the design space until enough successful samples are found.
 
@@ -115,7 +115,7 @@ def find_successful_samples_adaptive(scenario, n_succ=20, n_0=100, n_k=10,
       All physically valid samples accumulated during the process.
     (n,) sequence
       Success label for each sample (True = success, False = failure).
-    dict [only if ret_event_labels]
+    dict [only if ret_events_labels]
       Dictionary of event:labels pairs where labels is a (n,)-list of elements
       in {True, False, None}, corresponding to the success of the event for
       each sample.
@@ -130,8 +130,8 @@ def find_successful_samples_adaptive(scenario, n_succ=20, n_0=100, n_k=10,
     res = [compute_label(scenario, s, True, **simu_kw) for s in samples]
     nse = [sum(filter(None, el.values())) for _, el in res]
     labels = [label for label, _ in res]
-    if ret_event_labels:
-        event_labels = [el for _, el in res]
+    if ret_events_labels:
+        events_labels = [el for _, el in res]
     # Main loop
     k = 0
     while k < k_max:
@@ -159,12 +159,12 @@ def find_successful_samples_adaptive(scenario, n_succ=20, n_0=100, n_k=10,
                  for s in samples_k]
         nse.extend(sum(filter(None, el.values())) for _, el in res_k)
         labels.extend(label for label, _ in res_k)
-        if ret_event_labels:
-            event_labels.extend(el for _, el in res_k)
-    if ret_event_labels:
-        event_labels_dict = {name: [el[name] for el in event_labels]
-                             for name in event_labels[0].keys()}
-        return samples, labels, event_labels_dict
+        if ret_events_labels:
+            events_labels.extend(el for _, el in res_k)
+    if ret_events_labels:
+        events_labels_dict = {name: [el[name] for el in events_labels]
+                              for name in events_labels[0].keys()}
+        return samples, labels, events_labels_dict
     else:
         return samples, labels
 
