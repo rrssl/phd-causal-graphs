@@ -17,26 +17,38 @@ memory = Memory(cachedir=".cache")
 
 
 @memory.cache
-def initialize(scenario_data, n_succ=100, n_0=50, n_k=10, **simu_kw):
+def initialize(scenario_data, n_succ=100, n_0=50, n_k=10,
+               ret_events_labels=False, **simu_kw):
     scenario = load_scenario(scenario_data)
     return rob.find_successful_samples_adaptive(
         scenario, n_succ=n_succ, n_0=n_0, n_k=n_k, k_max=500, sigma=.01,
-        **simu_kw
+        ret_events_labels=ret_events_labels, **simu_kw
     )
 
 
 @memory.cache
 def compute_rob(scenario_data, init_samples, init_labels, n_k, k_max,
-                **simu_kw):
+                dims=None, event=None, **simu_kw):
     scenario = load_scenario(scenario_data)
     print("Number of dimensions:", len(scenario.design_space))
     return rob.train_and_consolidate_boundary2(
         scenario, init_samples, init_labels, accuracy=.9, n_k=n_k, k_max=k_max,
-        **simu_kw
+        dims=dims, event=event, **simu_kw
     )
 
 
 @memory.cache
+def compute_factorized_rob(scenario_data, init_samples, init_events_labels,
+                           invar_success_rate, select_coeff, n_k, k_max,
+                           **simu_kw):
+    assignments = rob.map_events_to_dimensions(
+        init_samples, init_events_labels, invar_success_rate, select_coeff
+    )
+    return [compute_rob(scenario_data, init_samples, init_events_labels[event],
+                        n_k, k_max, dims, event, **simu_kw)
+            for event, dims in assignments.items() if len(dims)]
+
+
 def optimize_rob(scenario_data, estimators, x0, smin_coeff):
     scenario = load_scenario(scenario_data)
     res = maximize_robustness(scenario, estimators, x0, smin_coeff)
@@ -54,28 +66,49 @@ def main():
     duration = 4
     timestep = 1 / 500
 
-    # Initial exploration
-    n_succ = 300
-    n_0 = 200
-    n_k = 30
-    init_samples, init_labels = initialize(
-        scenario_data, n_succ, n_0, n_k, duration=duration, timestep=timestep
-    )
+    if 0:
+        # Initial exploration
+        n_succ = 300
+        n_0 = 200
+        n_k = 30
+        init_samples, init_labels = initialize(
+            scenario_data, n_succ, n_0, n_k,
+            duration=duration, timestep=timestep
+        )
 
-    # Training and boundary consolidation
-    n_k = 50
-    k_max = 10
-    estimator = compute_rob(
-        scenario_data, init_samples, init_labels, n_k, k_max,
-        duration=duration, timestep=timestep
-    )
+        # Training and boundary consolidation
+        n_k = 50
+        k_max = 10
+        estimator = compute_rob(
+            scenario_data, init_samples, init_labels, n_k, k_max,
+            duration=duration, timestep=timestep
+        )
+        estimators = [estimator]
+    else:
+        # Initial exploration
+        n_succ = 50
+        n_0 = 100
+        n_k = 10
+        init_samples, init_labels, init_events_labels = initialize(
+            scenario_data, n_succ, n_0, n_k, ret_events_labels=True,
+            duration=duration, timestep=timestep
+        )
+
+        # Factorized training and boundary consolidation
+        n_k = 100
+        k_max = 10
+        estimators = compute_factorized_rob(
+            scenario_data, init_samples, init_events_labels,
+            invar_success_rate=.95, select_coeff=.2, n_k=n_k, k_max=k_max,
+            duration=duration, timestep=timestep
+        )
 
     # Optimization
-    x_init = init_samples[
-        np.argmax(estimator.predict_proba(init_samples)[:, 1])
-    ]
-    smin_coeff = .1
-    x_best = optimize_rob(scenario_data, [estimator], x_init, smin_coeff)
+    init_probas = np.prod([e.predict_proba(init_samples)[:, 1]
+                           for e in estimators], axis=0)
+    x_init = init_samples[np.argmax(init_probas)]
+    smin_coeff = 1
+    x_best = optimize_rob(scenario_data, estimators, x_init, smin_coeff)
     # x_best = x_init
 
     scenario = load_scenario(scenario_data)
