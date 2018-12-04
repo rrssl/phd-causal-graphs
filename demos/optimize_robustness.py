@@ -145,6 +145,7 @@ def main():
                        callbacks=[obs])
         obs.export(simu_path, fps=int(1/timestep))
         # Show the simulation.
+        load_prc_file_data("", "win-origin 500 200")
         app = Replayer(scene_path+".bam", simu_path)
         app.run()
     if 0:

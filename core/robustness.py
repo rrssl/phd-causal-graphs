@@ -174,7 +174,8 @@ def train_svc(samples, values, probability=False, dims=None, ret_score=False,
     samples = np.asarray(samples)
     if verbose:
         print("Number of samples:", samples.shape[0])
-        print("Number of features:", samples.shape[1])
+        print("Number of features:",
+              len(dims) if dims is not None else samples.shape[1])
     # Create pipeline.
     steps = [
         StandardScaler(),
@@ -226,10 +227,15 @@ def train_and_resample(scenario, init_samples, init_labels, distrib_func,
     labels = [init_labels[i] for i in valid]
     # Main loop
     print("Running the train-and-resample loop")
+    if event is not None:
+        print("Event:", event)
+    if dims is not None:
+        print("Dimensions:", dims)
     k = 0
     while k < k_max:
         k += 1
         # Train the SVC.
+        print("Training the estimator")
         X = np.asarray(samples)
         y = np.asarray(labels)
         estimator, score = train_svc(X, y, dims=dims, ret_score=True)
@@ -238,6 +244,7 @@ def train_and_resample(scenario, init_samples, init_labels, distrib_func,
         if score >= accuracy:
             break
         # Generate the new samples.
+        print("Generating new samples")
         D = distrib_func(X, y, estimator, dims)
         if D is None:
             break
