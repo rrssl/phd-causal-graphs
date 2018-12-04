@@ -182,7 +182,7 @@ def train_svc(samples, values, probability=False, dims=None, ret_score=False,
             random_state=len(samples), cache_size=512),
     ]
     if dims is not None:
-        selector = FunctionTransformer(np.take,
+        selector = FunctionTransformer(np.take, validate=True,
                                        kw_args=dict(indices=dims, axis=1))
         steps.insert(0, selector)
     pipeline = make_pipeline(*steps)
@@ -221,8 +221,9 @@ def train_and_resample(scenario, init_samples, init_labels, distrib_func,
 
     """
     # Initialization
-    samples = list(init_samples)
-    labels = list(init_labels)
+    valid = [i for i, l in enumerate(init_labels) if l is not None]
+    samples = [init_samples[i] for i in valid]
+    labels = [init_labels[i] for i in valid]
     # Main loop
     print("Running the train-and-resample loop")
     k = 0
@@ -244,10 +245,10 @@ def train_and_resample(scenario, init_samples, init_labels, distrib_func,
         if event is None:
             samples.extend(samples_k)
             labels.extend(compute_label(scenario, s, **simu_kw)
-                          for s in samples)
+                          for s in samples_k)
         else:
             labels_k = [compute_label(scenario, s, True, **simu_kw)[1][event]
-                        for s in samples]
+                        for s in samples_k]
             valid = [i for i, l in enumerate(labels_k) if l is not None]
             samples.extend(samples_k[i] for i in valid)
             labels.extend(labels_k[i] for i in valid)
