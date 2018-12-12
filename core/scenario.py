@@ -16,57 +16,6 @@ from core.design_space import load_design_space
 from core.export import VectorFile
 
 
-class LegacyScenario:
-    """Base class for new scenarios.
-
-    Parameters
-    ----------
-    sample : (-,) sequence
-      []
-
-    """
-    def __init__(self, sample, make_geom=False, graph_view=False, **kwargs):
-        self.scene = self.init_scene(sample, make_geom)
-        self.causal_graph = self.init_causal_graph(self.scene,
-                                                   verbose=make_geom)
-        if graph_view:
-            self.graph_view = causal.CausalGraphViewer(self.causal_graph.root)
-
-    def check_physically_valid(self):
-        return self._check_physically_valid_scene(self._scene)
-
-    @classmethod
-    def check_physically_valid_sample(cls, sample):
-        scene = cls.init_scene(sample, make_geom=False)
-        return cls._check_physically_valid_scene(scene)
-
-    @staticmethod
-    def _check_physically_valid_scene(scene):
-        raise NotImplementedError
-
-    def export_scene_to_egg(self, filename):
-        if filename[-4:] == ".egg":
-            filename = filename[:-4]
-        self.scene.graph.write_bam_file(filename + ".bam")
-        subprocess.run(["bam2egg", "-o", filename + ".egg", filename + ".bam"])
-
-    @classmethod
-    def export_scene_to_pdf(cls, filename, sample, sheetsize):
-        raise NotImplementedError
-
-    @classmethod
-    def get_physical_validity_constraint(cls, sample):
-        raise NotImplementedError
-
-    @staticmethod
-    def init_causal_graph(scene, verbose=False):
-        raise NotImplementedError
-
-    @classmethod
-    def init_scene(cls, sample, make_geom=False):
-        raise NotImplementedError
-
-
 class Scene:
     def __init__(self, geom='LD', phys=True):
         self.geom = geom
