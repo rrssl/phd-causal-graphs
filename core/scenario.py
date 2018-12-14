@@ -177,16 +177,21 @@ class Scene:
         graph = self.graph
         world = self.world
         name2nopa = {}
-        # First pass: create and attach objects to the scene graph and world
+        # First pass: create and add simple objects.
         for name, prim in prim_graph.nodes(data='prim'):
-            prim.geom = self.geom
-            prim.phys = self.phys
-            prim.reset()
-            nopa = prim.create()
-            nopa.set_pos_hpr(*xforms[name])
-            name2nopa[name] = nopa
-            prim.attach_to(graph, world)
-        # Second pass: scene graph hierarchy.
+            if 'components' not in prim_graph[name]:
+                nopa = prim.create(self.geom, self.phys, graph, world)
+                nopa.set_pos_hpr(*xforms[name])
+                name2nopa[name] = nopa
+        # Second pass: do the same for complex constructs. We assume only
+        # one level of nesting (i.e., components are themselves simple).
+        for name, prim in prim_graph.nodes(data='prim'):
+            if 'components' in prim_graph[name]:
+                comps = [name2nopa[c] for c in prim_graph[name]['components']]
+                nopa = prim.create(self.geom, self.phys, graph, world, comps)
+                nopa.set_pos_hpr(*xforms[name])
+                name2nopa[name] = nopa
+        # Third pass: scene graph hierarchy.
         for parent, child in prim_graph.edges:
             name2nopa[child].reparent_to(name2nopa[parent])
         # Last pass: propagate new global transforms to bullet nodes.
@@ -348,6 +353,13 @@ def load_primitives(scene_data):
             name, **geom_args, **bullet_args
         )
         prim_graph.add_node(name, prim=prim)
+        # For complex primitives, check if components are defined.
+        try:
+            components = obj_data['components']
+        except KeyError:
+            components = None
+        if components:
+            prim_graph[name]['components'] = components
     # Second pass for scene hierarchy.
     for obj_data in scene_data:
         try:

@@ -174,14 +174,14 @@ class Designer(Animable, Drawable, Pickerable, WithViewHelpers, Modeler):
         parameters = edited_object.get_python_tag('parameters')
         primitive = edited_object.get_tag('primitive')
         parameters.update({parameter: value})
-        prim = self.instantiate_primitive(primitive, **parameters)
-        prim.path.set_transform(edited_object.get_transform())
+        path = self.instantiate_primitive(primitive, _parent=self.models,
+                                          **parameters)
+        path.set_transform(edited_object.get_transform())
         self.remove_object(edited_object)
-        prim.path.reparent_to(self.models)
-        return prim.path
+        return path
 
-    def instantiate_primitive(self, primitive, add_defaults=False,
-                              _geom='LD', _phys=False, **kw):
+    def instantiate_primitive(self, primitive, add_defaults=False, _geom='LD',
+                              _phys=False, _parent=None, _world=None, **kw):
         if add_defaults:
             args = DEFAULT_PRIMITIVE_ARGS[primitive].copy()
             if '_name' not in kw:
@@ -189,13 +189,13 @@ class Designer(Animable, Drawable, Pickerable, WithViewHelpers, Modeler):
                 args['_name'] += "_{}".format(self.prim_counter[primitive])
         else:
             args = {}
-        args.update(_geom=_geom, _phys=_phys, **kw)
+        args.update(**kw)
         prim = get_primitive_instance(primitive, **args)
-        o = prim.create()
+        o = prim.create(_geom, _phys, _parent, _world)
         o.set_tag('primitive', primitive)
         o.set_python_tag('parameters', args)
         o.set_python_tag('pickable', True)
-        return prim
+        return o
 
     def remove_object(self, obj):
         if obj is self.hit_object:
@@ -204,8 +204,8 @@ class Designer(Animable, Drawable, Pickerable, WithViewHelpers, Modeler):
         obj.remove_node()
 
     def ui_choose_primitive_from_menu(self, primitive):
-        prim = self.instantiate_primitive(primitive, add_defaults=True)
-        prim.path.reparent_to(self.models)
+        self.instantiate_primitive(primitive, add_defaults=True,
+                                   _parent=self.models)
 
     def ui_click_left(self):
         click_time = time.perf_counter()
@@ -388,10 +388,10 @@ class Designer(Animable, Drawable, Pickerable, WithViewHelpers, Modeler):
         for o in self.models.get_children():
             prim_name = o.get_tag('primitive')
             args = o.get_python_tag('parameters').copy()
-            args.update(_geom=None, _phys=True)
-            prim = self.instantiate_primitive(prim_name, **args)
-            prim.path.set_transform(o.get_transform())
-            prim.attach_to(scene.graph, scene.world)
+            args.update(_geom=None, _phys=True, _parent=scene.graph,
+                        _world=scene.world)
+            path = self.instantiate_primitive(prim_name, **args)
+            path.set_transform(o.get_transform())
         obs = StateObserver(scene)
         simulate_scene(scene, duration, 1/fps, [obs])
         self.load_frames(obs.states, fps)
