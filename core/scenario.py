@@ -186,8 +186,9 @@ class Scene:
         # Second pass: do the same for complex constructs. We assume only
         # one level of nesting (i.e., components are themselves simple).
         for name, prim in prim_graph.nodes(data='prim'):
-            if 'components' in prim_graph[name]:
-                comps = [name2nopa[c] for c in prim_graph[name]['components']]
+            if 'components' in prim_graph.node[name]:
+                comps = [name2nopa[c]
+                         for c in prim_graph.node[name]['components']]
                 nopa = prim.create(self.geom, self.phys, graph, world, comps)
                 nopa.set_pos_hpr(*xforms[name])
                 name2nopa[name] = nopa
@@ -359,7 +360,7 @@ def load_primitives(scene_data):
         except KeyError:
             components = None
         if components:
-            prim_graph[name]['components'] = components
+            prim_graph.node[name]['components'] = components
     # Second pass for scene hierarchy.
     for obj_data in scene_data:
         try:
