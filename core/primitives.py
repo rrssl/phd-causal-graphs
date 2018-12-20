@@ -7,6 +7,8 @@ from functools import partial
 
 import numpy as np
 import panda3d.bullet as bt
+import scipy.interpolate as ip
+import scipy.optimize as opt
 import solid as sl
 import solid.utils as slu
 from panda3d.core import (GeomNode, LineSegs, NodePath, Point3,
@@ -718,12 +720,11 @@ class _RopePulleyCallback:
         self.hook2_cs = constraints[5]
         self.rope_length = rope_length
         self.pulleys = pulleys
-        self._in_tension = False
         # Useful values.
-        self.dist_between_pulleys = sum(
+        self.dist_pulleys = sum(
             (c2 - c1).length() for c2, c1 in zip(pulleys[1:], pulleys[:-1])
         )
-        self.max_dist = self.rope_length - self.dist_between_pulleys
+        self.max_dist = self.rope_length - self.dist_pulleys
         # Visual
         self.geom = geom
         if self.geom is not None:
@@ -735,61 +736,96 @@ class _RopePulleyCallback:
     def __call__(self, callback_data):
         slider1 = self.slider1_cs
         slider2 = self.slider2_cs
-        # If in tension now
-        if self._get_loose_rope_length() <= 0:
-            # If in tension before
-            if self._in_tension:
-                # mass1 = self.comp1.node().get_mass()
-                # mass2 = self.comp2.node().get_mass()
-                # imp1 = -self.hook1_cs.get_applied_impulse()
-                # imp2 = -self.hook2_cs.get_applied_impulse()
-                # tension = (imp1 - imp2) / (mass1 + mass2)
-                step = callback_data.get_timestep()
-                # No idea why this formula works.
-                weight = self._get_weight_force()
-                delta = step * weight
-                # delta = 9.81 * step * (imp1 - imp2) / (mass1 + mass2)
-                new_dist1 = slider1.get_upper_linear_limit() + delta
-                # Clamp value between hard limits.
-                if new_dist1 < 0:
-                    new_dist1 = 0
-                elif new_dist1 > self.max_dist:
-                    new_dist1 = self.max_dist
-                new_dist2 = slider2.get_upper_linear_limit() - delta
-                # Clamp value between hard limits.
-                if new_dist2 < 0:
-                    new_dist2 = 0
-                elif new_dist2 > self.max_dist:
-                    new_dist2 = self.max_dist
-            else:
-                self._in_tension = True
-                new_dist1 = slider1.get_linear_pos()
-                new_dist2 = slider2.get_linear_pos()
-            slider1.set_upper_linear_limit(new_dist1)
-            slider2.set_upper_linear_limit(new_dist2)
-        # If in tension before but not anymore
-        elif self._in_tension:
-            self._in_tension = False
-            slider1.set_upper_linear_limit(self.max_dist)
-            slider2.set_upper_linear_limit(self.max_dist)
-        # (If not in tension now or before, don't update anything.)
+        loose_rope = self.loose_rope
+        max_dist = self.max_dist
+        dt = callback_data.get_timestep()
+        # # If in tension now
+        # if loose_rope <= 0:
+        #     self._in_tension = True
+        #     if self._phase <= 1:
+        #         # Compute velocity change.
+        #         v1 = self.hook1.node().get_linear_velocity()
+        #         v1 = v1.dot(self.vec1.normalized())
+        #         J1 = self.hook1_cs.get_applied_impulse()
+        #         if J1:
+        #             m1 = abs(J1 / (v1 - self._v1))
+        #         self._v1 = v1
+        #         v2 = self.hook2.node().get_linear_velocity()
+        #         v2 = v2.dot(self.vec2.normalized())
+        #         J2 = self.hook2_cs.get_applied_impulse()
+        #         if J2:
+        #             m2 = abs(J2 / (v2 - self._v2))
+        #         self._v2 = v2
+        #     if self._phase == 1:
+        #         # Compute new length
+        #         delta = (J1 - J2) / (m1 + m2)
+        #         print(delta)
+        #         new_dist1 = slider1.get_upper_linear_limit() + delta
+        #         new_dist2 = slider2.get_upper_linear_limit() - delta
+        #         # Clamp values between hard limits.
+        #         if new_dist1 < 0 or new_dist2 > max_dist:
+        #             new_dist1 = 0
+        #             new_dist2 = max_dist
+        #         if new_dist2 < 0 or new_dist1 > max_dist:
+        #             new_dist2 = 0
+        #             new_dist1 = max_dist
+        #     self._phase = int(not self._phase)
+        #     # If in tension before
+        #     if self._in_tension:
+        #         # mass1 = self.comp1.node().get_mass()
+        #         # mass2 = self.comp2.node().get_mass()
+        #         # vel1 = self.comp1.node().get_linear_velocity()[2]
+        #         # vel2 = self.comp2.node().get_linear_velocity()[2]
+        #         # delta = (mass1*vel1 - mass2*vel2) / (mass1 + mass2)
+        #         # weight = self._get_weight_force()
+        #         # delta = step * weight
+        #         M = abs(J1/self._dv1) + abs(J2/self._dv2)
+        #         delta = (J1 - J2) / M
+        #         new_dist1 = slider1.get_upper_linear_limit() + delta
+        #         new_dist2 = slider2.get_upper_linear_limit() - delta
+        #         # Clamp values between hard limits.
+        #         if new_dist1 < 0 or new_dist2 > max_dist:
+        #             new_dist1 = 0
+        #             new_dist2 = max_dist
+        #         if new_dist2 < 0 or new_dist1 > max_dist:
+        #             new_dist2 = 0
+        #             new_dist1 = max_dist
+        g = 9.81
+        J1 = self.hook1_cs.get_applied_impulse()
+        J2 = self.hook2_cs.get_applied_impulse()
+        m1 = self.comp1.node().get_mass()
+        new_dist1 = self.dist1 + J1 + J2
+        m2 = self.comp2.node().get_mass()
+        new_dist2 = self.dist2 + J1 - J2
+        slider1.set_upper_linear_limit(new_dist1)
+        slider2.set_upper_linear_limit(new_dist2)
         if self.geom == 'LD':
             self._update_visual_rope()
         elif self.geom == 'HD':
             self._update_visual_rope_hd()
 
     def check_physically_valid(self):
-        return self._get_loose_rope_length() >= 0
+        return self.loose_rope >= 0
 
-    def _get_loose_rope_length(self):
-        # Better use the points than slider.get_linear_pos() because the
-        # latter is not initialized yet at the first frame.
-        dist1 = (self.hook1.get_pos() - self.pulleys[0]).length()
-        dist2 = (self.hook2.get_pos() - self.pulleys[-1]).length()
-        loose_rope_length = self.rope_length - (
-            self.dist_between_pulleys + dist1 + dist2
-        )
-        return loose_rope_length
+    @property
+    def dist1(self):
+        return self.vec1.length()
+
+    @property
+    def dist2(self):
+        return self.vec2.length()
+
+    @property
+    def loose_rope(self):
+        return self.rope_length - self.dist_pulleys - self.dist1 - self.dist2
+
+    @property
+    def vec1(self):
+        return self.hook1.get_pos() - self.pulleys[0]
+
+    @property
+    def vec2(self):
+        return self.hook2.get_pos() - self.pulleys[-1]
 
     def _get_weight_force(self):
         gravity = 9.81
@@ -802,13 +838,13 @@ class _RopePulleyCallback:
         P2 = self.pulleys[0]
         Pn_1 = self.pulleys[-1]
         Pn = self.hook2.get_pos()
-        loose_rope_length = self._get_loose_rope_length()
+        loose_rope = self.loose_rope
         vertices = [P1, P2]
-        if loose_rope_length > 0:
+        if loose_rope > 0:
             t = np.linspace(0, 1, self.n_vertices-2)[1:-1]
             for ti in t:
                 p = P2 * (1-ti) + Pn_1 * ti
-                p[2] -= loose_rope_length * .5 * math.sin(math.pi * ti)
+                p[2] -= loose_rope * .5 * math.sin(math.pi * ti)
                 vertices.append(p)
         vertices += [Pn_1, Pn]
         # Update rope
@@ -837,12 +873,12 @@ class _RopePulleyCallback:
         P2 = self.pulleys[0]
         Pn_1 = self.pulleys[-1]
         Pn = self.hook2.get_pos()
-        loose_rope_length = max(0, self._get_loose_rope_length())
+        loose_rope = max(0, self.loose_rope)
         vertices = [P1, P2]
         t = np.linspace(0, 1, self.n_vertices-2)[1:-1]
         for ti in t:
             p = P2 * (1-ti) + Pn_1 * ti
-            p[2] -= loose_rope_length * .5 * math.sin(math.pi * ti)
+            p[2] -= loose_rope * .5 * math.sin(math.pi * ti)
             vertices.append(p)
         vertices += [Pn_1, Pn]
         diff = [old != new for old, new in zip(self._prev_vertices, vertices)]
@@ -886,26 +922,29 @@ class RopePulley(PrimitiveBase):
       Length of the rope.
     pulleys : (n,3) float array
       (x, y, z) of each pulley.
+    pulley_extents : float pair
+      Radius and height of the cylinder.
 
     """
 
-    def __init__(self, name, comp1_pos, comp2_pos, rope_length, pulleys):
+    def __init__(self, name, comp1_pos, comp2_pos, rope_length, pulleys,
+                 pulley_extents):
         super().__init__(name)
         self.comp1_pos = Point3(*comp1_pos)
         self.comp2_pos = Point3(*comp2_pos)
         self.rope_length = rope_length
         self.pulleys = [Point3(*c) for c in pulleys]
         # Useful values.
-        self.dist_between_pulleys = sum(
+        self.dist_pulleys = sum(
             (c2 - c1).length()
             for c2, c1 in zip(self.pulleys[1:], self.pulleys[:-1])
         )
-        self.max_dist = self.rope_length - self.dist_between_pulleys
+        self.max_dist = self.rope_length - self.dist_pulleys
         # Hardcoded physical properties.
         self.hook_mass = 1e-2
         self.max_slider_force = 1e6
         # Visual properties.
-        self.pulley_radius = .002
+        self.pulley_extents = pulley_extents
 
     def _attach_objects(self, geom, phys, parent, world, components):
         hook1, cs1 = self._attach_pulley(components[0], self.comp1_pos,
@@ -935,14 +974,14 @@ class RopePulley(PrimitiveBase):
         pulley_base.set_pos(pulley_coords)
         # Pulley hook (can rotate on the base)
         pulley_hook = Ball(  # using Ball instead of Empty stabilizes it
-            name + "_pulley-hook", self.pulley_radius, mass=self.hook_mass
+            name + "_pulley-hook", self.pulley_extents[0], mass=self.hook_mass
         ).create(None, phys, parent, world)
         pulley_hook.set_pos(pulley_coords)
         pulley_hook.look_at(object_hook_coords)  # Y looks at
         pulley_hook.set_hpr(pulley_hook, Vec3(90, 0, 0))  # now X
         # Object hook (can rotate on the object)
         object_hook = Ball(
-            name + "_object-hook", self.pulley_radius, mass=self.hook_mass
+            name + "_object-hook", self.pulley_extents[0], mass=self.hook_mass
         ).create(None, phys, parent, world)
         object_hook.set_pos(object_hook_coords)
         object_hook.look_at(pulley_hook.get_pos())  # Y looks at
@@ -982,7 +1021,7 @@ class RopePulley(PrimitiveBase):
                 pulley = path.attach_new_node(
                     Cylinder.make_geom(
                         self.name + "_pulley_" + str(i) + "_geom",
-                        (self.pulley_radius, .02), center=True, n_seg=n_seg
+                        self.pulley_extents, center=True, n_seg=n_seg
                     )
                 )
                 pulley.set_pos(coords)
@@ -1000,6 +1039,166 @@ class RopePulley(PrimitiveBase):
         return pulley_hpr
 
 
+class RopePulley2(PrimitiveBase):
+    """Create a rope-pulley system connecting two primitives.
+
+    Parameters
+    ----------
+    name : string
+      Name of the primitive.
+    comp1_pos : (3,) float sequence
+      Relative position of the hook on the first component.
+    comp2_pos : (3,) float sequence
+      Relative position of the hook on the second component.
+    rope_extents : float triplet
+      Radius, total length and segment length of the rope.
+    pulleys : (n,3) float array
+      (x, y, z) of each pulley.
+    pulley_extents : float pair
+      Radius and height of the cylinder.
+
+    """
+    def __init__(self, name, comp1_pos, comp2_pos, rope_extents, pulleys,
+                 pulley_extents):
+        super().__init__(name)
+        self.comp1_pos = Point3(*comp1_pos)
+        self.comp2_pos = Point3(*comp2_pos)
+        self.rope_radius, self.rope_length, self.seg_len = rope_extents
+        self.seg_mass = .00004
+        self.seg_angular_damping = .9
+        self.pulleys = np.asarray(pulleys)
+        self.pulley_radius, self.pulley_height = pulley_extents
+
+    def create(self, geom, phys, parent=None, world=None, components=None):
+        # Scene graph
+        path = NodePath(self.name)
+        # Physics
+        bodies = []
+        constraints = []
+        # Pulleys
+        pulley_shape = bt.BulletCylinderShape(self.pulley_radius,
+                                              self.pulley_height)
+        border_shape = bt.BulletCylinderShape(
+            3*self.rope_radius+self.pulley_radius, self.rope_radius
+        )
+        border_pos = Point3(0, 0, self.pulley_height/2 + self.rope_radius/2)
+        border_xform = TransformState.make_pos(border_pos)
+        border_xform2 = TransformState.make_pos(-border_pos)
+        pulley_hpr = self._get_pulley_hpr()
+        for i, coords in enumerate(self.pulleys):
+            name = self.name + "_pulley_{}_solid".format(i)
+            body = bt.BulletRigidBodyNode(name)
+            bodies.append(body)
+            body.add_shape(pulley_shape)
+            body.add_shape(border_shape, border_xform)
+            body.add_shape(border_shape, border_xform2)
+            pulley_path = NodePath(body)
+            pulley_path.reparent_to(path)
+            pulley_path.set_pos(*coords)
+            pulley_path.set_hpr(pulley_hpr)
+        # Rope
+        rope_i = len(bodies)
+        rope_points = self._get_rope_points(components)
+        seg_shape = bt.BulletCapsuleShape(self.rope_radius, self.seg_len)
+        seg_xform = TransformState.make_pos(Point3(0, 0, self.seg_len/2))
+        for i, (a, b) in enumerate(zip(rope_points[:-1], rope_points[1:])):
+            name = self.name + "_ropeseg_{}_solid".format(i)
+            body = bt.BulletRigidBodyNode(name)
+            bodies.append(body)
+            body.add_shape(seg_shape, seg_xform)
+            body.set_mass(self.seg_mass)
+            body.set_angular_damping(self.seg_angular_damping)
+            seg_path = NodePath(body)
+            seg_path.reparent_to(path)
+            seg_path.set_pos(*a)
+            seg_path.look_at(*b)
+            seg_path.set_hpr(seg_path, Vec3(90, 0, 90))
+        cs_xform = Point3(0, 0, self.seg_len)
+        for b1, b2 in zip(bodies[rope_i:-1], bodies[rope_i+1:]):
+            cs = bt.BulletSphericalConstraint(b1, b2, cs_xform, 0)
+            constraints.append(cs)
+        if components:
+            cs1 = bt.BulletSphericalConstraint(
+                components[0].node(), bodies[rope_i], self.comp1_pos, 0
+            )
+            cs2 = bt.BulletSphericalConstraint(
+                components[1].node(), bodies[-1], self.comp2_pos, cs_xform
+            )
+            constraints.extend([cs1, cs2])
+        # Attach all
+        self._attach(path, parent, bodies=bodies, constraints=constraints,
+                     world=world)
+        return path
+
+    def _get_pulley_hpr(self):
+        pulley_line = self.pulleys[-1] - self.pulleys[0]
+        if pulley_line[0]:
+            pulley_hpr = Vec3(0, 90, 0)
+        else:
+            pulley_hpr = Vec3(0, 0, 90)
+        return pulley_hpr
+
+    def _get_rope_points(self, components):
+        # Compute init points
+        pulleys = self.pulleys
+        comp1, comp2 = components
+        pos1 = comp1.get_net_transform().get_mat().xform_point(self.comp1_pos)
+        pos2 = comp2.get_net_transform().get_mat().xform_point(self.comp2_pos)
+        init_points = np.empty((2*len(pulleys)+2, 3))
+        init_points[0] = pos1
+        init_points[-1] = pos2
+        shift = self.pulley_radius + 2*self.rope_radius
+        pulley_dir = pulleys[1] - pulleys[0]
+        shift_x = shift * np.sign(pulley_dir[0])
+        shift_y = shift * np.sign(pulley_dir[1])
+        init_points[1:2*len(pulleys):2] = pulleys + [-shift_x, -shift_y, shift]
+        init_points[2:2*len(pulleys)+1:2] = pulleys + [shift_x, shift_y, shift]
+        distances = np.linalg.norm(init_points[1:] - init_points[:-1], axis=1)
+        residual = self.rope_length - distances.sum()
+        if residual > 0:
+            # print("r", residual)
+            cat = self._solve_catenary_3d(init_points[2], init_points[3],
+                                          distances[2]+residual)
+            loose_points = cat(np.linspace(0, 1, 10)[1:-1])
+            init_points = np.insert(init_points, 3, loose_points, axis=0)
+        # Compute subdivided points
+        distances = np.linalg.norm(init_points[1:] - init_points[:-1], axis=1)
+        init_t = np.zeros(len(init_points))
+        init_t[1:] = np.cumsum(distances)
+        n_seg = int(init_t[-1] / self.seg_len)
+        t = np.linspace(0, init_t[-1], n_seg)
+        rope_points = np.column_stack([
+            ip.interp1d(init_t, init_points[:, d])(t) for d in range(3)
+        ])
+        # print(rope_points)
+        return rope_points
+
+    def _solve_catenary_3d(self, p1, p2, s):
+        h = math.sqrt((p2[1] - p1[1])**2 + (p2[0] - p1[0])**2)
+        v = p2[2] - p1[2]
+        rhs = math.sqrt(s**2 - v**2)
+        sinh, arcsinh, cosh = np.sinh, np.arcsinh, np.cosh
+
+        def f(x):
+            return (2*x*sinh(h/(2*x)) - rhs) ** 2
+
+        def fprime(x):
+            return 2 * (2*sinh(h/(2*x)) - h*cosh(h/(2*x))/x) * (
+                2*x*sinh(h/(2*x)) - rhs)
+        x0_test = np.linspace(.01, s, 20)
+        x0 = x0_test[np.argmin(f(x0_test))]
+        a = opt.newton(f, x0=x0, fprime=fprime)
+        # Compute the vertex coordinates
+        x0 = a*arcsinh(v / (2*a*sinh(h/(2*a)))) - h/2
+        z0 = p2[2] - a*cosh((h+x0)/a)
+
+        def catenary(t):
+            p = np.outer(t, (p2 - p1)) + p1
+            p[:, 2] = a*cosh((t*h + x0) / a) + z0
+            return p
+        return catenary
+
+
 class _RopePulleyPivotCallback(_RopePulleyCallback):
     def __init__(self, components, hook, pivot, constraints, rope_length,
                  init_coiled_length, pulleys, geom):
@@ -1013,10 +1212,10 @@ class _RopePulleyPivotCallback(_RopePulleyCallback):
         self.pulleys = pulleys
         self.hinge_force = 1
         # Useful values.
-        self.dist_between_pulleys = sum(
+        self.dist_pulleys = sum(
             (c2 - c1).length() for c2, c1 in zip(pulleys[1:], pulleys[:-1])
         )
-        self.max_dist = (self.rope_length - self.dist_between_pulleys
+        self.max_dist = (self.rope_length - self.dist_pulleys
                          - (pivot.get_pos() - Vec3(*pulleys[-1])).length())
         self.init_dist2 = self.init_coiled_length + (
             pivot.get_pos() - self.pulleys[-1]
@@ -1026,7 +1225,7 @@ class _RopePulleyPivotCallback(_RopePulleyCallback):
     def __call__(self, callback_data):
         slider = self.slider
         step = callback_data.get_timestep()
-        if self._get_loose_rope_length() <= 0:
+        if self.loose_rope <= 0:
             if not slider.get_powered_linear_motor():
                 # Turn on the motor
                 slider.set_powered_linear_motor(True)
@@ -1047,7 +1246,8 @@ class _RopePulleyPivotCallback(_RopePulleyCallback):
         if self.geom is not None:
             self._update_visual_rope()
 
-    def _get_loose_rope_length(self):
+    @property
+    def loose_rope(self):
         # Better use the points than slider.get_linear_pos() because the
         # latter is not initialized yet at the first frame.
         dist1 = (self.hook.get_pos() - self.pulleys[0]).length()
@@ -1056,10 +1256,10 @@ class _RopePulleyPivotCallback(_RopePulleyCallback):
             * math.radians(self.comp2.path.get_quat().get_angle()
                            - self.init_hinge_angle)
         )
-        loose_rope_length = self.rope_length - (
-            self.dist_between_pulleys + dist1 + dist2
+        loose_rope = self.rope_length - (
+            self.dist_pulleys + dist1 + dist2
         )
-        return loose_rope_length
+        return loose_rope
 
 
 class RopePulleyPivot(RopePulley):
@@ -1200,6 +1400,6 @@ class Track(PrimitiveBase):
 
 def get_primitives():
     return (Plane, Ball, Box, Cylinder, Lever, Pulley, Goblet, DominoRun,
-            RopePulley,
+            RopePulley, RopePulley2,
             # RopePulleyPivot,
             Track)

@@ -43,20 +43,21 @@ def main():
     )
     run.create(geom='LD', phys=True, parent=app.models, world=app.world)
 
-    pulley_ball = prim.Ball(name="ball", radius=.01, mass=.2)
+    pulley_ball = prim.Ball(name="ball", radius=.05, mass=.2)
     pulley_ball_path = pulley_ball.create(
         geom='LD', phys=True, parent=app.models, world=app.world
     )
-    pulley_ball_path.set_pos(Point3(0, .16, .2))
-    pulley_cube = prim.Box(name="box", extents=[.02, .02, .02], mass=.19)
+    pulley_ball_path.set_pos(Point3(0, 1.6, 2))
+    pulley_cube = prim.Box(name="box", extents=[.02, .02, .02], mass=.01)
     pulley_cube_path = pulley_cube.create(
         geom='LD', phys=True, parent=app.models, world=app.world
     )
-    pulley_cube_path.set_pos(Point3(0, .28, .2))
-    rope_pulley = prim.RopePulley(
+    pulley_cube_path.set_pos(Point3(0, 2.8, 2.5))
+    rope_pulley = prim.RopePulley2(
         name="rope-pulley",
-        comp1_pos=Point3(0, 0, .01), comp2_pos=Point3(0, 0, .01),
-        rope_length=.30, pulleys=[[0, .17, .25], [0, .25, .3]],
+        comp1_pos=Point3(0, 0, .05), comp2_pos=Point3(0, 0, .01),
+        rope_extents=(.01, 2.0, .02), pulleys=[[0, 1.7, 2.5], [0, 2.5, 3]],
+        pulley_extents=(.02, .04)
     )
     rope_pulley.create(
         geom='LD', phys=True, parent=app.models, world=app.world,

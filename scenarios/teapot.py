@@ -1,42 +1,45 @@
+F = 1
 BALL_FRICTION = .1
 # BALL_MASS = 0.013  # [kg]
 BALL_MASS = 0.0056  # [kg]
 # BALL_RADIUS = 0.0105  # [m]
-BALL_RADIUS = 0.008  # [m]
+BALL_RADIUS = 0.008*F  # [m]
 BALL_RESTITUTION = 0.8
-FLAT_SUPPORT_LWH = (.02, .025, .005)  # [m]
+FLAT_SUPPORT_LWH = (.02*F, .025*F, .005*F)  # [m]
 GOBLET_ANGULAR_DAMPING = 1
 GOBLET_FRICTION = 1
-GOBLET_HEIGHT = 0.11  # [m]
-GOBLET_MASS = .003  # [g]
-GOBLET_R1 = 0.036  # [m]
-GOBLET_R2 = 0.025  # [m]
-LEFT_PULLEY_ROPE_LENGTH = .95  # [m]
-LONG_TRACK_LWHT = (0.3, 0.025, 0.008, .002)  # [m]
-NAIL_LEVER_LWH = (0.11, 0.005, 0.002)  # [m]
+GOBLET_HEIGHT = 0.11*F  # [m]
+GOBLET_MASS = .005  # [g]
+GOBLET_R1 = 0.036*F  # [m]
+GOBLET_R2 = 0.025*F  # [m]
+LEFT_PULLEY_ROPE_LENGTH = .95*F  # [m]
+LONG_TRACK_LWHT = (0.3*F, 0.025*F, 0.008*F, .002*F)  # [m]
+NAIL_LEVER_LWH = (0.11*F, 0.005*F, 0.002*F)  # [m]
 NAIL_LEVER_MASS = 0.005  # [kg]
-PLANK_LWH = (0.1175, 0.023, 0.008)  # [m]
+PLANK_LWH = (0.1175*F, 0.023*F, 0.008*F)  # [m]
 PLANK_MASS = 0.01  # [kg]
-QUAD_PLANK_LWH = (0.1175, 0.023, 0.031)  # [m]
-RIGHT_PULLEY_PIVOT_COILED = .009  # [m]
-RIGHT_PULLEY_PIVOT_HEIGHT = .003  # [m]
-RIGHT_PULLEY_PIVOT_RADIUS = .006  # [m]
-RIGHT_PULLEY_ROPE_LENGTH = 1.  # [m]
-RIGHT_WEIGHT_HEIGHT = 0.0315  # [m]
+PLANK_RESTITUTION = 0.8
+QUAD_PLANK_LWH = (0.1175*F, 0.023*F, 0.031*F)  # [m]
+RIGHT_PULLEY_PIVOT_HEIGHT = .003*F  # [m]
+RIGHT_PULLEY_PIVOT_RADIUS = .006*F  # [m]
+RIGHT_PULLEY_ROPE_LENGTH = 1.*F  # [m]
+RIGHT_WEIGHT_HEIGHT = 0.0315*F  # [m]
 RIGHT_WEIGHT_MASS = 0.2  # [kg]
-RIGHT_WEIGHT_RADIUS = 0.0315 / 2  # [m]
-SHORT_TRACK_LWHT = (0.15, 0.025, 0.008, .002)  # [m]
+RIGHT_WEIGHT_RADIUS = 0.0315*F / 2  # [m]
+SHORT_TRACK_LWHT = (0.15*F, 0.025*F, 0.008*F, .002*F)  # [m]
 STARTING_TRACK_FRICTION = 1
-STARTING_TRACK_LWHT = (0.3, 0.025, 0.005, .002)  # [m]
+STARTING_TRACK_LWHT = (0.3*F, 0.025*F, 0.005*F, .002*F)  # [m]
 TEAPOT_FRICTION = .1
 TEAPOT_LID_ANGULAR_DAMPING = 1
-TEAPOT_LID_HEIGHT = .005  # [m]
+TEAPOT_LID_HEIGHT = .005*F  # [m]
 TEAPOT_LID_MASS = 0.002  # [kg] TODO
 TEAPOT_LID_RADIUS = GOBLET_R1
-TINY_TRACK_LWH = (0.1, 0.025, 0.005)  # [m]
+TINY_TRACK_LWH = (0.1*F, 0.025*F, 0.005*F)  # [m]
 TINY_TRACK_MASS = .01  # [kg] TODO
-GATE_PULLEY_ROPE_LENGTH = .50  # [m]
-GATE_PUSHER_GUIDE_LWHT = (0.099, 0.016, 0.012, 0.003)  # [m]
+GATE_PULLEY_ROPE_LENGTH = .50*F  # [m]
+GATE_PULLEY_ROPE_EXTENTS = (.002*F, .5*F, .01*F)   # [m]
+PULLEY_EXTENTS = (.005*F, .02*F)  # [m]
+GATE_PUSHER_GUIDE_LWHT = (0.099*F, 0.016*F, 0.012*F, 0.003*F)  # [m]
 
 PIVOTING_ANGULAR_VELOCITY = 1
 ANGVEL = 10
@@ -115,7 +118,7 @@ DATA = {
             'type': "Empty",
             'args': {},
             'xform': {
-                'value': [-.32, 0, .10, 0, 0, 10],
+                'value': [-.33*F, 0, .10*F, 0, 0, 10],
                 'range': [
                     None,
                     None,
@@ -148,7 +151,7 @@ DATA = {
             },
             'parent': "start_track",
             'xform': {
-                'value': [-.13, 0, BALL_RADIUS+.002, 0, 0, 0]
+                'value': [-.13*F, 0, BALL_RADIUS+.002*F, 0, 0, 0]
             }
         },
         {
@@ -161,7 +164,7 @@ DATA = {
             },
             'parent': "start_track",
             'xform': {
-                'value': [-.10, 0, BALL_RADIUS+.002, 0, 0, 0]
+                'value': [-.10*F, 0, BALL_RADIUS+.002*F, 0, 0, 0]
             }
         },
         {
@@ -178,7 +181,7 @@ DATA = {
                 'b_angular_damping': GOBLET_ANGULAR_DAMPING,
             },
             'xform': {
-                'value': [-.32, 0, .21, 0, 0, 180],
+                'value': [-.32*F, 0, .21*F, 0, 0, 180],
             }
         },
         {
@@ -186,10 +189,11 @@ DATA = {
             'type': "Box",
             'args': {
                 'extents': PLANK_LWH,
-                'b_mass': PLANK_MASS
+                'b_mass': PLANK_MASS,
+                'b_restitution': PLANK_RESTITUTION
             },
             'xform': {
-                'value': [0, 0, .15, 0, 0, 90],
+                'value': [0, 0, .15*F, 0, 0, 90],
             }
         },
         {
@@ -198,8 +202,10 @@ DATA = {
             'args': {
                 'comp1_pos': [0, 0, 0],
                 'comp2_pos': [-PLANK_LWH[0]/2, 0, 0],
+                # 'rope_extents': GATE_PULLEY_ROPE_EXTENTS,
                 'rope_length': GATE_PULLEY_ROPE_LENGTH,
-                'pulleys': [[-.32, 0, .29], [0, 0, .29]]
+                'pulleys': [[-.32*F, 0, .29*F], [0, 0, .29*F]],
+                'pulley_extents': PULLEY_EXTENTS
             },
             'components': ["gate_goblet", "gate"],
         },
@@ -210,7 +216,17 @@ DATA = {
                 'extents': PLANK_LWH,
             },
             'xform': {
-                'value': [-.01, 0, .15, 0, 0, 90],
+                'value': [-.01*F, 0, .15*F, 0, 0, 90],
+            }
+        },
+        {
+            'name': "gate_guide_back",
+            'type': "Box",
+            'args': {
+                'extents': PLANK_LWH,
+            },
+            'xform': {
+                'value': [0*F, .02*F, .15*F, 90, 0, 90],
             }
         },
         {
@@ -220,7 +236,7 @@ DATA = {
                 'extents': PLANK_LWH,
             },
             'xform': {
-                'value': [.01, 0, .18, 0, 0, 90],
+                'value': [.01*F, 0, .18*F, 0, 0, 90],
             }
         },
         {
@@ -230,7 +246,7 @@ DATA = {
                 'extents': GATE_PUSHER_GUIDE_LWHT,
             },
             'xform': {
-                'value': [PLANK_LWH[0]/2-.007, 0, .08, 0, 0, 0],
+                'value': [PLANK_LWH[0]/2-.007*F, 0, .08*F, 0, 0, 0],
             }
         },
         {
@@ -242,7 +258,7 @@ DATA = {
             },
             'parent': "gate_pusher_guide",
             'xform': {
-                'value': [.011, 0, .009, 0, 90, 0],
+                'value': [.011*F, 0, .009*F, 0, 90, 0],
             }
         },
         {
@@ -250,14 +266,14 @@ DATA = {
             'type': "Lever",
             'args': {
                 'extents': PLANK_LWH,
-                'pivot_pos': [0, 0, .005],
+                'pivot_pos': [0, 0, .005*F],
                 'pivot_hpr': [0, 90, 0],
-                'pivot_extents': [.004, .03],
+                'pivot_extents': [.004*F, .03*F],
                 'b_mass': PLANK_MASS
             },
             'parent': "gate_pusher_guide",
             'xform': {
-                'value': [.08, 0, -.04, 0, 0, 90],
+                'value': [.08*F, 0, -.04*F, 0, 0, 90],
             }
         },
         {
@@ -267,7 +283,7 @@ DATA = {
                 'extents': SHORT_TRACK_LWHT,
             },
             'xform': {
-                'value': [.02, 0, 0, 0, 0, 0],
+                'value': [.02*F, 0, 0, 0, 0, 0],
             }
         },
         {
@@ -277,7 +293,7 @@ DATA = {
                 'extents': SHORT_TRACK_LWHT,
             },
             'xform': {
-                'value': [.16, 0, -.05, 0, 0, 5],
+                'value': [.16*F, 0, -.05*F, 0, 0, 5],
             }
         },
         {
@@ -287,7 +303,7 @@ DATA = {
                 'extents': LONG_TRACK_LWHT,
             },
             'xform': {
-                'value': [.17, 0, -.11, 0, 0, -12],
+                'value': [.17*F, 0, -.11*F, 0, 0, -12],
             }
         },
         {
@@ -297,7 +313,57 @@ DATA = {
                 'extents': SHORT_TRACK_LWHT,
             },
             'xform': {
-                'value': [.16, 0, -.20, 0, 0, -10],
+                'value': [.16*F, 0, -.20*F, 0, 0, -10],
+            }
+        },
+        {
+            'name': "left_track_top_origin",
+            'type': "Empty",
+            'args': {},
+            'parent': "middle_track",
+            'xform': {
+                'value': [-SHORT_TRACK_LWHT[0]/2, 0, 0*F, 0, 0, -10],
+            }
+        },
+        {
+            'name': "left_track_top",
+            'type': "Track",
+            'args': {
+                'extents': LONG_TRACK_LWHT,
+            },
+            'parent': "left_track_top_origin",
+            'xform': {
+                'value': [-LONG_TRACK_LWHT[0]/2, 0, 0, 0, 0, 0],
+            }
+        },
+        {
+            'name': "left_track_middle_top",
+            'type': "Track",
+            'args': {
+                'extents': SHORT_TRACK_LWHT,
+            },
+            'xform': {
+                'value': [-.3*F, 0, -.1*F, 0, 0, 10],
+            }
+        },
+        {
+            'name': "left_track_middle_bottom",
+            'type': "Track",
+            'args': {
+                'extents': SHORT_TRACK_LWHT,
+            },
+            'xform': {
+                'value': [-.25*F, 0, -.15*F, 0, 0, -10],
+            }
+        },
+        {
+            'name': "left_track_bottom",
+            'type': "Track",
+            'args': {
+                'extents': LONG_TRACK_LWHT,
+            },
+            'xform': {
+                'value': [-.25*F, 0, -.20*F, 0, 0, 10],
             }
         },
     ],
