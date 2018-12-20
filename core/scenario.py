@@ -179,7 +179,7 @@ class Scene:
         name2nopa = {}
         # First pass: create and add simple objects.
         for name, prim in prim_graph.nodes(data='prim'):
-            if 'components' not in prim_graph[name]:
+            if 'components' not in prim_graph.node[name]:
                 nopa = prim.create(self.geom, self.phys, graph, world)
                 nopa.set_pos_hpr(*xforms[name])
                 name2nopa[name] = nopa
