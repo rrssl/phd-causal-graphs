@@ -129,7 +129,7 @@ class Scene:
         constraint = 0
         # Get pulleys' constraint
         for pulley_cb in world._callbacks:
-            constraint += min(0, pulley_cb.__self__._get_loose_rope_length())
+            constraint += min(0, pulley_cb.loose_rope)
         # Check unwanted collisions.
         bodies = world.get_rigid_bodies()
         # Enable collisions for static objects

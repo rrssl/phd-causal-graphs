@@ -155,8 +155,12 @@ class Empty(PrimitiveBase):
         if phys:
             body = bt.BulletRigidBodyNode(name)
             self._set_properties(body)
-        path = NodePath(body) if phys else NodePath(name)
-        self._attach(path, parent, bodies=[body], world=world)
+            bodies = [body]
+            path = NodePath(body)
+        else:
+            bodies = []
+            path = NodePath(name)
+        self._attach(path, parent, bodies=bodies, world=world)
         return path
 
     @staticmethod
@@ -194,8 +198,11 @@ class Plane(PrimitiveBase):
             # shape = bt.BulletBoxShape((1, 1, .1))
             # body.add_shape(shape, TransformState.make_pos(Point3(0, 0, -.1)))
             body.add_shape(shape)
-        # Scene graph
-        path = NodePath(body) if phys else NodePath(name)
+            bodies = [body]
+            path = NodePath(body)
+        else:
+            bodies = []
+            path = NodePath(name)
         # Geometry
         if geom is not None:
             path.attach_new_node(self.make_geom(
@@ -203,7 +210,7 @@ class Plane(PrimitiveBase):
                 self.normal,
                 self.distance
             ))
-        self._attach(path, parent, bodies=[body], world=world)
+        self._attach(path, parent, bodies=bodies, world=world)
         return path
 
     @staticmethod
@@ -257,8 +264,11 @@ class Ball(PrimitiveBase):
             self._set_properties(body)
             shape = bt.BulletSphereShape(self.radius)
             body.add_shape(shape)
-        # Scene graph
-        path = NodePath(body) if phys else NodePath(name)
+            bodies = [body]
+            path = NodePath(body)
+        else:
+            bodies = []
+            path = NodePath(name)
         # Geometry
         if geom is not None:
             n_seg = 2**5 if geom == 'HD' else 2**4
@@ -267,7 +277,7 @@ class Ball(PrimitiveBase):
                     self.name + "_geom", self.radius, n_seg
                 )
             )
-        self._attach(path, parent, bodies=[body], world=world)
+        self._attach(path, parent, bodies=bodies, world=world)
         return path
 
     @staticmethod
@@ -304,13 +314,16 @@ class Box(PrimitiveBase):
             shape = bt.BulletBoxShape(Vec3(*self.extents) / 2)
             #  shape.set_margin(.0001)
             body.add_shape(shape)
-        # Scene graph
-        path = NodePath(body) if phys else NodePath(name)
+            bodies = [body]
+            path = NodePath(body)
+        else:
+            bodies = []
+            path = NodePath(name)
         # Geometry
         if geom is not None:
             path.attach_new_node(
                 self.make_geom(self.name + "_geom", self.extents))
-        self._attach(path, parent, bodies=[body], world=world)
+        self._attach(path, parent, bodies=bodies, world=world)
         return path
 
     @staticmethod
@@ -355,8 +368,11 @@ class Cylinder(PrimitiveBase):
             else:
                 body.add_shape(shape,
                                TransformState.make_pos(Point3(0, 0, h/2)))
-        # Scene graph
-        path = NodePath(body) if phys else NodePath(name)
+            bodies = [body]
+            path = NodePath(body)
+        else:
+            bodies = []
+            path = NodePath(name)
         # Geometry
         if geom is not None:
             n_seg = 2**5 if geom == 'HD' else 2**4
@@ -365,7 +381,7 @@ class Cylinder(PrimitiveBase):
                     self.name + "_geom", self.extents, self.center, n_seg
                 )
             )
-        self._attach(path, parent, bodies=[body], world=world)
+        self._attach(path, parent, bodies=bodies, world=world)
         return path
 
     @staticmethod
@@ -403,15 +419,18 @@ class Capsule(PrimitiveBase):
             r, h = self.extents
             shape = bt.BulletCapsuleShape(r, h)
             body.add_shape(shape)
-        # Scene graph
-        path = NodePath(body) if phys else NodePath(name)
+            bodies = [body]
+            path = NodePath(body)
+        else:
+            bodies = []
+            path = NodePath(name)
         # Geometry
         if geom is not None:
             n_seg = 2**5 if geom == 'HD' else 2**4
             path.attach_new_node(
                 self.make_geom(self.name + "_geom", self.extents, n_seg)
             )
-        self._attach(path, parent, bodies=[body], world=world)
+        self._attach(path, parent, bodies=bodies, world=world)
         return path
 
     @staticmethod
@@ -600,15 +619,18 @@ class Goblet(PrimitiveBase):
                 pos = Point3(cr * math.cos(ai), cr * math.sin(ai), cz)
                 hpr = Vec3(math.degrees(ai), 0, math.degrees(alpha))
                 body.add_shape(side, TransformState.make_pos_hpr(pos, hpr))
-        # Scene graph
-        path = NodePath(body) if phys else NodePath(name)
+            bodies = [body]
+            path = NodePath(body)
+        else:
+            bodies = []
+            path = NodePath(name)
         # Geometry
         if geom is not None:
             n_seg = 2**5 if geom == 'HD' else 2**4
             path.attach_new_node(
                 self.make_geom(self.name+"_geom", self.extents, eps, n_seg)
             )
-        self._attach(path, parent, bodies=[body], world=world)
+        self._attach(path, parent, bodies=bodies, world=world)
         return path
 
     @staticmethod
@@ -651,11 +673,12 @@ class DominoRun(PrimitiveBase):
 
     def create(self, geom, phys, parent=None, world=None):
         # Physics
+        bodies = []
         if phys:
             shape = bt.BulletBoxShape(Vec3(*self.extents) / 2)
-            bodies = []
-        # Scene graph
-        path = (BulletRootNodePath(self.name) if phys else NodePath(self.name))
+            path = BulletRootNodePath(self.name)
+        else:
+            path = NodePath(self.name)
         # Geometry
         if geom is not None:
             geom_path = NodePath(
@@ -941,10 +964,10 @@ class RopePulley(PrimitiveBase):
             cb = _RopePulleyCallback(components, (hook1, hook2), cs1+cs2,
                                      self.rope_length, self.pulleys, geom)
             self._attach(physics_callback=cb, world=world)
-        if geom == 'LD':
-            cb._update_visual_rope()
-        elif geom == 'HD':
-            cb._update_visual_rope_hd()
+            if geom == 'LD':
+                cb._update_visual_rope()
+            elif geom == 'HD':
+                cb._update_visual_rope_hd()
 
     def _attach_pulley(self, component, comp_coords, pulley_coords,
                        parent, phys, world):
@@ -993,7 +1016,9 @@ class RopePulley(PrimitiveBase):
                 Point3(0), comp_coords
             )
             self._attach(constraints=(cs1, cs2, cs3), world=world)
-        return object_hook, (cs1, cs2, cs3)
+            return object_hook, (cs1, cs2, cs3)
+        else:
+            return object_hook, ()
 
     def create(self, geom, phys, parent=None, world=None, components=None):
         # Scene graph
@@ -1363,13 +1388,16 @@ class Track(PrimitiveBase):
                            TransformState.make_pos(Point3(0, (t-w)/2, 0)))
             body.add_shape(side,
                            TransformState.make_pos(Point3(0, (w-t)/2, 0)))
-        # Scene graph
-        path = NodePath(body) if phys else NodePath(name)
+            bodies = [body]
+            path = NodePath(body)
+        else:
+            bodies = []
+            path = NodePath(name)
         # Geometry
         if geom is not None:
             path.attach_new_node(
                 self.make_geom(self.name + "_geom", self.extents))
-        self._attach(path, parent, bodies=[body], world=world)
+        self._attach(path, parent, bodies=bodies, world=world)
         return path
 
     @staticmethod
