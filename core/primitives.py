@@ -38,8 +38,7 @@ class World(bt.BulletWorld):
         # at once.
         self._callbacks = CallbackSequence()
         self.set_tick_callback(
-            PythonCallbackObject(self._callbacks),
-            is_pretick=True
+            PythonCallbackObject(self._callbacks), is_pretick=True
         )
 
     def set_gravity(self, gravity):
@@ -725,6 +724,10 @@ class _RopePulleyCallback:
             (c2 - c1).length() for c2, c1 in zip(pulleys[1:], pulleys[:-1])
         )
         self.max_dist = self.rope_length - self.dist_pulleys
+        # Useful variables.
+        self._in_tension = False
+        self._old_xform = self.hook1.node().get_transform()
+        self._dt = 0.
         # Visual
         self.geom = geom
         if self.geom is not None:
@@ -733,72 +736,41 @@ class _RopePulleyCallback:
             self._prev_vertices = [Point3(0)] * self.n_vertices
             self._visual_rope = None
 
-    def __call__(self, callback_data):
+    def __call__(self, callback_data: bt.BulletTickCallbackData):
+        dt = self._compute_dt(callback_data)
+        if not dt:
+            return
         slider1 = self.slider1_cs
         slider2 = self.slider2_cs
         loose_rope = self.loose_rope
         max_dist = self.max_dist
-        dt = callback_data.get_timestep()
-        # # If in tension now
-        # if loose_rope <= 0:
-        #     self._in_tension = True
-        #     if self._phase <= 1:
-        #         # Compute velocity change.
-        #         v1 = self.hook1.node().get_linear_velocity()
-        #         v1 = v1.dot(self.vec1.normalized())
-        #         J1 = self.hook1_cs.get_applied_impulse()
-        #         if J1:
-        #             m1 = abs(J1 / (v1 - self._v1))
-        #         self._v1 = v1
-        #         v2 = self.hook2.node().get_linear_velocity()
-        #         v2 = v2.dot(self.vec2.normalized())
-        #         J2 = self.hook2_cs.get_applied_impulse()
-        #         if J2:
-        #             m2 = abs(J2 / (v2 - self._v2))
-        #         self._v2 = v2
-        #     if self._phase == 1:
-        #         # Compute new length
-        #         delta = (J1 - J2) / (m1 + m2)
-        #         print(delta)
-        #         new_dist1 = slider1.get_upper_linear_limit() + delta
-        #         new_dist2 = slider2.get_upper_linear_limit() - delta
-        #         # Clamp values between hard limits.
-        #         if new_dist1 < 0 or new_dist2 > max_dist:
-        #             new_dist1 = 0
-        #             new_dist2 = max_dist
-        #         if new_dist2 < 0 or new_dist1 > max_dist:
-        #             new_dist2 = 0
-        #             new_dist1 = max_dist
-        #     self._phase = int(not self._phase)
-        #     # If in tension before
-        #     if self._in_tension:
-        #         # mass1 = self.comp1.node().get_mass()
-        #         # mass2 = self.comp2.node().get_mass()
-        #         # vel1 = self.comp1.node().get_linear_velocity()[2]
-        #         # vel2 = self.comp2.node().get_linear_velocity()[2]
-        #         # delta = (mass1*vel1 - mass2*vel2) / (mass1 + mass2)
-        #         # weight = self._get_weight_force()
-        #         # delta = step * weight
-        #         M = abs(J1/self._dv1) + abs(J2/self._dv2)
-        #         delta = (J1 - J2) / M
-        #         new_dist1 = slider1.get_upper_linear_limit() + delta
-        #         new_dist2 = slider2.get_upper_linear_limit() - delta
-        #         # Clamp values between hard limits.
-        #         if new_dist1 < 0 or new_dist2 > max_dist:
-        #             new_dist1 = 0
-        #             new_dist2 = max_dist
-        #         if new_dist2 < 0 or new_dist1 > max_dist:
-        #             new_dist2 = 0
-        #             new_dist1 = max_dist
-        g = 9.81
-        J1 = self.hook1_cs.get_applied_impulse()
-        J2 = self.hook2_cs.get_applied_impulse()
-        m1 = self.comp1.node().get_mass()
-        new_dist1 = self.dist1 + J1 + J2
-        m2 = self.comp2.node().get_mass()
-        new_dist2 = self.dist2 + J1 - J2
-        slider1.set_upper_linear_limit(new_dist1)
-        slider2.set_upper_linear_limit(new_dist2)
+        # If in tension now
+        if loose_rope <= 0:
+            # If in tension before
+            if self._in_tension:
+                weight = self._get_weight_force()
+                delta = dt**2 * weight
+                new_dist1 = slider1.get_upper_linear_limit() + delta
+                new_dist2 = slider2.get_upper_linear_limit() - delta
+                # Clamp values between hard limits.
+                if new_dist1 < 0 or new_dist2 > max_dist:
+                    new_dist1 = 0
+                    new_dist2 = max_dist
+                if new_dist2 < 0 or new_dist1 > max_dist:
+                    new_dist2 = 0
+                    new_dist1 = max_dist
+            else:
+                self._in_tension = True
+                new_dist1 = self.dist1 + loose_rope/2
+                new_dist2 = self.dist2 + loose_rope/2
+            slider1.set_upper_linear_limit(new_dist1)
+            slider2.set_upper_linear_limit(new_dist2)
+        # If in tension before but not anymore
+        elif self._in_tension:
+            self._in_tension = False
+            slider1.set_upper_linear_limit(self.max_dist)
+            slider2.set_upper_linear_limit(self.max_dist)
+        # If not in tension now or before, don't do anything.
         if self.geom == 'LD':
             self._update_visual_rope()
         elif self.geom == 'HD':
@@ -806,6 +778,20 @@ class _RopePulleyCallback:
 
     def check_physically_valid(self):
         return self.loose_rope >= 0
+
+    def _compute_dt(self, callback_data: bt.BulletTickCallbackData):
+        # Check that objects' transforms have been updated.
+        xform = self.hook1.node().get_transform()
+        new = self._old_xform != xform
+        self._old_xform = xform
+        # Update dt
+        dt = self._dt + callback_data.get_timestep()
+        if not new:
+            self._dt = dt
+            return 0.
+        else:
+            self._dt = 0.
+            return dt
 
     @property
     def dist1(self):
@@ -817,7 +803,7 @@ class _RopePulleyCallback:
 
     @property
     def loose_rope(self):
-        return self.rope_length - self.dist_pulleys - self.dist1 - self.dist2
+        return self.max_dist - self.dist1 - self.dist2
 
     @property
     def vec1(self):
