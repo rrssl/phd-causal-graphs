@@ -8,6 +8,15 @@ from sklearn.svm import SVC
 import core.config as cfg
 
 
+class MultivariateNormal:
+    def __init__(self, mean, cov):
+        self.mean = mean
+        self.cov = cov
+
+    def sample(self, n):
+        return np.random.multivariate_normal(self.mean, self.cov, n)
+
+
 class MultivariateUniform:
     def __init__(self, ndims, a=0., b=1.):
         self.ndims = ndims
