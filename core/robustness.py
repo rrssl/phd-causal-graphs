@@ -348,6 +348,7 @@ def train_and_consolidate_boundary(scenario, init_samples, init_labels,
 
 
 def _get_support_distrib(X, y, estimator, dims=None):
+    X = np.asarray(X)
     # Retrieve the support vectors.
     support = estimator.named_steps['svc'].support_
     # Compute weights.
