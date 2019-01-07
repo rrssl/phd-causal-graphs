@@ -218,11 +218,11 @@ def train_svc(samples, labels, probability=False, dims=None,
         return grid.best_estimator_
 
 
-def train_and_resample(scenario, init_samples, init_labels, distrib_func,
-                       accuracy=.9, n_k=10, k_max=10, dims=None, event=None,
-                       step_data=None, **simu_kw):
+def learn_active(scenario, init_samples, init_labels, sampler, accuracy=.9,
+                 n_k=10, k_max=10, dims=None, event=None, step_data=None,
+                 **simu_kw):
     """
-    Train the SVC and add more samples until accuracy is reached.
+    Run the active learning routine.
 
     Returns
     -------
@@ -299,7 +299,7 @@ def train_and_add_uniform_samples(scenario, init_samples, init_labels,
       Trained estimator.
 
     """
-    return train_and_resample(
+    return learn_active(
         scenario, init_samples, init_labels, _get_uniform_distrib,
         accuracy, n_k, k_max, dims, event,
         step_data, **simu_kw
@@ -340,7 +340,7 @@ def train_and_consolidate_boundary(scenario, init_samples, init_labels,
       Trained estimator.
 
     """
-    return train_and_resample(
+    return learn_active(
         scenario, init_samples, init_labels, _get_misclassified_distrib,
         accuracy, n_k, k_max, dims, event,
         step_data, **simu_kw
@@ -379,7 +379,7 @@ def train_and_consolidate_boundary2(scenario, init_samples, init_labels,
       Trained estimator.
 
     """
-    return train_and_resample(
+    return learn_active(
         scenario, init_samples, init_labels, _get_support_distrib,
         accuracy, n_k, k_max, dims, event,
         step_data, **simu_kw
