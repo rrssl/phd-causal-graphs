@@ -179,18 +179,17 @@ def find_successful_samples_adaptive(scenario, n_succ=20, n_0=100, n_k=10,
         return samples, labels
 
 
-def train_svc(samples, values, probability=False, dims=None, ret_score=False,
-              verbose=True):
-    samples = np.asarray(samples)
+def train_svc(samples, labels, probability=False, dims=None,
+              ret_xval_score=False, random_state=None, verbose=True):
     if verbose:
-        print("Number of samples:", samples.shape[0])
+        print("Number of samples:", len(samples))
         print("Number of features:",
-              len(dims) if dims is not None else samples.shape[1])
+              len(dims) if dims is not None else len(samples[0]))
     # Create pipeline.
     steps = [
         StandardScaler(),
-        SVC(kernel='rbf', probability=probability,
-            random_state=len(samples), cache_size=512),
+        SVC(kernel='rbf', probability=probability, random_state=random_state,
+            cache_size=512),
     ]
     if dims is not None:
         selector = FunctionTransformer(np.take, validate=True,
@@ -206,14 +205,14 @@ def train_svc(samples, values, probability=False, dims=None, ret_score=False,
         'svc__C': C_range,
         'svc__class_weight': class_weight_options
     }
-    grid = GridSearchCV(pipeline, param_grid=param_grid, cv=5,
+    grid = GridSearchCV(pipeline, param_grid=param_grid, cv=3,
                         n_jobs=cfg.NCORES, iid=False)
     # Run cross-validation.
-    grid.fit(samples, values)
+    grid.fit(samples, labels)
     if verbose:
         print("The best parameters are {}".format(grid.best_params_))
         print("Score on the training set: {}".format(grid.best_score_))
-    if ret_score:
+    if ret_xval_score:
         return grid.best_estimator_, grid.best_score_
     else:
         return grid.best_estimator_
