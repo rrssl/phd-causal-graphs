@@ -230,48 +230,50 @@ def learn_active(scenario, init_samples, init_labels, sampler, accuracy=.9,
       Trained estimator.
 
     """
-    # Initialization
-    valid = [i for i, l in enumerate(init_labels) if l is not None]
-    samples = [init_samples[i] for i in valid]
-    labels = [init_labels[i] for i in valid]
-    # Main loop
-    print("Running the train-and-resample loop")
+    msg = "Running the active learning routine"
     if event is not None:
-        print("Event:", event)
+        msg += " for event {}".format(event)
     if dims is not None:
-        print("Dimensions:", dims)
+        msg += " with features {}".format(dims)
+    print(msg)
+    # Initialization: make sure that all initial samples are valid.
+    valid = [i for i, l in enumerate(init_labels) if l is not None]
+    X = [init_samples[i] for i in valid]
+    y = [init_labels[i] for i in valid]
+    # Main loop
     k = 0
     while k < k_max:
         k += 1
         # Train the SVC.
         print("Training the estimator")
-        X = np.asarray(samples)
-        y = np.asarray(labels)
-        estimator, score = train_svc(X, y, dims=dims, ret_score=True)
+        estimator, score = train_svc(X, y, dims=dims, ret_xval_score=True)
         if step_data is not None:
-            step_data.append((X, y, estimator, score))
+            step_data.append((np.copy(X), np.copy(y), estimator, score))
+        # Termination condition.
         if score >= accuracy:
             break
-        # Generate the new samples.
+        # Query synthesis: determine new samples.
         print("Generating new samples")
-        D = distrib_func(X, y, estimator, dims)
+        D = sampler(X, y, estimator, dims)
         if D is None:
             break
-        samples_k = find_physically_valid_samples(scenario, D, n_k, 100*n_k)
+        cand = find_physically_valid_samples(scenario, D, 10*n_k, 1000*n_k)
+        cand = np.asarray(cand)
+        margin = np.abs(estimator.decision_function(cand))
+        X_k = cand[np.argpartition(margin, n_k)[:n_k]]  # n_k smallest margins
+        # Query the new samples and add them to the training set.
         if event is None:
-            samples.extend(samples_k)
-            labels.extend(compute_label(scenario, s, **simu_kw)
-                          for s in samples_k)
+            X.extend(X_k)
+            y.extend(compute_label(scenario, x, **simu_kw) for x in X_k)
         else:
-            labels_k = [compute_label(scenario, s, True, **simu_kw)[1][event]
-                        for s in samples_k]
-            valid = [i for i, l in enumerate(labels_k) if l is not None]
-            samples.extend(samples_k[i] for i in valid)
-            labels.extend(labels_k[i] for i in valid)
+            y_k = [compute_label(scenario, x, True, **simu_kw)[1][event]
+                   for x in X_k]
+            valid = [i for i, l in enumerate(y_k) if l is not None]
+            X.extend(X_k[i] for i in valid)
+            y.extend(y_k[i] for i in valid)
     # Calibrate
     print("Calibrating the classifier")
-    estimator = train_svc(samples, labels, probability=True, dims=dims,
-                          verbose=False)
+    estimator = train_svc(X, y, probability=True, dims=dims, verbose=False)
     return estimator
 
 
