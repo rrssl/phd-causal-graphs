@@ -115,7 +115,7 @@ def find_successful_samples_uniform(scenario, n_succ=20, n_0=100, n_k=10,
 def find_successful_samples_adaptive(scenario, n_succ=20, n_0=100, n_k=10,
                                      k_max=100, sigma=.01,
                                      ret_events_labels=False, totals=None,
-                                     **simu_kw):
+                                     verbose=True, **simu_kw):
     """Sample the design space until enough successful samples are found.
 
     Returns
@@ -145,7 +145,8 @@ def find_successful_samples_adaptive(scenario, n_succ=20, n_0=100, n_k=10,
     k = 0
     while k < k_max:
         total = sum(labels)
-        print("Number of successful samples at step {}: {}".format(k, total))
+        if verbose:
+            print("Number of successes at step {}: {}".format(k, total))
         if totals is not None:
             totals.append(total)
         if total >= n_succ:
