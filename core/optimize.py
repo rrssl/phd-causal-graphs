@@ -17,14 +17,25 @@ class RobustnessEnergy:
         return -r.dot(exp) / exp.sum()
 
 
+class CombinedEnergy:
+    def __init__(self, estimators, scenario, smin_coeff=1, **simu_kw):
+        self.robustness = RobustnessEnergy(estimators, smin_coeff)
+        self.phys_cs = PhysicalValidityConstraint(scenario)
+        self.succ_cs = SuccessConstraint(scenario, **simu_kw)
+
+    def __call__(self, x):
+        return self.robustness(x) - 100. * (self.phys_cs(x) + self.succ_cs(x))
+
+
 class PhysicalValidityConstraint:
     def __init__(self, scenario):
         self.scenario = scenario
 
     def __call__(self, x):
-        return self.scenario.instantiate_from_sample(
+        C = self.scenario.instantiate_from_sample(
             x, geom=None, phys=True, verbose_causal_graph=False
         ).scene.get_physical_validity_constraint()
+        return min(C, 0.)
 
 
 class SuccessConstraint:
@@ -52,4 +63,13 @@ def maximize_robustness(scenario, estimators, x0, smin_coeff=1, **simu_kw):
     res = opt.minimize(energy, x0, method='SLSQP',
                        bounds=bounds, constraints=(phys_cs, succ_cs),
                        options=dict(disp=True))
+    return res
+
+
+def maximize_robustness2(scenario, estimators, init, smin_coeff=1, **simu_kw):
+    energy = CombinedEnergy(estimators, scenario, smin_coeff, **simu_kw)
+    ndims = len(scenario.design_space)
+    bounds = [(0, 1)] * ndims
+    res = opt.differential_evolution(energy, bounds, init=init, maxiter=10,
+                                     disp=True, polish=False)
     return res
