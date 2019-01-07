@@ -1,6 +1,9 @@
 import numpy as np
 import scipy.optimize as opt
 
+from core.config import NCORES
+from core.robustness import compute_label
+
 
 class RobustnessEnergy:
     def __init__(self, estimators, smin_coeff=1):
@@ -24,12 +27,29 @@ class PhysicalValidityConstraint:
         ).scene.get_physical_validity_constraint()
 
 
-def maximize_robustness(scenario, estimators, x0, smin_coeff=1):
+class SuccessConstraint:
+    def __init__(self, scenario, **simu_kw):
+        self.scenario = scenario
+        self.simu_kw = simu_kw
+
+    def __call__(self, x):
+        if self.scenario.check_physically_valid_sample(x):
+            # _, labels = compute_label(
+            #     self.scenario, x, ret_events_labels=True, **self.simu_kw
+            # )
+            # return sum(filter(None, labels.values())) / len(labels) - 1.
+            return compute_label(self.scenario, x, **self.simu_kw) - 1.
+        else:
+            return 0.
+
+
+def maximize_robustness(scenario, estimators, x0, smin_coeff=1, **simu_kw):
     energy = RobustnessEnergy(estimators, smin_coeff)
-    constraint = dict(type='ineq', fun=PhysicalValidityConstraint(scenario))
+    phys_cs = dict(type='ineq', fun=PhysicalValidityConstraint(scenario))
+    succ_cs = dict(type='ineq', fun=SuccessConstraint(scenario, **simu_kw))
     ndims = len(scenario.design_space)
-    bounds = [[0, 1]] * ndims
+    bounds = [(0, 1)] * ndims
     res = opt.minimize(energy, x0, method='SLSQP',
-                       bounds=bounds, constraints=constraint,
+                       bounds=bounds, constraints=(phys_cs, succ_cs),
                        options=dict(disp=True))
     return res
