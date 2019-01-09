@@ -466,6 +466,8 @@ class Pivot(PrimitiveBase):
 
     def __init__(self, name, pivot_pos, pivot_hpr, pivot_extents=None):
         super().__init__(name)
+        pivot_pos = Point3(*pivot_pos)
+        pivot_hpr = Vec3(*pivot_hpr)
         self.pivot_xform = TransformState.make_pos_hpr(pivot_pos, pivot_hpr)
         self.pivot_extents = pivot_extents
 
