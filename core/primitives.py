@@ -934,10 +934,11 @@ class _RopePulleyCallback:
         # Update rope
         rope = self._visual_rope
         if rope is None:
-            rope = NodePath("rope")
+            base_name = self.comp1.get_name() + "_rope"
+            rope = NodePath(base_name)
             thickness = self.thickness
             for i in range(1, len(vertices)):
-                name = "seg" + str(i)
+                name = base_name + "_seg" + str(i)
                 geom = Cylinder.make_geom(name, (thickness, 1), 4, False)
                 geom.set_tag('anim_id', '')
                 geom.set_tag('save_scale', '')
