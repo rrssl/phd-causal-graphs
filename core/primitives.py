@@ -11,7 +11,7 @@ import scipy.interpolate as ip
 import scipy.optimize as opt
 import solid as sl
 import solid.utils as slu
-from panda3d.core import (GeomNode, LineSegs, NodePath, Point3,
+from panda3d.core import (GeomNode, LineSegs, Quat, NodePath, Point3,
                           PythonCallbackObject, TransformState, Vec3)
 
 from core.dominoes import tilt_domino_forward
@@ -954,6 +954,14 @@ class _RopePulleyCallback:
             seg.set_hpr(seg, Vec3(90, 0, 90))
 
 
+def get_xform_between_vectors(u, v):
+    cross = u.cross(v)
+    dot = u.dot(v)
+    theta = math.atan2(cross.length(), dot)
+    q = Quat(math.cos(theta/2), cross.normalized() * math.sin(theta/2))
+    return TransformState.make_quat(q)
+
+
 class RopePulley(PrimitiveBase):
     """Create a rope-pulley system connecting two primitives.
 
@@ -1013,45 +1021,40 @@ class RopePulley(PrimitiveBase):
         object_hook_coords = component.get_transform(
         ).get_mat().xform_point(comp_coords)
         # Each pulley connection is a combination of three constraints: One
-        # point-to-point at the pulley, another at the component, and a slider
-        # between them.
-        # Pulley base (static)
-        pulley_base = Empty(name + "_pulley-base").create(None, phys,
-                                                          parent, world)
-        pulley_base.set_pos(pulley_coords)
+        # pivot at the pulley, another at the component, and a slider between
+        # them.
         # Pulley hook (can rotate on the base)
         pulley_hook = Ball(  # using Ball instead of Empty stabilizes it
             name + "_pulley-hook", self.pulley_extents[0], mass=self.hook_mass
         ).create(None, phys, parent, world)
         pulley_hook.set_pos(pulley_coords)
-        pulley_hook.look_at(object_hook_coords)  # Y looks at
-        pulley_hook.set_hpr(pulley_hook, Vec3(90, 0, 0))  # now X
         # Object hook (can rotate on the object)
-        object_hook = Ball(
-            name + "_object-hook", self.pulley_extents[0], mass=self.hook_mass
+        object_hook = Empty(
+            name + "_object-hook", mass=self.hook_mass
         ).create(None, phys, parent, world)
         object_hook.set_pos(object_hook_coords)
-        object_hook.look_at(pulley_hook.get_pos())  # Y looks at
-        object_hook.set_hpr(object_hook, Vec3(-90, 0, 0))  # now -X
         # Physics
         if phys:
             component.node().set_deactivation_enabled(False)
             pulley_hook.node().set_deactivation_enabled(False)
             object_hook.node().set_deactivation_enabled(False)
+            pulley_hpr = self._get_pulley_hpr() / 90
             # Constraints
-            cs1 = bt.BulletSphericalConstraint(
-                pulley_base.node(), pulley_hook.node(), Point3(0), Point3(0)
+            cs1 = bt.BulletHingeConstraint(
+                pulley_hook.node(), Point3(0), pulley_hpr
             )
-            cs2 = bt.BulletSliderConstraint(  # along the X-axis by default
-                pulley_hook.node(), object_hook.node(),
-                TransformState.make_pos(0), TransformState.make_pos(0), True
+            axis = object_hook.get_pos() - pulley_hook.get_pos()
+            x = Vec3.unit_x()  # slider axis is along the X-axis by default
+            xform = get_xform_between_vectors(x, axis)
+            cs2 = bt.BulletSliderConstraint(
+                pulley_hook.node(), object_hook.node(), xform, xform, True
             )
             cs2.set_lower_linear_limit(0)
             cs2.set_upper_linear_limit(self.max_dist)
             cs2.set_max_linear_motor_force(self.max_slider_force)
-            cs3 = bt.BulletSphericalConstraint(
+            cs3 = bt.BulletHingeConstraint(
                 object_hook.node(), component.node(),
-                Point3(0), comp_coords
+                Point3(0), comp_coords, pulley_hpr, pulley_hpr, True
             )
             self._attach(constraints=(cs1, cs2, cs3), world=world)
             return object_hook, (cs1, cs2, cs3)
