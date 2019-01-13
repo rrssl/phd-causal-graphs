@@ -52,7 +52,7 @@ def main():
         scene_path = os.path.join(dir_, "scene")
         scene.export_scene_to_egg(scene_path)
         # Run the instance.
-        instance = load_scenario_instance(scenario_data, geom=None, phys=True)
+        instance = load_scenario_instance(scenario_data, geom='HD', phys=True)
         obs = StateObserver(instance.scene)
         print("Physically valid: ", instance.scene.check_physically_valid())
         instance.simulate(duration=DURATION, timestep=1/FPS, callbacks=[obs])

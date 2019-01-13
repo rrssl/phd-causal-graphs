@@ -137,7 +137,7 @@ def main():
         scene_path = os.path.join(dir_, "scene")
         instance.scene.export_scene_to_egg(scene_path)
         instance = scenario.instantiate_from_sample(
-            x_best, geom=None, phys=True
+            x_best, geom='HD', phys=True
         )
         obs = StateObserver(instance.scene)
         simu_path = os.path.join(dir_, "simu.pkl")
