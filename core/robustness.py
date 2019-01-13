@@ -1,4 +1,5 @@
 import numpy as np
+import sobol_seq
 from joblib import delayed, Parallel
 from sklearn.feature_selection import mutual_info_classif
 from sklearn.model_selection import GridSearchCV
@@ -8,15 +9,6 @@ from sklearn.svm import SVC
 from tqdm import tqdm
 
 import core.config as cfg
-
-
-class MultivariateNormal:
-    def __init__(self, mean, cov):
-        self.mean = mean
-        self.cov = cov
-
-    def sample(self, n):
-        return np.random.multivariate_normal(self.mean, self.cov, n)
 
 
 class MultivariateUniform:
@@ -30,16 +22,30 @@ class MultivariateUniform:
 
 
 class MultivariateMixtureOfGaussians:
-    def __init__(self, mixture_params, weights=None):
+    def __init__(self, mixture_params, weights=None, a=0., b=1.):
         self.mixture_params = mixture_params
         self.weights = weights
+        self.a = a
+        self.b = b
 
     def sample(self, n):
         mps = self.mixture_params
         choice = np.random.choice(len(mps), size=n, replace=True,
                                   p=self.weights)
         normal = np.random.multivariate_normal
-        return np.array([normal(mps[i][0], mps[i][1]) for i in choice])
+        X = np.array([normal(mps[i][0], mps[i][1]) for i in choice])
+        return np.clip(X, self.a, self.b)
+
+
+class SobolSequence:
+    def __init__(self, ndims, a=0., b=1.):
+        self.ndims = ndims
+        self.a = a
+        self.b = b
+
+    def sample(self, n):
+        X = sobol_seq.i4_sobol_generate(self.ndims, n)
+        return (self.b - self.a) * X + self.a
 
 
 def find_physically_valid_samples(scenario, distribution, n_valid, max_trials):
