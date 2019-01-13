@@ -69,14 +69,13 @@ class SuccessConstraint:
             return 0.
 
 
-def maximize_robustness(scenario, estimators, x0, smin_coeff=1, **simu_kw):
+def maximize_robustness_local(scenario, estimators, x0, smin_coeff=1):
     energy = RobustnessEnergy(estimators, smin_coeff)
     phys_cs = dict(type='ineq', fun=PhysicalValidityConstraint(scenario))
-    succ_cs = dict(type='ineq', fun=SuccessConstraint(scenario, **simu_kw))
     ndims = len(scenario.design_space)
     bounds = [(0, 1)] * ndims
     res = opt.minimize(energy, x0, method='SLSQP',
-                       bounds=bounds, constraints=(phys_cs, succ_cs),
+                       bounds=bounds, constraints=(phys_cs,),
                        options=dict(disp=True))
     return res
 
@@ -94,6 +93,7 @@ def maximize_robustness(scenario, estimators, x0, smin_coeff=1, **simu_kw):
 def maximize_robustness_global(scenario, estimators, x0, smin_coeff=1,
                                fevals=np.inf, **simu_kw):
     energy = CombinedEnergy(estimators, scenario, smin_coeff, **simu_kw)
+    # energy = RobustnessEnergy(estimators, smin_coeff)
     phys_cs = PhysicalValidityConstraintBoolean(scenario)
     options = {'bounds': [0, 1], 'is_feasible': phys_cs, 'maxfevals': fevals}
     sigma0 = .25
