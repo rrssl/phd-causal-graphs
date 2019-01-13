@@ -1,7 +1,8 @@
+import cma
 import numpy as np
 import scipy.optimize as opt
 
-from core.config import NCORES
+# from core.config import NCORES
 from core.robustness import compute_label
 
 
@@ -24,7 +25,13 @@ class CombinedEnergy:
         self.succ_cs = SuccessConstraint(scenario, **simu_kw)
 
     def __call__(self, x):
-        return self.robustness(x) - 100. * (self.phys_cs(x) + self.succ_cs(x))
+        phys = self.phys_cs(x)
+        if phys < 0:
+            return 100 * -phys
+        elif self.succ_cs(x) < 0:
+            return 100
+        else:
+            return self.robustness(x)
 
 
 class PhysicalValidityConstraint:
@@ -36,6 +43,14 @@ class PhysicalValidityConstraint:
             x, geom=None, phys=True, verbose_causal_graph=False
         ).scene.get_physical_validity_constraint()
         return min(C, 0.)
+
+
+class PhysicalValidityConstraintBoolean:
+    def __init__(self, scenario):
+        self.scenario = scenario
+
+    def __call__(self, x, *args, **kwargs):
+        return self.scenario.check_physically_valid_sample(x)
 
 
 class SuccessConstraint:
@@ -66,10 +81,21 @@ def maximize_robustness(scenario, estimators, x0, smin_coeff=1, **simu_kw):
     return res
 
 
-def maximize_robustness2(scenario, estimators, init, smin_coeff=1, **simu_kw):
+# def maximize_robustness_global(scenario, estimators, init, smin_coeff=1,
+#                                **simu_kw):
+#     energy = CombinedEnergy(estimators, scenario, smin_coeff, **simu_kw)
+#     ndims = len(scenario.design_space)
+#     bounds = [(0, 1)] * ndims
+#     res = opt.differential_evolution(energy, bounds, init=init, maxiter=10,
+#                                      disp=True, polish=False, workers=NCORES)
+#     return res
+
+
+def maximize_robustness_global(scenario, estimators, x0, smin_coeff=1,
+                               fevals=np.inf, **simu_kw):
     energy = CombinedEnergy(estimators, scenario, smin_coeff, **simu_kw)
-    ndims = len(scenario.design_space)
-    bounds = [(0, 1)] * ndims
-    res = opt.differential_evolution(energy, bounds, init=init, maxiter=10,
-                                     disp=True, polish=False)
+    phys_cs = PhysicalValidityConstraintBoolean(scenario)
+    options = {'bounds': [0, 1], 'is_feasible': phys_cs, 'maxfevals': fevals}
+    sigma0 = .25
+    res = cma.fmin(energy, x0, sigma0, options=options)
     return res
