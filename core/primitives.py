@@ -1004,7 +1004,7 @@ class _RopePulleyCallback:
             # If in tension before
             if self._in_tension:
                 weight = self._get_weight_force()
-                delta = dt**2 * weight
+                delta = dt * weight
                 new_dist1 = slider1.get_upper_linear_limit() + delta
                 new_dist2 = slider2.get_upper_linear_limit() - delta
                 # Clamp values between hard limits.
