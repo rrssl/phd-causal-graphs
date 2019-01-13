@@ -1,9 +1,11 @@
 import numpy as np
+from joblib import delayed, Parallel
 from sklearn.feature_selection import mutual_info_classif
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import FunctionTransformer, StandardScaler
 from sklearn.svm import SVC
+from tqdm import tqdm
 
 import core.config as cfg
 
@@ -134,9 +136,13 @@ def find_successful_samples_adaptive(scenario, n_succ=20, n_0=100, n_k=10,
     cov = sigma * np.eye(ndims)
     # Initialization
     samples = find_physically_valid_samples(
-        scenario, MultivariateUniform(ndims), n_0, 100*n_0
+        scenario, SobolSequence(ndims), n_0, 100*n_0
     )
-    res = [compute_label(scenario, s, True, **simu_kw) for s in samples]
+    # res = [compute_label(scenario, s, True, **simu_kw) for s in samples]
+    res = Parallel(n_jobs=cfg.NCORES)(
+        delayed(compute_label)(scenario, s, True, **simu_kw)
+        for s in tqdm(samples)
+    )
     nse = [sum(filter(None, el.values())) for _, el in res]
     labels = [label for label, _ in res]
     if ret_events_labels:
@@ -165,8 +171,12 @@ def find_successful_samples_adaptive(scenario, n_succ=20, n_0=100, n_k=10,
         dist = MultivariateMixtureOfGaussians(mixture_params, weights)
         samples_k = find_physically_valid_samples(scenario, dist, n_k, 100*n_k)
         samples.extend(samples_k)
-        res_k = [compute_label(scenario, s, True, **simu_kw)
-                 for s in samples_k]
+        # res_k = [compute_label(scenario, s, True, **simu_kw)
+        #          for s in samples_k]
+        res_k = Parallel(n_jobs=cfg.NCORES)(
+            delayed(compute_label)(scenario, s, True, **simu_kw)
+            for s in tqdm(samples_k)
+        )
         nse.extend(sum(filter(None, el.values())) for _, el in res_k)
         labels.extend(label for label, _ in res_k)
         if ret_events_labels:
