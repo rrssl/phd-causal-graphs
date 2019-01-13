@@ -21,6 +21,7 @@ FLAT_SUPPORT_LWH = (.02, .025, .005)  # [m]
 GOBLET_HEIGHT = 0.11  # [m]
 GOBLET_R1 = 0.036  # [m]
 GOBLET_R2 = 0.025  # [m]
+GOBLET_EPS = .002  # [m]
 
 PIVOTING_ANGULAR_VELOCITY = 1
 ANGVEL = 10
@@ -192,7 +193,8 @@ DATA = {
                 'extents': [
                     GOBLET_HEIGHT,
                     GOBLET_R1,
-                    GOBLET_R2
+                    GOBLET_R2,
+                    GOBLET_EPS
                 ]
             },
             'xform': {

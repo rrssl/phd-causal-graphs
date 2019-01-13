@@ -620,8 +620,8 @@ class Goblet(PrimitiveBase):
     ----------
     name : string
       Name.
-    extents : float sequence
-      Extents of the goblet / truncated cone (h, r1, r2), as defined in
+    extents : (4,) float sequence
+      Extents of the goblet / truncated cone (h, r1, r2, eps), as defined in
       solidpython (r1 = radius at the bottom of the cone).
 
     """
@@ -632,10 +632,9 @@ class Goblet(PrimitiveBase):
 
     def create(self, geom, phys, parent=None, world=None):
         name = self.name + "_solid"
-        eps = 2e-3
         # Physics
         if phys:
-            h, r1, r2 = self.extents
+            h, r1, r2, eps = self.extents
             alpha = math.atan2(r1 - r2, h)
             length = math.sqrt((r1 - r2) ** 2 + h ** 2)
             n_seg = 2**5
@@ -666,14 +665,14 @@ class Goblet(PrimitiveBase):
         if geom is not None:
             n_seg = 2**5 if geom == 'HD' else 2**4
             path.attach_new_node(
-                self.make_geom(self.name+"_geom", self.extents, eps, n_seg)
+                self.make_geom(self.name+"_geom", self.extents, n_seg)
             )
         self._attach(path, parent, bodies=bodies, world=world)
         return path
 
     @staticmethod
-    def make_geom(name, extents, eps=1e-3, n_seg=2**4):
-        h, r1, r2 = extents
+    def make_geom(name, extents, n_seg=2**4):
+        h, r1, r2, eps = extents
         cos_alpha_inv = math.sqrt(1 + ((r1 - r2) / h)**2)
         h_ext = h + eps
         r1_ext = r1 + eps * cos_alpha_inv
