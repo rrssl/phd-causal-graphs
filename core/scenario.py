@@ -184,19 +184,19 @@ class Scene:
                 if xforms[name] is not None:
                     nopa.set_pos_hpr(*xforms[name])
                 name2nopa[name] = nopa
-        # Second pass: do the same for complex constructs. We assume only
+        # Second pass: scene graph hierarchy.
+        for parent, child in prim_graph.edges:
+            name2nopa[child].reparent_to(name2nopa[parent])
+        # Third pass: instantiate complex constructs. We assume only
         # one level of nesting (i.e., components are themselves simple).
         for name, prim in prim_graph.nodes(data='prim'):
             if 'components' in prim_graph.node[name]:
                 comps = [name2nopa[c]
                          for c in prim_graph.node[name]['components']]
                 nopa = prim.create(self.geom, self.phys, graph, world, comps)
-                if xforms[name] is not None:
+                if nopa is not None and xforms[name] is not None:
                     nopa.set_pos_hpr(*xforms[name])
                 name2nopa[name] = nopa
-        # Third pass: scene graph hierarchy.
-        for parent, child in prim_graph.edges:
-            name2nopa[child].reparent_to(name2nopa[parent])
         # Last pass: propagate new global transforms to bullet nodes.
         if self.phys:
             for body in world.get_rigid_bodies():
