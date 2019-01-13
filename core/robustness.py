@@ -94,8 +94,8 @@ def compute_label(scenario, sample, ret_events_labels=False, **simu_kw):
         return global_label
 
 
-def find_successful_samples_uniform(scenario, n_succ=20, n_0=100, n_k=10,
-                                    k_max=100, totals=None, **simu_kw):
+def find_successful_samples_uniform(scenario, n_succ, n_0, n_k, k_max,
+                                    totals=None, **simu_kw):
     ndims = len(scenario.design_space)
     # Initialization
     samples = find_physically_valid_samples(
@@ -120,8 +120,7 @@ def find_successful_samples_uniform(scenario, n_succ=20, n_0=100, n_k=10,
     return samples, labels
 
 
-def find_successful_samples_adaptive(scenario, n_succ=20, n_0=100, n_k=10,
-                                     k_max=100, sigma=.01,
+def find_successful_samples_adaptive(scenario, n_succ, n_0, n_k, k_max, sigma,
                                      ret_events_labels=False, totals=None,
                                      verbose=True, **simu_kw):
     """Sample the design space until enough successful samples are found.
