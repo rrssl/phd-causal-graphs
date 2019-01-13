@@ -520,7 +520,7 @@ class Pivot(PrimitiveBase):
                 TransformState.make_identity(), self.pivot_xform
             )
             self._attach(constraints=[cs], world=world)
-        return path
+        # return path
 
 
 class Lever(PrimitiveBase):
