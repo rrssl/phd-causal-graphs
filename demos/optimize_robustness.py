@@ -8,7 +8,7 @@ from panda3d.core import load_prc_file_data
 
 sys.path.insert(0, os.path.abspath(".."))
 import core.robustness as rob  # noqa: E402
-from core.optimize import maximize_robustness  # noqa: E402
+from core.optimize import maximize_robustness_local  # noqa: E402
 from core.scenario import (StateObserver, import_scenario_data,  # noqa: E402
                            load_scenario, simulate_scene)
 from gui.viewers import Replayer, ScenarioViewer  # noqa: E402
@@ -51,7 +51,7 @@ def compute_factorized_rob(scenario_data, init_samples, init_events_labels,
 
 def optimize_rob(scenario_data, estimators, x0, smin_coeff):
     scenario = load_scenario(scenario_data)
-    res = maximize_robustness(scenario, estimators, x0, smin_coeff)
+    res = maximize_robustness_local(scenario, estimators, x0, smin_coeff)
     return res.x
 
 
