@@ -251,22 +251,18 @@ def learn_active(scenario, init_samples, init_labels, sampler, accuracy=.9,
     if dims is not None:
         msg += " with features {}".format(dims)
     print(msg)
-    # Initialization: make sure that all initial samples are valid.
+    # Initialization: collect valid samples.
     valid = [i for i, l in enumerate(init_labels) if l is not None]
     X = [init_samples[i] for i in valid]
     y = [init_labels[i] for i in valid]
-    # Main loop
+    # Train the SVC.
+    print("Training the estimator")
+    estimator, score = train_svc(X, y, dims=dims, ret_xval_score=True)
+    if step_data is not None:
+        step_data.append((np.copy(X), np.copy(y), estimator, score))
     k = 0
-    while k < k_max:
-        k += 1
-        # Train the SVC.
-        print("Training the estimator")
-        estimator, score = train_svc(X, y, dims=dims, ret_xval_score=True)
-        if step_data is not None:
-            step_data.append((np.copy(X), np.copy(y), estimator, score))
-        # Termination condition.
-        if score >= accuracy:
-            break
+    # Main loop
+    while k < k_max and score < accuracy:
         # Query synthesis: determine new samples.
         print("Generating new samples")
         D = sampler(X, y, estimator, dims)
@@ -286,6 +282,12 @@ def learn_active(scenario, init_samples, init_labels, sampler, accuracy=.9,
             valid = [i for i, l in enumerate(y_k) if l is not None]
             X.extend(X_k[i] for i in valid)
             y.extend(y_k[i] for i in valid)
+        # Train the SVC.
+        print("Training the estimator")
+        estimator, score = train_svc(X, y, dims=dims, ret_xval_score=True)
+        if step_data is not None:
+            step_data.append((np.copy(X), np.copy(y), estimator, score))
+        k += 1
     # Calibrate
     print("Calibrating the classifier")
     estimator = train_svc(X, y, probability=True, dims=dims, verbose=False)
