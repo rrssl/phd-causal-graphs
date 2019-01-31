@@ -40,6 +40,7 @@ def main():
         if scenario_data['causal_graph']:
             instance = load_scenario_instance(scenario_data,
                                               geom='LD', phys=True)
+            print("Physically valid:", instance.scene.check_physically_valid())
             app = ScenarioViewer(instance)
         else:
             scene = load_scene(scene_data, geom='LD', phys=True)
@@ -54,7 +55,7 @@ def main():
         # Run the instance.
         instance = load_scenario_instance(scenario_data, geom='HD', phys=True)
         obs = StateObserver(instance.scene)
-        print("Physically valid: ", instance.scene.check_physically_valid())
+        print("Physically valid:", instance.scene.check_physically_valid())
         instance.simulate(duration=DURATION, timestep=1/FPS, callbacks=[obs])
         simu_path = os.path.join(dir_, "simu.pkl")
         obs.export(simu_path, fps=FPS)
