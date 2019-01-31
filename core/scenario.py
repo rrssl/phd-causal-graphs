@@ -1,3 +1,4 @@
+import hashlib
 import importlib.util
 import json
 import pickle
@@ -152,6 +153,8 @@ class Scene:
                         min(0, c.get_manifold_point().get_distance())
                         for c in result.get_contacts()
                     )
+                    # if penetration < 0:
+                    #     print(a, b, penetration)
                     constraint += penetration
         # Re-disable collisions for static objects
         for body in static:
@@ -227,6 +230,21 @@ class Scenario:
         self.prim_graph = prim_graph
         self.causal_graph = causal_graph
         self.design_space = design_space
+
+    def __eq__(self, other):
+        return (
+            self.prim_graph.nodes == other.prim_graph.nodes and
+            self.causal_graph.edges == other.causal_graph.edges and
+            (self.design_space.xform_array == other.design_space.xform_array
+             ).all()
+        )
+
+    def __hash__(self):
+        h1 = str(sorted(self.prim_graph.nodes))
+        h2 = str(sorted(sorted(e) for e in self.causal_graph.edges))
+        h3 = self.design_space.xform_array.tobytes()
+        h = (h1 + h2).encode('utf-8') + h3
+        return int(hashlib.md5(h).hexdigest(), 16)
 
     def check_physically_valid_sample(self, sample):
         scene = Scene(geom=None, phys=True)
