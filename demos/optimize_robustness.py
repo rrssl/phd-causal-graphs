@@ -13,7 +13,7 @@ from core.scenario import (StateObserver, import_scenario_data,  # noqa: E402
                            load_scenario, simulate_scene)
 from gui.viewers import Replayer, ScenarioViewer  # noqa: E402
 
-memory = Memory(cachedir=".cache")
+memory = Memory(cachedir=".cache", verbose=0)
 
 
 @memory.cache
@@ -63,22 +63,22 @@ def main():
     if scenario_data is None:
         return
     np.random.seed(111)
-    duration = 4
+    duration = 8
     timestep = 1 / 500
 
     if 0:
         # Initial exploration
-        n_succ = 300
-        n_0 = 200
-        n_k = 30
+        n_succ = 100
+        n_0 = 1000
+        n_k = 10
         init_samples, init_labels = initialize(
             scenario_data, n_succ, n_0, n_k,
             duration=duration, timestep=timestep
         )
 
         # Training and boundary consolidation
-        n_k = 50
-        k_max = 10
+        n_k = 10
+        k_max = 5
         estimator = compute_rob(
             scenario_data, init_samples, init_labels, n_k, k_max,
             duration=duration, timestep=timestep
@@ -86,8 +86,8 @@ def main():
         estimators = [estimator]
     else:
         # Initial exploration
-        n_succ = 50
-        n_0 = 100
+        n_succ = 100
+        n_0 = 1000
         n_k = 10
         init_samples, init_labels, init_events_labels = initialize(
             scenario_data, n_succ, n_0, n_k, ret_events_labels=True,
@@ -95,8 +95,8 @@ def main():
         )
 
         # Factorized training and boundary consolidation
-        n_k = 100
-        k_max = 10
+        n_k = 10
+        k_max = 5
         estimators = compute_factorized_rob(
             scenario_data, init_samples, init_events_labels,
             invar_success_rate=.95, select_coeff=.2, n_k=n_k, k_max=k_max,
@@ -112,13 +112,14 @@ def main():
     # x_best = x_init
 
     scenario = load_scenario(scenario_data)
-    if 0:
+    if 1:
         # Print the solution.
         instance = scenario.instantiate_from_sample(
-            x_best, geom='LD', phys=True
+            x_best, geom='HD', phys=True
         )
         instance.scene.export_layout_to_pdf(
-            "opt_xz", (21, 29.7), plane='xz', exclude="board_geom",
+            "opt_xz", (21, 29.7), plane='xz',
+            # exclude="board_geom",
         )
     if 0:
         # Show the solution.
@@ -128,7 +129,7 @@ def main():
         )
         app = ScenarioViewer(instance)
         app.run()
-    if 0:
+    if 1:
         dir_ = tempfile.mkdtemp()
         # Run the instance.
         instance = scenario.instantiate_from_sample(
