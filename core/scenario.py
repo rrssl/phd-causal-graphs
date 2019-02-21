@@ -10,11 +10,11 @@ import networkx as nx
 from panda3d.core import GeomVertexReader, NodePath, TransformState
 from shapely.geometry import LineString
 
-import core.config as cfg
-from core import causal_graph as causal
-from core import primitives
-from core.design_space import load_design_space
-from core.export import VectorFile
+from . import config as cfg
+from . import causal_graph as causal
+from . import primitives
+from .design_space import load_design_space
+from .export import VectorFile
 
 
 class Scene:

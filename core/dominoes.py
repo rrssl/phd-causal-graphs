@@ -6,7 +6,7 @@ import numpy as np
 from panda3d.core import NodePath, Point3, TransformState, Vec3
 from shapely.geometry import LineString
 
-import core.spline2d as spl
+from . import spline2d as spl
 
 
 def rotate_around(pos: Point3, hpr: Vec3, initial: NodePath):

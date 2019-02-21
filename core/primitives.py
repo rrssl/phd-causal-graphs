@@ -14,9 +14,9 @@ import solid.utils as slu
 from panda3d.core import (GeomNode, LineSegs, Quat, NodePath, Point3,
                           PythonCallbackObject, TransformState, Vec3)
 
-from core.dominoes import tilt_domino_forward
-from core.meshio import solid2panda, trimesh2panda
-# from core.spline2d import show_polyline3d
+from .dominoes import tilt_domino_forward
+from .meshio import solid2panda, trimesh2panda
+# from .spline2d import show_polyline3d
 
 
 class CallbackSequence(list):

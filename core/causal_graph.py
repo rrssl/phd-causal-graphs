@@ -4,8 +4,8 @@ from tempfile import NamedTemporaryFile
 import graphviz
 import networkx
 
-import core.config as cfg
-from core import events
+from . import config as cfg
+from . import events
 
 
 class EventState(Enum):

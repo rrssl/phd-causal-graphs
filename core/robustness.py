@@ -8,7 +8,7 @@ from sklearn.preprocessing import FunctionTransformer, StandardScaler
 from sklearn.svm import SVC
 from tqdm import tqdm
 
-import core.config as cfg
+from . import config as cfg
 
 
 class MultivariateUniform:

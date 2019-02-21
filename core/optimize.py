@@ -2,8 +2,8 @@ import cma
 import numpy as np
 import scipy.optimize as opt
 
-# from core.config import NCORES
-from core.robustness import compute_label
+# from .config import NCORES
+from .robustness import compute_label
 
 
 class RobustnessEnergy:
