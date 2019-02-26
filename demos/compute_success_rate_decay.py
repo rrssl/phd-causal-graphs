@@ -1,5 +1,5 @@
 """
-Compute the success rate decay.
+Compute the local robustness curves.
 
 Parameters
 ----------
@@ -29,8 +29,13 @@ import core.robustness as rob  # noqa: E402
 from core.scenario import import_scenario_data, load_scenario  # noqa: E402
 from core.config import NCORES  # noqa: E402
 
-SIMU_KW = dict(timestep=1/500, duration=0)
 memory = Memory(cachedir=".cache")
+# Local robustness curves parameters
+N_STEPS = 30
+N_LOCAL = 100
+# Simulation parameters
+SIMU_KW = dict(timestep=1/500, duration=0)
+SCENARIO = None
 
 
 # Parallelizable
@@ -69,40 +74,50 @@ def generate_dataset2(scenario, n_samples):
     return X, y, t
 
 
-def compute_success_rates(X, y, center, radii):
+def compute_local_rob_curve(center, n_steps, n_local, dense_dataset):
+    # Evaluate local neighborhood.
+    eta = 1 / (10 * n_steps)
+    X_loc = np.tile(center, (n_local+1, 1))
+    X_loc[1:] += np.random.uniform(-eta, eta, (n_local, len(center)))
+    y_loc = Parallel(n_jobs=NCORES)(
+        delayed(compute_label)(SCENARIO, x) for x in tqdm(X_loc)
+    )
+    # Update dataset.
+    X = np.vstack((dense_dataset[0], X_loc))
+    y = np.concatenate((dense_dataset[1], y_loc))
+    # Evaluate local robustness.
+    radii = np.linspace(0, 1, n_steps)
     valid = np.flatnonzero(y)
     y = y[valid]
     d = np.linalg.norm(X[valid] - center, axis=1)
-    sr = np.zeros(len(radii))
+    loc_rob = np.zeros(n_steps)
     for i, r in enumerate(radii):
-        y_in_ball = y[d <= r]
+        y_in_ball = y[d <= (r + eta)]
         if y_in_ball.size:
-            sr[i] = (y_in_ball == 1).mean()
-    return sr
+            loc_rob[i] = (y_in_ball == 1).mean()
+    return loc_rob
 
 
 class LocalRobustnessEstimator:
-    def __init__(self, scenario, radius, n_neighbors):
-        self.scenario = scenario
+    def __init__(self, radius, n_local):
         self.radius = radius
-        self.n_neighbors = n_neighbors
+        self.n_local = n_local
         self.n_eval = 0
 
     def __call__(self, x):
         x = np.asarray(x)
-        scenario = self.scenario
-        if not scenario.check_physically_valid_sample(x):
+        if not SCENARIO.check_physically_valid_sample(x):
             return 0.
         self.n_eval += 1
         radius = self.radius
-        n_neighbors = self.n_neighbors
+        n_local = self.n_local
         dist = rob.MultivariateUniform(x.size, x-radius, x+radius)
         X = rob.find_physically_valid_samples(
-            scenario, dist, n_neighbors, 100*n_neighbors
+            SCENARIO, dist, n_local, 100*n_local
         )
         X.append(x)
         y = Parallel(n_jobs=NCORES)(
-            delayed(rob.compute_label)(scenario, xi, **SIMU_KW) for xi in X
+            delayed(rob.compute_label)(SCENARIO, xi, **SIMU_KW) for xi in X
         )
         return sum(y) / len(y)
 
@@ -121,10 +136,10 @@ class LocalRobustnessEstimator:
 def find_best_uniform(rob_est, n_eval, seed=None):
     if seed is not None:
         np.random.seed(seed)
-    n_dims = len(rob_est.scenario.design_space)
+    n_dims = len(SCENARIO.design_space)
     dist = rob.MultivariateUniform(n_dims)
     X = rob.find_physically_valid_samples(
-        rob_est.scenario, dist, n_eval, 100*n_eval
+        SCENARIO, dist, n_eval, 100*n_eval
     )
     r = [rob_est(x) for x in X]
     x_best = X[np.argmax(r)]
@@ -135,14 +150,15 @@ def find_best_uniform(rob_est, n_eval, seed=None):
 def find_best_gpo(rob_est, n_eval, xi=0., acq='ei', seed=None):
     if seed is not None:
         np.random.seed(seed)
-    n_dims = len(rob_est.scenario.design_space)
+    rob_est.n_eval = 0
+    n_dims = len(SCENARIO.design_space)
     pbounds = {str(i): (0, 1) for i in range(n_dims)}
     optimizer = BayesianOptimization(rob_est.from_dict, pbounds, seed)
     # We compute our own initial valid points.
     n_init = n_eval // 2
     dist = rob.MultivariateUniform(n_dims)
     X_init = rob.find_physically_valid_samples(
-        rob_est.scenario, dist, n_init, 100*n_init
+        SCENARIO, dist, n_init, 100*n_init
     )
     for x in X_init:
         optimizer.probe({str(i): x[i] for i in range(n_dims)})
@@ -157,90 +173,107 @@ def find_best_gpo(rob_est, n_eval, xi=0., acq='ei', seed=None):
 
 
 @memory.cache
-def find_successful_samples_adaptive(scenario, n_succ, n_0, n_k, k_max, sigma,
-                                     seed=None):
+def find_successful_samples_adaptive(n_succ, n_0, n_k, k_max, sigma,
+                                     ret_event_labels, seed=None):
     # 'seed' is just here to cache several results
-    #
     return rob.find_successful_samples_adaptive(
-        scenario, n_succ, n_0, n_k, k_max, sigma, **SIMU_KW
+        SCENARIO, n_succ, n_0, n_k, k_max, sigma, ret_event_labels, **SIMU_KW
     )
 
 
 @memory.cache
-def train_and_consolidate_boundary(scenario, X, y, accuracy, n_k, k_max,
-                                   ret_simu_cost=False):
-    #
+def learn_spd_active(X, y, accuracy, n_k, k_max, dims=None, event=None,
+                     ret_simu_cost=False, seed=None):
+    # 'seed' is just here to cache several results
     step_data = [] if ret_simu_cost else None
     rob_est = rob.train_and_consolidate_boundary2(
-        scenario, X, y, accuracy, n_k, k_max, step_data=step_data, **SIMU_KW
+        SCENARIO, X, y, accuracy, n_k, k_max, dims, event, step_data,
+        **SIMU_KW
     )
     if ret_simu_cost:
-        simu_cost = len(step_data[-1][0])
+        simu_cost = len(step_data[-1][0]) - len(step_data[0][0])
         return rob_est, simu_cost
     else:
         return rob_est
 
 
 @memory.cache
-def find_best_ours(scenario, active=True, optimizer='global', seed=None,
-                   ret_simu_cost=False):
+def find_best_ours(explo_n_0, explo_n_succ, explo_n_k,
+                   learn_n_k=None, learn_k_max=None,
+                   factorized=True, active=True, optimizer='local',
+                   ret_simu_cost=False, seed=None):
     if seed is not None:
         np.random.seed(seed)
-    # Initialize
-    #
-    X, y = find_successful_samples_adaptive(
-        scenario, n_succ=100, n_0=500, n_k=10, k_max=500, sigma=.01, seed=seed
-    )
-    if ret_simu_cost:
-        simu_cost = len(y)
-    # Build the robustness estimator
-    if active:
+    if not active:
+        learn_k_max = 0  # if 0, SVC will only be trained once
+    if factorized:
+        # Initialize
+        X, y, y_e = find_successful_samples_adaptive(
+            n_succ=explo_n_succ, n_0=explo_n_0, n_k=explo_n_k, k_max=500,
+            sigma=.01, ret_event_labels=True, seed=seed
+        )
         if ret_simu_cost:
-            rob_est, simu_cost = train_and_consolidate_boundary(
-                scenario, X, y, accuracy=1, n_k=10, k_max=5,
-                ret_simu_cost=True
-            )
+            simu_cost = len(y)
+        assignments = rob.map_events_to_dimensions(
+            X, y_e, invar_success_rate=.95, select_coeff=.2
+        )
+        # Build the robustness estimators
+        learn_output = [learn_spd_active(
+            X, y_e[event], accuracy=.99, n_k=learn_n_k, k_max=learn_k_max,
+            dims=dims, event=event, ret_simu_cost=ret_simu_cost
+        ) for event, dims in assignments.items() if len(dims)]
+        if ret_simu_cost:
+            rob_estimators, learn_simu_costs = zip(*learn_output)
+            simu_cost += sum(learn_simu_costs)
         else:
-            rob_est = train_and_consolidate_boundary(
-                scenario, X, y, accuracy=1, n_k=10, k_max=5,
-                ret_simu_cost=False
-            )
+            rob_estimators = learn_output
     else:
-        rob_est = rob.train_svc(X, y, probability=True, verbose=False)
+        # Initialize
+        X, y = find_successful_samples_adaptive(
+            n_succ=explo_n_succ, n_0=explo_n_0, n_k=explo_n_k, k_max=500,
+            sigma=.01, seed=seed
+        )
+        if ret_simu_cost:
+            simu_cost = len(y)
+        # Build the robustness estimator
+        learn_output = learn_spd_active(
+            X, y, accuracy=.99, n_k=learn_n_k, k_max=learn_k_max,
+            ret_simu_cost=ret_simu_cost
+        )
+        if ret_simu_cost:
+            rob_est, learn_simu_cost = learn_output
+            simu_cost += learn_simu_cost
+        else:
+            rob_est = learn_output
+        rob_estimators = [rob_est]
     # Find optimal solution
-    init_probas = rob_est.predict_proba(X)[:, 1]
+    init_probas = np.prod([e.predict_proba(X)[:, 1]
+                           for e in rob_estimators], axis=0)
     if optimizer is None:
         x = X[np.argmax(init_probas)]
     elif optimizer == 'local':
         x0 = X[np.argmax(init_probas)]
-        res = opt.maximize_robustness_local(scenario, [rob_est], x0)
+        res = opt.maximize_robustness_local(SCENARIO, rob_estimators, x0)
         x = res.x
-    elif optimizer == 'global':
-        # init = np.asarray(X)[np.argpartition(init_probas, -100)[-100:]]
-        x0 = X[np.argmax(init_probas)]
-        res = opt.maximize_robustness_global(scenario, [rob_est], x0,
-                                             fevals=100, **SIMU_KW)
-        x = res[0]
-        simu_cost += res[3]
     if ret_simu_cost:
         return x, simu_cost
     else:
         return x
 
 
-@memory.cache
-def compute_ours(X, y, errors, n_runs, scenario, active=True,
-                 optimizer='local', trial=0):
+# @memory.cache
+def compute_ours(dense_dataset, n_runs, factorized=True, active=True,
+                 optimizer='local', simu_budget=None, seed=None):
     curves = []
     simu_costs = []
     for i in range(n_runs):
-        x_ours, simu_cost = find_best_ours(
-            scenario, active=active, optimizer=optimizer, seed=i,
-            ret_simu_cost=True
+        x_out, simu_cost = find_best_ours(
+            explo_n_0=1000, explo_n_succ=100, explo_n_k=10,
+            learn_n_k=50, learn_k_max=5,
+            factorized=factorized, active=active, optimizer=optimizer,
+            ret_simu_cost=True, seed=(seed if seed is None else seed+i)
         )
-        X_ours = np.vstack((X, x_ours))
-        y_ours = np.append(y, compute_label(scenario, x_ours))
-        curve = compute_success_rates(X_ours, y_ours, x_ours, errors)
+        curve = compute_local_rob_curve(x_out, N_STEPS, N_LOCAL, dense_dataset)
         curves.append(curve)
         simu_costs.append(simu_cost)
     avg_curve = np.mean(curves, axis=0)
@@ -250,24 +283,26 @@ def compute_ours(X, y, errors, n_runs, scenario, active=True,
 
 
 @memory.cache
-def compute_B1(X, y, errors, n_runs):
-    successes = np.flatnonzero(y == 1)[:n_runs]
-    curves = np.array([compute_success_rates(X, y, x, errors)
-                       for x in X[successes]])
+def compute_B1(dense_dataset, n_runs, seed=None):
+    if seed is not None:
+        np.random.seed(seed)
+    successes = np.flatnonzero(dense_dataset[1] == 1)[:n_runs]
+    curves = [compute_local_rob_curve(x_out, N_STEPS, N_LOCAL, dense_dataset)
+              for x_out in dense_dataset[0][successes]]
     avg_curve = np.mean(curves, axis=0)
     sem_curve = sem(curves, axis=0)
     return avg_curve, sem_curve
 
 
 @memory.cache
-def compute_B2(X, y, errors, n_runs, n_eval, rob_est, trial=0):
+def compute_B2(dense_dataset, n_runs, n_eval, radius, n_local, seed=None):
     curves = []
+    X, y = dense_dataset
     for i in range(n_runs):
-        rob_est.n_eval = 0
-        x_uni = find_best_uniform(rob_est, n_eval, seed=i)
-        X_uni = np.vstack((X, x_uni))
-        y_uni = np.append(y, compute_label(rob_est.scenario, x_uni))
-        curve = compute_success_rates(X_uni, y_uni, x_uni, errors)
+        rob_est = LocalRobustnessEstimator(radius, n_local)
+        x_out = find_best_uniform(rob_est, n_eval,
+                                  seed=(seed if seed is None else seed+i))
+        curve = compute_local_rob_curve(x_out, N_STEPS, N_LOCAL, dense_dataset)
         curves.append(curve)
     avg_curve = np.mean(curves, axis=0)
     sem_curve = sem(curves, axis=0)
@@ -275,14 +310,14 @@ def compute_B2(X, y, errors, n_runs, n_eval, rob_est, trial=0):
 
 
 @memory.cache
-def compute_B3(X, y, errors, n_runs, n_eval, rob_est, trial=0):
+def compute_B3(dense_dataset, n_runs, n_eval, radius, n_local, seed=None):
     curves = []
+    X, y = dense_dataset
     for i in range(n_runs):
-        rob_est.n_eval = 0
-        x_gpo = find_best_gpo(rob_est, n_eval, seed=i)
-        X_gpo = np.vstack((X, x_gpo))
-        y_gpo = np.append(y, compute_label(rob_est.scenario, x_gpo))
-        curve = compute_success_rates(X_gpo, y_gpo, x_gpo, errors)
+        rob_est = LocalRobustnessEstimator(radius, n_local)
+        x_out = find_best_gpo(rob_est, n_eval,
+                              seed=(seed if seed is None else seed+i))
+        curve = compute_local_rob_curve(x_out, N_STEPS, N_LOCAL, dense_dataset)
         curves.append(curve)
     avg_curve = np.mean(curves, axis=0)
     sem_curve = sem(curves, axis=0)
@@ -297,40 +332,24 @@ def main():
     n_samples = int(sys.argv[2])
     SIMU_KW['duration'] = int(sys.argv[3])
     scenario_data = import_scenario_data(path)
-    scenario = load_scenario(scenario_data)
+    global SCENARIO
+    SCENARIO = load_scenario(scenario_data)
     # X, y, t = generate_dataset(scenario, n_samples)
-    X, y, t = generate_dataset2(scenario, n_samples)
+    X, y, t = generate_dataset2(SCENARIO, n_samples)
     print("Invalid", "Successes", "Failures", "Time")
     print((y == 0).sum(), (y == 1).sum(), (y == -1).sum(), t)
 
     n_dims = X.shape[1]
-    n_err = 30  # number of errors to build the success rate plot
-    errors = np.linspace(0, 1, n_err)
     n_runs = 10  # number of runs for each random method
+    errors = np.linspace(0, 1, N_STEPS)
+    seed = int(bin(hash(SCENARIO))[:34], 2)  # seed must be 32bit int
     seaborn.set()
     fig, ax = plt.subplots(figsize=(6, 2))
 
-    # # Compute the decay of the most robust solution of our passive method.
-    # avg_curve, sem_curve, simu_cost = compute_ours(
-    #     X, y, errors, n_runs, scenario, active=False, optimizer=None
-    # )
-    # ax.plot(errors, avg_curve,
-    #         label="Most robust: ours, passive, noopt (n={})".format(n_runs))
-    # ax.fill_between(errors, avg_curve - sem_curve, avg_curve + sem_curve,
-    #                 alpha=.5)
-
-    # # Compute the decay of the most robust solution of our active method.
-    # avg_curve, sem_curve, simu_cost = compute_ours(
-    #     X, y, errors, n_runs, scenario, active=True, optimizer=None
-    # )
-    # ax.plot(errors, avg_curve,
-    #         label="Most robust: ours, active, noopt (n={})".format(n_runs))
-    # ax.fill_between(errors, avg_curve - sem_curve, avg_curve + sem_curve,
-    #                 alpha=.5)
-
     # Compute the decay of the most robust solution of our method.
     avg_curve, sem_curve, simu_cost = compute_ours(
-        X, y, errors, n_runs, scenario, active=True, optimizer='local', trial=0
+        (X, y), n_runs, factorized=True, active=True, optimizer='local',
+        seed=seed
     )
     ax.plot(errors, avg_curve, label="Ours")
     ax.fill_between(errors, avg_curve - sem_curve, avg_curve + sem_curve,
@@ -341,25 +360,26 @@ def main():
     print("Number of simulations allowed:", simu_budget)
 
     # B1: random uniform successes.
-    avg_curve, sem_curve = compute_B1(X, y, errors, n_runs)
+    avg_curve, sem_curve = compute_B1((X, y), n_runs)
     ax.plot(errors, avg_curve, label="B1")
     ax.fill_between(errors, avg_curve - sem_curve, avg_curve + sem_curve,
                     alpha=.5)
 
     # Initialize options for baselines based on local robustness evaluation.
     radius = .1  # radius of the ball to compute local robustness
-    n_neighbors = n_dims**2  # number of simulations to compute local rob
-    n_eval = simu_budget // (n_neighbors + 1)  # number of rob eval allowed
-    rob_est = LocalRobustnessEstimator(scenario, radius, n_neighbors)
+    n_local = n_dims**2  # number of simulations to compute local rob
+    n_eval = simu_budget // (n_local + 1)  # number of rob eval allowed
 
     # B2: robustness-based uniform search.
-    avg_curve, sem_curve = compute_B2(X, y, errors, n_runs, n_eval, rob_est)
+    avg_curve, sem_curve = compute_B2((X, y), n_runs, n_eval, radius, n_local,
+                                      seed=seed)
     ax.plot(errors, avg_curve, label="B2")
     ax.fill_between(errors, avg_curve - sem_curve, avg_curve + sem_curve,
                     alpha=.5)
 
     # B3: Bayesian optimization.
-    avg_curve, sem_curve = compute_B3(X, y, errors, n_runs, n_eval, rob_est)
+    avg_curve, sem_curve = compute_B3((X, y), n_runs, n_eval, radius, n_local,
+                                      seed=seed)
     ax.plot(errors, avg_curve, label="B3")
     ax.fill_between(errors, avg_curve - sem_curve, avg_curve + sem_curve,
                     alpha=.5)
