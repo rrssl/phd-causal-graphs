@@ -19,6 +19,7 @@ import numpy as np
 import seaborn
 from bayes_opt import BayesianOptimization, UtilityFunction
 from joblib import delayed, Memory, Parallel
+from prettytable import PrettyTable
 from scipy.stats import sem
 from timeit import default_timer as timer
 from tqdm import tqdm
@@ -336,8 +337,11 @@ def main():
     SCENARIO = load_scenario(scenario_data)
     # X, y, t = generate_dataset(scenario, n_samples)
     X, y, t = generate_dataset2(SCENARIO, n_samples)
-    print("Invalid", "Successes", "Failures", "Time")
-    print((y == 0).sum(), (y == 1).sum(), (y == -1).sum(), t)
+    # Print dataset statistics.
+    dataset_table = PrettyTable()
+    dataset_table.field_names = ["Invalid", "Successes", "Failures", "Time"]
+    dataset_table.add_row([(y == 0).sum(), (y == 1).sum(), (y == -1).sum(), t])
+    print(dataset_table)
 
     n_dims = X.shape[1]
     n_runs = 10  # number of runs for each random method
