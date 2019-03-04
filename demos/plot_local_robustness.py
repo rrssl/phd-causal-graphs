@@ -286,9 +286,10 @@ def compute_ours(dense_dataset, n_runs, factorized=True, active=True,
 def compute_B1(dense_dataset, n_runs, seed=None):
     if seed is not None:
         np.random.seed(seed)
-    successes = np.flatnonzero(dense_dataset[1] == 1)[:n_runs]
+    successes = np.flatnonzero(dense_dataset[1] == 1)
+    success_sample = np.random.choice(successes, n_runs, replace=False)
     curves = [compute_local_rob_curve(x_out, N_STEPS, N_LOCAL, dense_dataset)
-              for x_out in dense_dataset[0][successes]]
+              for x_out in dense_dataset[0][success_sample]]
     avg_curve = np.mean(curves, axis=0)
     sem_curve = sem(curves, axis=0)
     return avg_curve, sem_curve
