@@ -264,15 +264,14 @@ def find_best_ours(explo_n_0, explo_n_succ, explo_n_k,
 
 # @memory.cache
 def compute_ours(dense_dataset, n_runs, factorized=True, active=True,
-                 optimizer='local', simu_budget=None, seed=None):
+                 optimizer='local', seed=None, **method_params):
     curves = []
     simu_costs = []
     for i in range(n_runs):
         x_out, simu_cost = find_best_ours(
-            explo_n_0=1000, explo_n_succ=100, explo_n_k=10,
-            learn_n_k=50, learn_k_max=5,
             factorized=factorized, active=active, optimizer=optimizer,
-            ret_simu_cost=True, seed=(seed if seed is None else seed+i)
+            ret_simu_cost=True, seed=(seed if seed is None else seed+i),
+            **method_params
         )
         curve = compute_local_rob_curve(x_out, N_STEPS, N_LOCAL, dense_dataset)
         curves.append(curve)
@@ -351,9 +350,18 @@ def main():
     fig, ax = plt.subplots(figsize=(6, 2))
 
     # Compute the decay of the most robust solution of our method.
+    method_params = {
+        'explo_n_0': 500,
+        'explo_n_succ': 50,
+        'explo_n_k': 10,
+        'learn_n_k': 10,
+        'learn_k_max': 5,
+    }
+
+    # Compute the decay of the most robust solution of our method.
     avg_curve, sem_curve, simu_cost = compute_ours(
         (X, y), n_runs, factorized=True, active=True, optimizer='local',
-        seed=seed
+        seed=seed, **method_params
     )
     ax.plot(errors, avg_curve, label="Ours")
     ax.fill_between(errors, avg_curve - sem_curve, avg_curve + sem_curve,
