@@ -232,7 +232,7 @@ def find_best_ours(explo_n_0, explo_n_succ, explo_n_k,
         # Initialize
         X, y = find_successful_samples_adaptive(
             n_succ=explo_n_succ, n_0=explo_n_0, n_k=explo_n_k, k_max=500,
-            sigma=.01, seed=seed
+            sigma=.01, ret_event_labels=False, seed=seed
         )
         if ret_simu_cost:
             simu_cost = len(y)
