@@ -14,9 +14,7 @@ T : int
 import os
 import sys
 
-import matplotlib.pyplot as plt
 import numpy as np
-import seaborn
 from bayes_opt import BayesianOptimization, UtilityFunction
 from joblib import delayed, Memory, Parallel
 from prettytable import PrettyTable
@@ -34,9 +32,13 @@ memory = Memory(cachedir=".cache")
 # Local robustness curves parameters
 N_STEPS = 30
 N_LOCAL = 100
+# Number of runs for each random method
+N_RUNS = 10
 # Simulation parameters
 SIMU_KW = dict(timestep=1/500, duration=0)
 SCENARIO = None
+# Whether to print or plot results
+PLOT_RESULTS = False
 
 
 # Parallelizable
@@ -325,6 +327,29 @@ def compute_B3(dense_dataset, n_runs, n_eval, radius, n_local, seed=None):
     return avg_curve, sem_curve
 
 
+def plot_results(results):
+    import matplotlib.pyplot as plt
+    import seaborn
+    seaborn.set()
+    fig, ax = plt.subplots(figsize=(6, 2))
+    x = np.linspace(0, 1, N_STEPS)
+    for method, avg_curve, sem_curve in results:
+        ax.plot(x, avg_curve, label=method)
+        ax.fill_between(x, avg_curve - sem_curve, avg_curve + sem_curve,
+                        alpha=.5)
+    ax.legend()
+    fig.tight_layout()
+
+
+def print_results(results):
+    results_table = PrettyTable()
+    results_table.field_names = ["method", "local_rob(0)", "global_rob"]
+    x = np.linspace(0, 1, N_STEPS)
+    for method, local_rob, _ in results:
+        results_table.add_row([method, local_rob[0], np.trapz(local_rob, x)])
+    print(results_table)
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
@@ -335,6 +360,9 @@ def main():
     scenario_data = import_scenario_data(path)
     global SCENARIO
     SCENARIO = load_scenario(scenario_data)
+    seed = int(bin(hash(SCENARIO))[:34], 2)  # seed must be 32bit int
+
+    # Generate dataset.
     # X, y, t = generate_dataset(scenario, n_samples)
     X, y, t = generate_dataset2(SCENARIO, n_samples)
     # Print dataset statistics.
@@ -343,13 +371,9 @@ def main():
     dataset_table.add_row([(y == 0).sum(), (y == 1).sum(), (y == -1).sum(), t])
     print(dataset_table)
 
-    n_dims = X.shape[1]
-    n_runs = 10  # number of runs for each random method
-    errors = np.linspace(0, 1, N_STEPS)
-    seed = int(bin(hash(SCENARIO))[:34], 2)  # seed must be 32bit int
-    seaborn.set()
-    fig, ax = plt.subplots(figsize=(6, 2))
+    results = []  # (method, local_rob_mean, local_rob_sem)
 
+    # ------------------------------ OUR METHOD ------------------------------
     # Compute the decay of the most robust solution of our method.
     method_params = {
         'explo_n_0': 500,
@@ -358,48 +382,50 @@ def main():
         'learn_n_k': 10,
         'learn_k_max': 5,
     }
-
-    # Compute the decay of the most robust solution of our method.
-    avg_curve, sem_curve, simu_cost = compute_ours(
-        (X, y), n_runs, factorized=True, active=True, optimizer='local',
+    # Full active optimized
+    avg_curve, sem_curve, _ = compute_ours(
+        (X, y), N_RUNS, factorized=False, active=True, optimizer='local',
         seed=seed, **method_params
     )
-    ax.plot(errors, avg_curve, label="Ours")
-    ax.fill_between(errors, avg_curve - sem_curve, avg_curve + sem_curve,
-                    alpha=.5)
+    results.append(("full,act,opt", avg_curve, sem_curve))
+    # Factorized active not optimized
+    avg_curve, sem_curve, _ = compute_ours(
+        (X, y), N_RUNS, factorized=True, active=True, optimizer=None,
+        seed=seed, **method_params
+    )
+    results.append(("fact,act,nopt", avg_curve, sem_curve))
+    # Factorized active optimized
+    avg_curve, sem_curve, simu_cost = compute_ours(
+        (X, y), N_RUNS, factorized=True, active=True, optimizer='local',
+        seed=seed, **method_params
+    )
+    results.append(("fact,act,opt", avg_curve, sem_curve))
 
+    # ----------------------------- BASELINES --------------------------------
     # simu_budget = 1000  # number of simus allowed for each method
     simu_budget = simu_cost
     print("Number of simulations allowed:", simu_budget)
-
-    # B1: random uniform successes.
-    avg_curve, sem_curve = compute_B1((X, y), n_runs)
-    ax.plot(errors, avg_curve, label="B1")
-    ax.fill_between(errors, avg_curve - sem_curve, avg_curve + sem_curve,
-                    alpha=.5)
-
     # Initialize options for baselines based on local robustness evaluation.
+    n_dims = X.shape[1]
     radius = .1  # radius of the ball to compute local robustness
     n_local = n_dims**2  # number of simulations to compute local rob
     n_eval = simu_budget // (n_local + 1)  # number of rob eval allowed
-
+    # B1: random uniform successes.
+    avg_curve, sem_curve = compute_B1((X, y), N_RUNS, seed=seed)
+    results.append(("B1", avg_curve, sem_curve))
     # B2: robustness-based uniform search.
-    avg_curve, sem_curve = compute_B2((X, y), n_runs, n_eval, radius, n_local,
-                                      seed=seed)
-    ax.plot(errors, avg_curve, label="B2")
-    ax.fill_between(errors, avg_curve - sem_curve, avg_curve + sem_curve,
-                    alpha=.5)
-
+    avg_curve, sem_curve = compute_B2((X, y), N_RUNS, n_eval, radius,
+                                      n_local, seed=seed)
+    results.append(("B2", avg_curve, sem_curve))
     # B3: Bayesian optimization.
-    avg_curve, sem_curve = compute_B3((X, y), n_runs, n_eval, radius, n_local,
-                                      seed=seed)
-    ax.plot(errors, avg_curve, label="B3")
-    ax.fill_between(errors, avg_curve - sem_curve, avg_curve + sem_curve,
-                    alpha=.5)
+    avg_curve, sem_curve = compute_B3((X, y), N_RUNS, n_eval, radius,
+                                      n_local, seed=seed)
+    results.append(("B3", avg_curve, sem_curve))
 
-    ax.legend()
-    fig.tight_layout()
-    plt.show()
+    if PLOT_RESULTS:
+        plot_results(results)
+    else:
+        print_results(results)
 
 
 if __name__ == "__main__":
