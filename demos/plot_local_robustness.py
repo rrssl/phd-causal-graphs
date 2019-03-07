@@ -265,7 +265,7 @@ def find_best_ours(explo_n_0, explo_n_succ, explo_n_k,
         return x
 
 
-# @memory.cache
+@memory.cache
 def compute_ours(dense_dataset, n_runs, factorized=True, active=True,
                  optimizer='local', seed=None, **method_params):
     curves = []
