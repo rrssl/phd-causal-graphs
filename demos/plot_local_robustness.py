@@ -279,10 +279,8 @@ def compute_ours(dense_dataset, n_runs, factorized=True, active=True,
         curve = compute_local_rob_curve(x_out, N_STEPS, N_LOCAL, dense_dataset)
         curves.append(curve)
         simu_costs.append(simu_cost)
-    avg_curve = np.mean(curves, axis=0)
-    sem_curve = sem(curves, axis=0)
     simu_cost = sum(simu_costs) // len(simu_costs)
-    return avg_curve, sem_curve, simu_cost
+    return curves, simu_cost
 
 
 @memory.cache
@@ -293,9 +291,7 @@ def compute_B1(dense_dataset, n_runs, seed=None):
     success_sample = np.random.choice(successes, n_runs, replace=False)
     curves = [compute_local_rob_curve(x_out, N_STEPS, N_LOCAL, dense_dataset)
               for x_out in dense_dataset[0][success_sample]]
-    avg_curve = np.mean(curves, axis=0)
-    sem_curve = sem(curves, axis=0)
-    return avg_curve, sem_curve
+    return curves
 
 
 @memory.cache
@@ -308,9 +304,7 @@ def compute_B2(dense_dataset, n_runs, n_eval, radius, n_local, seed=None):
                                   seed=(seed if seed is None else seed+i))
         curve = compute_local_rob_curve(x_out, N_STEPS, N_LOCAL, dense_dataset)
         curves.append(curve)
-    avg_curve = np.mean(curves, axis=0)
-    sem_curve = sem(curves, axis=0)
-    return avg_curve, sem_curve
+    return curves
 
 
 @memory.cache
@@ -323,9 +317,7 @@ def compute_B3(dense_dataset, n_runs, n_eval, radius, n_local, seed=None):
                               seed=(seed if seed is None else seed+i))
         curve = compute_local_rob_curve(x_out, N_STEPS, N_LOCAL, dense_dataset)
         curves.append(curve)
-    avg_curve = np.mean(curves, axis=0)
-    sem_curve = sem(curves, axis=0)
-    return avg_curve, sem_curve
+    return curves
 
 
 def plot_results(results):
@@ -334,8 +326,10 @@ def plot_results(results):
     seaborn.set()
     fig, ax = plt.subplots(figsize=(6, 2))
     x = np.linspace(0, 1, N_STEPS)
-    for method, avg_curve, sem_curve in results:
+    for method, curves in results:
+        avg_curve = np.mean(curves, axis=0)
         ax.plot(x, avg_curve, label=method)
+        sem_curve = sem(curves, axis=0)
         # Use student distribution as sample size is small.
         low, up = stats.t.interval(.95, N_RUNS-1, avg_curve, sem_curve)
         ax.fill_between(x, low, up, alpha=.5)
@@ -348,7 +342,8 @@ def print_results(results):
     results_table = PrettyTable()
     results_table.field_names = ["method", "local_rob(0)", "global_rob"]
     x = np.linspace(0, 1, N_STEPS)
-    for method, local_rob, _ in results:
+    for method, curves in results:
+        local_rob = np.mean(curves, axis=0)
         results_table.add_row([method, local_rob[0], np.trapz(local_rob, x)])
     print(results_table)
 
@@ -386,23 +381,23 @@ def main():
         'learn_k_max': 5,
     }
     # Full active optimized
-    avg_curve, sem_curve, _ = compute_ours(
+    curves, _ = compute_ours(
         (X, y), N_RUNS, factorized=False, active=True, optimizer='local',
         seed=seed, **method_params
     )
-    results.append(("full,act,opt", avg_curve, sem_curve))
+    results.append(("full,act,opt", curves))
     # Factorized active not optimized
-    avg_curve, sem_curve, _ = compute_ours(
+    curves, _ = compute_ours(
         (X, y), N_RUNS, factorized=True, active=True, optimizer=None,
         seed=seed, **method_params
     )
-    results.append(("fact,act,nopt", avg_curve, sem_curve))
+    results.append(("fact,act,nopt", curves))
     # Factorized active optimized
-    avg_curve, sem_curve, simu_cost = compute_ours(
+    curves, simu_cost = compute_ours(
         (X, y), N_RUNS, factorized=True, active=True, optimizer='local',
         seed=seed, **method_params
     )
-    results.append(("fact,act,opt", avg_curve, sem_curve))
+    results.append(("fact,act,opt", curves))
 
     # ----------------------------- BASELINES --------------------------------
     # simu_budget = 1000  # number of simus allowed for each method
@@ -414,16 +409,14 @@ def main():
     n_local = n_dims**2  # number of simulations to compute local rob
     n_eval = simu_budget // (n_local + 1)  # number of rob eval allowed
     # B1: random uniform successes.
-    avg_curve, sem_curve = compute_B1((X, y), N_RUNS, seed=seed)
-    results.append(("B1", avg_curve, sem_curve))
+    curves = compute_B1((X, y), N_RUNS, seed=seed)
+    results.append(("B1", curves))
     # B2: robustness-based uniform search.
-    avg_curve, sem_curve = compute_B2((X, y), N_RUNS, n_eval, radius,
-                                      n_local, seed=seed)
-    results.append(("B2", avg_curve, sem_curve))
+    curves = compute_B2((X, y), N_RUNS, n_eval, radius, n_local, seed=seed)
+    results.append(("B2", curves))
     # B3: Bayesian optimization.
-    avg_curve, sem_curve = compute_B3((X, y), N_RUNS, n_eval, radius,
-                                      n_local, seed=seed)
-    results.append(("B3", avg_curve, sem_curve))
+    curves = compute_B3((X, y), N_RUNS, n_eval, radius, n_local, seed=seed)
+    results.append(("B3", curves))
 
     if PLOT_RESULTS:
         plot_results(results)
