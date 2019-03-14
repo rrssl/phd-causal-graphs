@@ -137,6 +137,25 @@ class LocalRobustnessEstimator:
 
 
 @memory.cache
+def find_success_uniform(simu_budget, seed=None):
+    if seed is not None:
+        np.random.seed(seed)
+    n_dims = len(SCENARIO.design_space)
+    dist = rob.MultivariateUniform(n_dims)
+    X = rob.find_physically_valid_samples(
+        SCENARIO, dist, simu_budget, 100*simu_budget
+    )
+    y = Parallel(n_jobs=NCORES)(
+        delayed(rob.compute_label)(SCENARIO, xi, **SIMU_KW) for xi in X
+    )
+    try:
+        ind = next(i for i, yi in enumerate(y) if yi == 1)
+    except StopIteration:
+        ind = np.random.choice(simu_budget)
+    return X[ind]
+
+
+@memory.cache
 def find_best_uniform(rob_est, n_eval, seed=None):
     if seed is not None:
         np.random.seed(seed)
@@ -284,13 +303,13 @@ def compute_ours(dense_dataset, n_runs, factorized=True, active=True,
 
 
 @memory.cache
-def compute_B1(dense_dataset, n_runs, seed=None):
-    if seed is not None:
-        np.random.seed(seed)
-    successes = np.flatnonzero(dense_dataset[1] == 1)
-    success_sample = np.random.choice(successes, n_runs, replace=False)
-    curves = [compute_local_rob_curve(x_out, N_STEPS, N_LOCAL, dense_dataset)
-              for x_out in dense_dataset[0][success_sample]]
+def compute_B1(dense_dataset, simu_budget, n_runs, seed=None):
+    curves = []
+    for i in range(n_runs):
+        x_out = find_success_uniform(simu_budget,
+                                     seed=(seed if seed is None else seed+i))
+        curve = compute_local_rob_curve(x_out, N_STEPS, N_LOCAL, dense_dataset)
+        curves.append(curve)
     return curves
 
 
