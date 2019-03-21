@@ -428,7 +428,7 @@ def main():
     n_local = n_dims**2  # number of simulations to compute local rob
     n_eval = simu_budget // (n_local + 1)  # number of rob eval allowed
     # B1: random uniform successes.
-    curves = compute_B1((X, y), N_RUNS, seed=seed)
+    curves = compute_B1((X, y), simu_budget, N_RUNS, seed=seed)
     results.append(("B1", curves))
     # B2: robustness-based uniform search.
     curves = compute_B2((X, y), N_RUNS, n_eval, radius, n_local, seed=seed)
