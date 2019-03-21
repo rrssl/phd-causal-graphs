@@ -29,7 +29,7 @@ import core.robustness as rob  # noqa: E402
 from core.scenario import import_scenario_data, load_scenario  # noqa: E402
 from core.config import NCORES  # noqa: E402
 
-memory = Memory(cachedir=".cache")
+memory = Memory(cachedir=".cache", verbose=False)
 # Local robustness curves parameters
 N_STEPS = 30
 N_LOCAL = 100
@@ -345,13 +345,17 @@ def plot_results(results):
     seaborn.set()
     fig, ax = plt.subplots(figsize=(6, 2))
     x = np.linspace(0, 1, N_STEPS)
+    ax.set_ylim(0, 1)
+    # i = 0
     for method, curves in results:
+        # i += 1
         avg_curve = np.mean(curves, axis=0)
-        ax.plot(x, avg_curve, label=method)
+        # ax.plot(x, avg_curve, label=method, linestyle='-'*(1 + i % 2))
         sem_curve = sem(curves, axis=0)
         # Use student distribution as sample size is small.
-        low, up = stats.t.interval(.95, N_RUNS-1, avg_curve, sem_curve)
-        ax.fill_between(x, low, up, alpha=.5)
+        low, high = stats.t.interval(.95, N_RUNS-1, avg_curve, sem_curve)
+        # low, high = avg_curve - sem_curve, avg_curve + sem_curve
+        ax.fill_between(x, low, high, alpha=.5)
     ax.legend()
     fig.tight_layout()
     plt.show()
@@ -394,7 +398,7 @@ def main():
     # Compute the decay of the most robust solution of our method.
     method_params = {
         'explo_n_0': 500,
-        'explo_n_succ': 50,
+        'explo_n_succ': 100,
         'explo_n_k': 10,
         'learn_n_k': 10,
         'learn_k_max': 5,
@@ -404,19 +408,20 @@ def main():
         (X, y), N_RUNS, factorized=False, active=True, optimizer='local',
         seed=seed, **method_params
     )
-    results.append(("full,act,opt", curves))
+    # results.append(("Full SPD", curves))
     # Factorized active not optimized
     curves, _ = compute_ours(
         (X, y), N_RUNS, factorized=True, active=True, optimizer=None,
         seed=seed, **method_params
     )
-    results.append(("fact,act,nopt", curves))
+    # results.append(("Factorized SPD, no-opt", curves))
     # Factorized active optimized
     curves, simu_cost = compute_ours(
         (X, y), N_RUNS, factorized=True, active=True, optimizer='local',
         seed=seed, **method_params
     )
-    results.append(("fact,act,opt", curves))
+    # results.append(("Factorized SPD", curves))
+    results.append(("Ours", curves))
 
     # ----------------------------- BASELINES --------------------------------
     # simu_budget = 1000  # number of simus allowed for each method
