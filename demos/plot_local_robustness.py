@@ -339,16 +339,71 @@ def compute_B3(dense_dataset, n_runs, n_eval, radius, n_local, seed=None):
     return curves
 
 
+def get_metadata(fun, *args, **kwargs):
+    return fun.store_backend.get_metadata(
+        fun._get_output_identifiers(*args, **kwargs)
+    )
+
+
+def get_times_ours(dense_dataset, n_runs, factorized=True, active=True,
+                   optimizer='local', seed=None, **method_params):
+    times = np.zeros(n_runs)
+    for i in range(n_runs):
+        fun = find_best_ours
+        metadata = get_metadata(
+            fun,
+            factorized=factorized, active=active, optimizer=optimizer,
+            ret_simu_cost=True, seed=(seed if seed is None else seed+i),
+            **method_params
+        )
+        times[i] = metadata['duration']
+    return times
+
+
+def get_times_B1(dense_dataset, simu_budget, n_runs, seed=None):
+    times = np.zeros(n_runs)
+    for i in range(n_runs):
+        fun = find_success_uniform
+        metadata = get_metadata(
+            fun, simu_budget, seed=(seed if seed is None else seed+i)
+        )
+        times[i] = metadata['duration']
+    return times
+
+
+def get_times_B2(dense_dataset, n_runs, n_eval, radius, n_local, seed=None):
+    times = np.zeros(n_runs)
+    for i in range(n_runs):
+        rob_est = LocalRobustnessEstimator(radius, n_local)
+        rob_est.n_eval = n_eval
+        fun = find_best_uniform
+        metadata = get_metadata(
+            fun, rob_est, n_eval, seed=(seed if seed is None else seed+i)
+        )
+        times[i] = metadata['duration']
+    return times
+
+
+def get_times_B3(dense_dataset, n_runs, n_eval, radius, n_local, seed=None):
+    times = np.zeros(n_runs)
+    for i in range(n_runs):
+        rob_est = LocalRobustnessEstimator(radius, n_local)
+        rob_est.n_eval = n_eval
+        fun = find_best_gpo
+        metadata = get_metadata(
+            fun, rob_est, n_eval, seed=(seed if seed is None else seed+i)
+        )
+        times[i] = metadata['duration']
+    return times
+
+
 def plot_results(results):
     import matplotlib.pyplot as plt
     import seaborn
     seaborn.set()
     fig, ax = plt.subplots(figsize=(6, 2))
     x = np.linspace(0, 1, N_STEPS)
-    ax.set_ylim(0, 1)
-    # i = 0
-    for method, curves in results:
-        # i += 1
+    for method, curves, _ in results:
         avg_curve = np.mean(curves, axis=0)
         # ax.plot(x, avg_curve, label=method, linestyle='-'*(1 + i % 2))
         sem_curve = sem(curves, axis=0)
@@ -363,11 +418,14 @@ def plot_results(results):
 
 def print_results(results):
     results_table = PrettyTable()
-    results_table.field_names = ["method", "local_rob(0)", "global_rob"]
+    results_table.field_names = ["method", "local_rob(0)", "global_rob",
+                                 "time"]
     x = np.linspace(0, 1, N_STEPS)
-    for method, curves in results:
+    for method, curves, times in results:
         local_rob = np.mean(curves, axis=0)
-        results_table.add_row([method, local_rob[0], np.trapz(local_rob, x)])
+        global_rob = np.trapz(local_rob, x)
+        time = times.mean()
+        results_table.add_row([method, local_rob[0], global_rob, time])
     print(results_table)
 
 
@@ -404,24 +462,32 @@ def main():
         'learn_k_max': 5,
     }
     # Full active optimized
-    curves, _ = compute_ours(
+    curves, simu_cost = compute_ours(
         (X, y), N_RUNS, factorized=False, active=True, optimizer='local',
         seed=seed, **method_params
     )
-    # results.append(("Full SPD", curves))
+    times = get_times_ours(
+        (X, y), N_RUNS, factorized=False, active=True, optimizer='local',
+        seed=seed, **method_params
+    )
+    # results.append(("Full SPD", curves, times))
     # Factorized active not optimized
     curves, _ = compute_ours(
         (X, y), N_RUNS, factorized=True, active=True, optimizer=None,
         seed=seed, **method_params
     )
-    # results.append(("Factorized SPD, no-opt", curves))
+    # results.append(("Factorized SPD, no-opt", curves, times))
     # Factorized active optimized
     curves, simu_cost = compute_ours(
         (X, y), N_RUNS, factorized=True, active=True, optimizer='local',
         seed=seed, **method_params
     )
-    # results.append(("Factorized SPD", curves))
-    results.append(("Ours", curves))
+    times = get_times_ours(
+        (X, y), N_RUNS, factorized=True, active=True, optimizer='local',
+        seed=seed, **method_params
+    )
+    # results.append(("Factorized SPD", curves, times))
+    results.append(("Ours", curves, times))
 
     # ----------------------------- BASELINES --------------------------------
     # simu_budget = 1000  # number of simus allowed for each method
@@ -434,13 +500,16 @@ def main():
     n_eval = simu_budget // (n_local + 1)  # number of rob eval allowed
     # B1: random uniform successes.
     curves = compute_B1((X, y), simu_budget, N_RUNS, seed=seed)
-    results.append(("B1", curves))
+    times = get_times_B1((X, y), simu_budget, N_RUNS, seed=seed)
+    results.append(("B1", curves, times))
     # B2: robustness-based uniform search.
     curves = compute_B2((X, y), N_RUNS, n_eval, radius, n_local, seed=seed)
-    results.append(("B2", curves))
+    times = get_times_B2((X, y), N_RUNS, n_eval, radius, n_local, seed=seed)
+    results.append(("B2", curves, times))
     # B3: Bayesian optimization.
     curves = compute_B3((X, y), N_RUNS, n_eval, radius, n_local, seed=seed)
-    results.append(("B3", curves))
+    times = get_times_B3((X, y), N_RUNS, n_eval, radius, n_local, seed=seed)
+    results.append(("B3", curves, times))
 
     if PLOT_RESULTS:
         plot_results(results)
