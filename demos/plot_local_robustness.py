@@ -18,7 +18,7 @@ import numpy as np
 from bayes_opt import BayesianOptimization, UtilityFunction
 from joblib import delayed, Memory, Parallel
 from prettytable import PrettyTable
-from scipy import stats
+# from scipy import stats
 from scipy.stats import sem
 from timeit import default_timer as timer
 from tqdm import tqdm
@@ -403,13 +403,14 @@ def plot_results(results):
     seaborn.set()
     fig, ax = plt.subplots(figsize=(6, 2))
     x = np.linspace(0, 1, N_STEPS)
-    for method, curves, _ in results:
+    linestyles = ('-', '--', '-.', ':')
+    for (method, curves, _), ls in zip(results, linestyles):
         avg_curve = np.mean(curves, axis=0)
-        # ax.plot(x, avg_curve, label=method, linestyle='-'*(1 + i % 2))
+        ax.plot(x, avg_curve, label=method, linestyle=ls)
         sem_curve = sem(curves, axis=0)
         # Use student distribution as sample size is small.
-        low, high = stats.t.interval(.95, N_RUNS-1, avg_curve, sem_curve)
-        # low, high = avg_curve - sem_curve, avg_curve + sem_curve
+        # low, high = stats.t.interval(.95, N_RUNS-1, avg_curve, sem_curve)
+        low, high = avg_curve - sem_curve, avg_curve + sem_curve
         ax.fill_between(x, low, high, alpha=.5)
     ax.legend()
     fig.tight_layout()
