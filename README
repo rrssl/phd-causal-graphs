@@ -8,8 +8,13 @@ scenarios/                 Config files of the scenarios presented in the paper
 
 Installation
 ------------
+Ubuntu:
 sudo apt install openscad libgeos-dev libcairo2-dev libffi-dev python3-tk
 pip3 install -r requirements.txt
+macOS:
+brew install cairo geos libffi
+brew cask install openscad
+pip install -r requirements.txt
 
 Usage
 -----
