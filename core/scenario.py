@@ -186,6 +186,9 @@ class Scene:
                 nopa = prim.create(self.geom, self.phys, graph, world)
                 if xforms[name] is not None:
                     nopa.set_pos_hpr(*xforms[name])
+                if 'tags' in prim_graph.node[name]:
+                    for tag, val in prim_graph.node[name]['tags'].items():
+                        nopa.set_python_tag(tag, val)
                 name2nopa[name] = nopa
         # Second pass: scene graph hierarchy.
         for parent, child in prim_graph.edges:
@@ -197,8 +200,12 @@ class Scene:
                 comps = [name2nopa[c]
                          for c in prim_graph.node[name]['components']]
                 nopa = prim.create(self.geom, self.phys, graph, world, comps)
-                if nopa is not None and xforms[name] is not None:
-                    nopa.set_pos_hpr(*xforms[name])
+                if nopa is not None:
+                    if xforms[name] is not None:
+                        nopa.set_pos_hpr(*xforms[name])
+                    if 'tags' in prim_graph.node[name]:
+                        for tag, val in prim_graph.node[name]['tags'].items():
+                            nopa.set_python_tag(tag, val)
                 name2nopa[name] = nopa
         # Last pass: propagate new global transforms to bullet nodes.
         if self.phys:
@@ -381,6 +388,13 @@ def load_primitives(scene_data):
             components = None
         if components:
             prim_graph.node[name]['components'] = components
+        # Add optional tags.
+        try:
+            tags = obj_data['tags']
+        except KeyError:
+            tags = None
+        if tags:
+            prim_graph.node[name]['tags'] = tags
     # Second pass for scene hierarchy.
     for obj_data in scene_data:
         try:
