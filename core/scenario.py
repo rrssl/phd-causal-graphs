@@ -164,7 +164,7 @@ class Scene:
         TransformState.garbage_collect()
         return constraint
 
-    def populate(self, prim_graph, xforms):
+    def populate(self, prim_graph, xforms, velos):
         """Populate the scene with primitive instances.
 
         Parameters
@@ -175,6 +175,10 @@ class Scene:
         xforms : dict
           Dictionary of o_name: o_xform pairs, where o_xform is a 6-tuple
           corresponding to panda3d's (x,y,z,h,p,r) values.
+        velos : dict
+          Dictionary of o_name: o_velo pairs, where o_velo is a 6-tuple
+          corresponding to bullet's linear and angular velocities.
+          Only applies to simple primitives (i.e., no 'components' field).
 
         """
         graph = self.graph
@@ -183,7 +187,8 @@ class Scene:
         # First pass: create and add simple objects.
         for name, prim in prim_graph.nodes(data='prim'):
             if 'components' not in prim_graph.node[name]:
-                nopa = prim.create(self.geom, self.phys, graph, world)
+                nopa = prim.create(self.geom, self.phys, graph, world,
+                                   velos[name])
                 if xforms[name] is not None:
                     nopa.set_pos_hpr(*xforms[name])
                 if 'tags' in prim_graph.node[name]:
@@ -430,9 +435,23 @@ def load_scene(scene_data, geom='LD', phys=True):
     """Load a scene from a scene data dict."""
     prim_graph = load_primitives(scene_data)
     xforms = load_xforms(scene_data)
+    velos = load_velocities(scene_data)
     scene = Scene(geom, phys)
-    scene.populate(prim_graph, xforms)
+    scene.populate(prim_graph, xforms, velos)
     return scene
+
+
+def load_velocities(scene_data):
+    """Load a velocities dict from a scene data dict."""
+    velos = {}
+    for obj_data in scene_data:
+        name = obj_data['name']
+        try:
+            velo = obj_data['velo']['value']
+        except KeyError:
+            velo = None
+        velos[name] = velo
+    return velos
 
 
 def load_xforms(scene_data):
