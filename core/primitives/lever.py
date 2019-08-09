@@ -32,13 +32,13 @@ class Lever(PrimitiveBase):
         self.pivot_extents = pivot_extents
         self.bt_props = bt_props
 
-    def create(self, geom, phys, parent=None, world=None):
+    def create(self, geom, phys, parent=None, world=None, velo=None):
         # Scene graph
         path = BulletRootNodePath(self.name) if phys else NodePath(self.name)
         self._attach(path, parent)
         # Physics
         box = Box(name=self.name, extents=self.extents, **self.bt_props)
-        box_path = box.create(geom, phys, path, world)
+        box_path = box.create(geom, phys, path, world, velo)
         pivot = Pivot(
             name=self.name + "_pivot", pivot_pos=self.pivot_pos,
             pivot_hpr=self.pivot_hpr, pivot_extents=self.pivot_extents,

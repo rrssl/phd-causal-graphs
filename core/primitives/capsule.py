@@ -1,7 +1,7 @@
 import panda3d.bullet as bt
 import solid as sl
 import solid.utils as slu
-from panda3d.core import GeomNode, NodePath
+from panda3d.core import GeomNode, NodePath, Vec3
 
 from .base import PrimitiveBase
 from ..meshio import solid2panda
@@ -23,12 +23,15 @@ class Capsule(PrimitiveBase):
         super().__init__(name=name, **bt_props)
         self.extents = extents
 
-    def create(self, geom, phys, parent=None, world=None):
+    def create(self, geom, phys, parent=None, world=None, velo=None):
         name = self.name + "_solid"
         # Physics
         if phys:
             body = bt.BulletRigidBodyNode(name)
             self._set_properties(body)
+            if velo is not None:
+                body.set_linear_velocity(Vec3(*velo[:3]))
+                body.set_angular_velocity(Vec3(*velo[3:]))
             r, h = self.extents
             shape = bt.BulletCapsuleShape(r, h)
             body.add_shape(shape)

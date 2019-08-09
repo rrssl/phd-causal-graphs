@@ -1,6 +1,6 @@
 import panda3d.bullet as bt
 import solid as sl
-from panda3d.core import GeomNode, NodePath, Point3, TransformState
+from panda3d.core import GeomNode, NodePath, Point3, TransformState, Vec3
 
 from .base import PrimitiveBase
 from ..meshio import solid2panda
@@ -26,12 +26,15 @@ class Cylinder(PrimitiveBase):
         self.extents = extents
         self.center = center
 
-    def create(self, geom, phys, parent=None, world=None):
+    def create(self, geom, phys, parent=None, world=None, velo=None):
         name = self.name + "_solid"
         # Physics
         if phys:
             body = bt.BulletRigidBodyNode(name)
             self._set_properties(body)
+            if velo is not None:
+                body.set_linear_velocity(Vec3(*velo[:3]))
+                body.set_angular_velocity(Vec3(*velo[3:]))
             r, h = self.extents
             shape = bt.BulletCylinderShape(r, h)
             if self.center:

@@ -30,7 +30,7 @@ class DominoRun(PrimitiveBase):
         self.coords = np.asarray(coords)
         self.tilt_angle = tilt_angle
 
-    def create(self, geom, phys, parent=None, world=None):
+    def create(self, geom, phys, parent=None, world=None, velo=None):
         # Physics
         bodies = []
         if phys:
@@ -60,6 +60,10 @@ class DominoRun(PrimitiveBase):
                 bodies.append(body)
                 body.add_shape(shape)
                 self._set_properties(body)
+                if i == 0:
+                    if velo is not None:
+                        body.set_linear_velocity(Vec3(*velo[:3]))
+                        body.set_angular_velocity(Vec3(*velo[3:]))
             # Scene graph + local coords
             dom_path = NodePath(body) if phys else NodePath(name)
             dom_path.reparent_to(path)

@@ -26,12 +26,15 @@ class Track(PrimitiveBase):
         super().__init__(name=name, **bt_props)
         self.extents = extents
 
-    def create(self, geom, phys, parent=None, world=None):
+    def create(self, geom, phys, parent=None, world=None, velo=None):
         name = self.name + "_solid"
         # Physics
         if phys:
             body = bt.BulletRigidBodyNode(name)
             self._set_properties(body)
+            if velo is not None:
+                body.set_linear_velocity(Vec3(*velo[:3]))
+                body.set_angular_velocity(Vec3(*velo[3:]))
             l, w, h, t = self.extents
             bottom = bt.BulletBoxShape(Vec3(l/2, w/2 - t, t/2))
             body.add_shape(bottom,

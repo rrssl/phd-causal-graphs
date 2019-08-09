@@ -38,13 +38,13 @@ class Pulley(PrimitiveBase):
         self.pivot_extents = pivot_extents
         self.bt_props = bt_props
 
-    def create(self, geom, phys, parent=None, world=None):
+    def create(self, geom, phys, parent=None, world=None, velo=None):
         # Scene graph
         path = BulletRootNodePath(self.name) if phys else NodePath(self.name)
         self._attach(path, parent)
         # Physics
         cyl = Cylinder(name=self.name, extents=self.extents, **self.bt_props)
-        cyl_path = cyl.create(geom, phys, path, world)
+        cyl_path = cyl.create(geom, phys, path, world, velo)
         pivot = Pivot(
             name=self.name+"_pivot", pivot_pos=self.pivot_pos,
             pivot_hpr=self.pivot_hpr, pivot_extents=self.pivot_extents,

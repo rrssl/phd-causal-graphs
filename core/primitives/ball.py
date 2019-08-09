@@ -1,6 +1,6 @@
 import panda3d.bullet as bt
 import solid as sl
-from panda3d.core import GeomNode, NodePath
+from panda3d.core import GeomNode, NodePath, Vec3
 
 from .base import PrimitiveBase
 from ..meshio import solid2panda
@@ -22,12 +22,15 @@ class Ball(PrimitiveBase):
         super().__init__(name=name, **bt_props)
         self.radius = radius
 
-    def create(self, geom, phys, parent=None, world=None):
+    def create(self, geom, phys, parent=None, world=None, velo=None):
         name = self.name + "_solid"
         # Physics
         if phys:
             body = bt.BulletRigidBodyNode(name)
             self._set_properties(body)
+            if velo is not None:
+                body.set_linear_velocity(Vec3(*velo[:3]))
+                body.set_angular_velocity(Vec3(*velo[3:]))
             shape = bt.BulletSphereShape(self.radius)
             body.add_shape(shape)
             bodies = [body]
