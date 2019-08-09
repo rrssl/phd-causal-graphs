@@ -42,6 +42,9 @@ class Inclusion:
         self.inside = inside
         self.outside = outside
         self.world = world
+        # For compatibility
+        self.first = inside
+        self.second = outside
 
     def __call__(self):
         ci = self.inside.get_net_transform().get_pos()
