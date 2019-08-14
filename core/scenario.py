@@ -193,7 +193,7 @@ class Scene:
                     nopa.set_pos_hpr(*xforms[name])
                 if 'tags' in prim_graph.node[name]:
                     for tag, val in prim_graph.node[name]['tags'].items():
-                        nopa.set_python_tag(tag, val)
+                        nopa.set_tag(tag, str(val))
                 name2nopa[name] = nopa
         # Second pass: scene graph hierarchy.
         for parent, child in prim_graph.edges:
@@ -210,7 +210,7 @@ class Scene:
                         nopa.set_pos_hpr(*xforms[name])
                     if 'tags' in prim_graph.node[name]:
                         for tag, val in prim_graph.node[name]['tags'].items():
-                            nopa.set_python_tag(tag, val)
+                            nopa.set_tag(tag, str(val))
                 name2nopa[name] = nopa
         # Last pass: propagate new global transforms to bullet nodes.
         if self.phys:
@@ -492,9 +492,10 @@ def simulate_scene(scene: Scene, duration, timestep, callbacks=None):
     world = scene.world
     if callbacks is None:
         callbacks = []
-    time = 0.
+    maxiter = int(duration / timestep)
     do_break = False
-    while time <= duration:
+    for i in range(maxiter + 1):
+        time = i * timestep
         for c in callbacks:
             res = c(time)
             if res is not None and not res:
@@ -502,7 +503,6 @@ def simulate_scene(scene: Scene, duration, timestep, callbacks=None):
         if do_break:
             break
         world.do_physics(timestep, 0)
-        time += timestep
     # Transforms are globally cached by default. Out of the regular
     # Panda3D task process, we need to empty this cache by hand when
     # running a large number of simulations, to avoid memory overflow.
