@@ -42,28 +42,19 @@ class Inclusion:
         self.inside = inside
         self.outside = outside
         self.world = world
-        # For compatibility
-        self.first = inside
-        self.second = outside
 
     def __call__(self):
         ci = self.inside.get_net_transform().get_pos()
-        co = self.outside.get_net_transform().get_pos()
-        # Check if there's any body between the two bodies.
-        closest = self.world.ray_test_closest(co, ci).get_node()
-        if closest != self.inside.node():
-            return False
-        # Check for visibility of inside body.
         # Shape bounds are always SphereBounds for BulletBodyNodes.
-        out_radius = self.outside.node().get_shape_bounds().get_radius()
-        # Check in all XY directions.
-        directions = [Vec3(-out_radius, 0, 0),
-                      Vec3(out_radius, 0, 0),
-                      Vec3(0, -out_radius, 0),
-                      Vec3(0, out_radius, 0)]
-        hits = [self.world.ray_test_closest(ci, ci+d).get_node()
+        ray_length = 2 * self.outside.node().get_shape_bounds().get_radius()
+        # Check that inside is surrounded by outside in all XY directions.
+        directions = [Vec3(-ray_length, 0, 0),
+                      Vec3(ray_length, 0, 0),
+                      Vec3(0, -ray_length, 0),
+                      Vec3(0, ray_length, 0)]
+        hits = [[hit.node for hit in self.world.ray_test_all(ci, ci+d).hits]
                 for d in directions]
-        return all(hit == self.outside.node() for hit in hits)
+        return all(self.outside.node() in h for h in hits)
 
 
 class NoContact:
