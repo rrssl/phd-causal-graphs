@@ -189,8 +189,12 @@ class Scene:
             if 'components' not in prim_graph.node[name]:
                 nopa = prim.create(self.geom, self.phys, graph, world,
                                    velos[name])
-                if xforms[name] is not None:
-                    nopa.set_pos_hpr(*xforms[name])
+                xform = xforms[name]
+                if xform is not None:
+                    if len(xform) == 6:
+                        nopa.set_pos_hpr(*xform)
+                    elif len(xform) == 7:
+                        nopa.set_pos_quat(tuple(xform[:3]), tuple(xform[3:]))
                 if 'tags' in prim_graph.node[name]:
                     for tag, val in prim_graph.node[name]['tags'].items():
                         nopa.set_tag(tag, str(val))
@@ -206,8 +210,13 @@ class Scene:
                          for c in prim_graph.node[name]['components']]
                 nopa = prim.create(self.geom, self.phys, graph, world, comps)
                 if nopa is not None:
-                    if xforms[name] is not None:
-                        nopa.set_pos_hpr(*xforms[name])
+                    xform = xforms[name]
+                    if xform is not None:
+                        if len(xform) == 6:
+                            nopa.set_pos_hpr(*xform)
+                        elif len(xform) == 7:
+                            nopa.set_pos_quat(tuple(xform[:3]),
+                                              tuple(xform[3:]))
                     if 'tags' in prim_graph.node[name]:
                         for tag, val in prim_graph.node[name]['tags'].items():
                             nopa.set_tag(tag, str(val))
