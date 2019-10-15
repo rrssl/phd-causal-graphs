@@ -12,6 +12,7 @@ from core.optimize import maximize_robustness_local  # noqa: E402
 from core.scenario import (StateObserver, import_scenario_data,  # noqa: E402
                            load_scenario, simulate_scene)
 from gui.viewers import Replayer, ScenarioViewer  # noqa: E402
+from utils.export import export_layout_to_pdf  # noqa: E402
 
 memory = Memory(cachedir=".cache", verbose=0)
 
@@ -117,8 +118,8 @@ def main():
         instance = scenario.instantiate_from_sample(
             x_best, geom='HD', phys=True
         )
-        instance.scene.export_layout_to_pdf(
-            "opt_xz", (21, 29.7), plane='xz',
+        export_layout_to_pdf(
+            instance.scene, "opt_xz", (21, 29.7), plane='xz',
             # exclude="board_geom",
         )
     if 0:
