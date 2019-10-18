@@ -143,8 +143,7 @@ class Scenario:
     This is just a convenient, "stateless" high-level representation,
     not unlike a dict-like specification but with a number of preprocessing
     operations already done.
-    Specifying a position in the design space (or equivalently, a transform for
-    each object) via instantiante_from_xforms() yields a ScenarioInstance that
+    Specifying a position in the design space yields a ScenarioInstance that
     can be used for simulation and visualization.
 
     Parameters
@@ -185,13 +184,8 @@ class Scenario:
 
     def instantiate_from_sample(self, sample, geom='LD', phys=True,
                                 verbose_causal_graph=True):
-        xforms = self.design_space.sample2xforms(sample)
-        return self.instantiante_from_xforms(xforms, geom, phys,
-                                             verbose_causal_graph)
-
-    def instantiante_from_xforms(self, xforms, geom='LD', phys=True,
-                                 verbose_causal_graph=True):
         scene = Scene(geom, phys)
+        xforms = self.design_space.sample2xforms(sample)
         scene.populate(self.prim_graph, xforms)
         emb_causal_graph = causal.embed_causal_graph(self.causal_graph, scene,
                                                      verbose_causal_graph)
