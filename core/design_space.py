@@ -28,12 +28,12 @@ class DesignSpace:
             [(a, b-a)
              for _, o_ranges in ranges for a, b in o_ranges if a != b]
         )
-        # Compute the (n_objects, 6) array of transforms, where fixed values
+        # Compute the (n_objects, n) array of transforms, where fixed values
         # are prefilled. Its length is equal to the number of objects.
         self.xform_array = np.array(
             [a if a == b else np.nan
              for _, o_ranges in ranges for a, b in o_ranges]
-        ).reshape(len(ranges), 6)
+        ).reshape(len(ranges), -1)
         # Compute the test array of free parameters.
         self.is_free = np.isnan(self.xform_array)
 
