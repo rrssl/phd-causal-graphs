@@ -50,7 +50,7 @@ class PhysicalValidityConstraintBoolean:
         self.scenario = scenario
 
     def __call__(self, x, *args, **kwargs):
-        return self.scenario.check_physically_valid_sample(x)
+        return self.scenario.check_physically_valid_vector(x)
 
 
 class SuccessConstraint:
@@ -59,7 +59,7 @@ class SuccessConstraint:
         self.simu_kw = simu_kw
 
     def __call__(self, x):
-        if self.scenario.check_physically_valid_sample(x):
+        if self.scenario.check_physically_valid_vector(x):
             # _, labels = compute_label(
             #     self.scenario, x, ret_events_labels=True, **self.simu_kw
             # )

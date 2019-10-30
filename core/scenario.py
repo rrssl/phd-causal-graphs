@@ -176,16 +176,16 @@ class Scenario:
         h = (h1 + h2).encode('utf-8') + h3
         return int(hashlib.md5(h).hexdigest(), 16)
 
-    def check_physically_valid_sample(self, sample):
+    def check_physically_valid_vector(self, vector):
         scene = Scene(geom=None, phys=True)
-        xforms = self.design_space.sample2xforms(sample)
+        xforms = self.design_space.vector2xforms(vector)
         scene.populate(self.prim_graph, xforms)
         return scene.check_physically_valid()
 
-    def instantiate_from_vector(self, sample, geom='LD', phys=True,
+    def instantiate_from_vector(self, p, geom='LD', phys=True,
                                 verbose_causal_graph=True):
         scene = Scene(geom, phys)
-        xforms = self.design_space.sample2xforms(sample)
+        xforms = self.design_space.vector2xforms(p)
         scene.populate(self.prim_graph, xforms)
         emb_causal_graph = causal.embed_causal_graph(self.causal_graph, scene,
                                                      verbose_causal_graph)

@@ -44,7 +44,7 @@ PLOT_RESULTS = False
 
 # Parallelizable
 def compute_label(scenario, x):
-    if scenario.check_physically_valid_sample(x):
+    if scenario.check_physically_valid_vector(x):
         label = 2*int(rob.compute_label(scenario, x, **SIMU_KW)) - 1
     else:
         label = 0
@@ -110,7 +110,7 @@ class LocalRobustnessEstimator:
 
     def __call__(self, x):
         x = np.asarray(x)
-        if not SCENARIO.check_physically_valid_sample(x):
+        if not SCENARIO.check_physically_valid_vector(x):
             return 0.
         self.n_eval += 1
         radius = self.radius

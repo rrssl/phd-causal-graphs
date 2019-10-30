@@ -50,21 +50,21 @@ class DesignSpace:
     def parameters_names(self):
         return [name + "_" + c for name in self.names for c in "xyzhpr"]
 
-    def sample2xforms(self, sample):
-        """Convert a sample to its transforms dict representation."""
-        sample = (np.asarray(sample) * self.origin_scale_array[:, 1]
+    def vector2xforms(self, vector):
+        """Convert a vector to its transforms dict representation."""
+        vector = (np.asarray(vector) * self.origin_scale_array[:, 1]
                   + self.origin_scale_array[:, 0])
         xform_array = self.xform_array.copy()
-        xform_array[self.is_free] = sample
+        xform_array[self.is_free] = vector
         xforms = {name: xform for name, xform in zip(self.names, xform_array)}
         return xforms
 
-    def xforms2sample(self, xforms):
-        """Convert a transforms dict to it sample representation."""
+    def xforms2vector(self, xforms):
+        """Convert a transforms dict to it vector representation."""
         xform_array = np.array([xforms[name] for name in self.names])
-        sample = (xform_array[self.is_free] - self.origin_scale_array[:, 0]
+        vector = (xform_array[self.is_free] - self.origin_scale_array[:, 0]
                   ) / self.origin_scale_array[:, 1]
-        return sample
+        return vector
 
 
 def load_design_space(scene_data):

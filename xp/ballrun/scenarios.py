@@ -171,7 +171,7 @@ class ConditionalBallRun(Samplable, Scenario):
         return self._check_physically_valid_scene(self._scene)
 
     @classmethod
-    def check_physically_valid_sample(cls, sample):
+    def check_physically_valid_vector(cls, sample):
         scene = cls.init_scene(sample, make_geom=False)
         return cls._check_physically_valid_scene(scene)
 

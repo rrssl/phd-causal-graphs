@@ -71,7 +71,7 @@ def find_physically_valid_samples(scenario, distribution, n_valid, max_trials):
     cand_samples = distribution.sample(max_trials)
     samples = []
     for sample in cand_samples:
-        if scenario.check_physically_valid_sample(sample):
+        if scenario.check_physically_valid_vector(sample):
             samples.append(sample)
             if len(samples) == n_valid:
                 break
