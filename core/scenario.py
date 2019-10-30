@@ -182,7 +182,7 @@ class Scenario:
         scene.populate(self.prim_graph, xforms)
         return scene.check_physically_valid()
 
-    def instantiate_from_sample(self, sample, geom='LD', phys=True,
+    def instantiate_from_vector(self, sample, geom='LD', phys=True,
                                 verbose_causal_graph=True):
         scene = Scene(geom, phys)
         xforms = self.design_space.sample2xforms(sample)

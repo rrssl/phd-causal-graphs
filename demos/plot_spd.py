@@ -84,12 +84,12 @@ def main():
         ))
         scenario = load_scenario(scenario_data)
         # Create the scene geometry.
-        instance = scenario.instantiate_from_sample(p, geom='HD', phys=False)
+        instance = scenario.instantiate_from_vector(p, geom='HD', phys=False)
         scene_path = os.path.join(dir_, "scene")
         instance.scene.export_scene_to_egg(scene_path)
         instance.scene.export_scene_to_egg("scene_{}".format(i))
         # Run the instance.
-        instance = scenario.instantiate_from_sample(p, geom=None, phys=True)
+        instance = scenario.instantiate_from_vector(p, geom=None, phys=True)
         obs = StateObserver(instance.scene)
         print("Physically valid: ", instance.scene.check_physically_valid())
         instance.simulate(duration=3, timestep=1/500, callbacks=[obs])

@@ -39,7 +39,7 @@ class PhysicalValidityConstraint:
         self.scenario = scenario
 
     def __call__(self, x):
-        C = self.scenario.instantiate_from_sample(
+        C = self.scenario.instantiate_from_vector(
             x, geom=None, phys=True, verbose_causal_graph=False
         ).scene.get_physical_validity_constraint()
         return min(C, 0.)

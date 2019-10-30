@@ -81,7 +81,7 @@ def find_physically_valid_samples(scenario, distribution, n_valid, max_trials):
 
 
 def compute_label(scenario, sample, ret_events_labels=False, **simu_kw):
-    instance = scenario.instantiate_from_sample(sample, geom=None, phys=True,
+    instance = scenario.instantiate_from_vector(sample, geom=None, phys=True,
                                                 verbose_causal_graph=False)
     global_label = instance.simulate(**simu_kw)
     if ret_events_labels:

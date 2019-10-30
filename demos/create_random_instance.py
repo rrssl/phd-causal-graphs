@@ -21,7 +21,7 @@ def main():
     sample = find_physically_valid_samples(
         scenario, MultivariateUniform(ndims), 1, 1000
     )[0]
-    instance = scenario.instantiate_from_sample(sample, geom='LD', phys=True)
+    instance = scenario.instantiate_from_vector(sample, geom='LD', phys=True)
     print(instance.scene.get_physical_validity_constraint())
     app = PhysicsViewer(world=instance.scene.world)
     instance.scene.graph.reparent_to(app.models)

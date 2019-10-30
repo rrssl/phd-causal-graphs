@@ -115,7 +115,7 @@ def main():
     scenario = load_scenario(scenario_data)
     if 1:
         # Print the solution.
-        instance = scenario.instantiate_from_sample(
+        instance = scenario.instantiate_from_vector(
             x_best, geom='HD', phys=True
         )
         export_layout_to_pdf(
@@ -125,7 +125,7 @@ def main():
     if 0:
         # Show the solution.
         load_prc_file_data("", "win-origin 500 200")
-        instance = scenario.instantiate_from_sample(
+        instance = scenario.instantiate_from_vector(
             x_best, geom='LD', phys=True
         )
         app = ScenarioViewer(instance)
@@ -133,12 +133,12 @@ def main():
     if 1:
         dir_ = tempfile.mkdtemp()
         # Run the instance.
-        instance = scenario.instantiate_from_sample(
+        instance = scenario.instantiate_from_vector(
             x_best, geom='HD', phys=False
         )
         scene_path = os.path.join(dir_, "scene")
         instance.scene.export_scene_to_egg(scene_path)
-        instance = scenario.instantiate_from_sample(
+        instance = scenario.instantiate_from_vector(
             x_best, geom='HD', phys=True
         )
         obs = StateObserver(instance.scene)
@@ -151,7 +151,7 @@ def main():
         app = Replayer(scene_path+".bam", simu_path)
         app.run()
     if 0:
-        instance = scenario.instantiate_from_sample(
+        instance = scenario.instantiate_from_vector(
             x_best, geom='HD', phys=True
         )
         instance.scene.export_scene_to_egg("scene.egg")
