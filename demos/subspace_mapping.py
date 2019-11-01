@@ -1,5 +1,6 @@
 import os
 import sys
+from itertools import compress
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -37,6 +38,12 @@ def plot_mapping(assignments, dim_names):
     plt.show()
 
 
+def get_free_parameters_names(scenario_data):
+    design_space = load_scenario(scenario_data).design_space
+    param_names = [name+"_"+c for name in design_space.names for c in "xyzhpr"]
+    return list(compress(param_names, design_space.is_free.flat))
+
+
 def main():
     if len(sys.argv) < 2:
         return
@@ -60,7 +67,7 @@ def main():
     assignments = rob.map_events_to_dimensions(
         init_samples, init_events_labels, select_coeff=.2
     )
-    dim_names = load_scenario(scenario_data).design_space.free_parameters_names
+    dim_names = get_free_parameters_names(scenario_data)
     plot_mapping(assignments, dim_names)
 
 

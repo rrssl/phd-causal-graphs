@@ -6,7 +6,7 @@ import numpy as np
 
 
 class DesignSpace:
-    """Design space of a scenario.
+    """Design space of a model.
 
     Points in this space are obtained by normalizing the free parameters from
     their respective original range to [0, 1] and concatenating them.
@@ -14,7 +14,7 @@ class DesignSpace:
     Parameters
     ----------
     ranges : sequence
-      Each element is a (o_name, o_ranges) pair, where 'o_ranges' is a 6-tuple
+      Each element is a (o_name, o_ranges) pair, where 'o_ranges' is a sequence
       of pairs of floats (i.e. a range of acceptable values). To fix a value,
       the start and end of the range should be equal.
 
@@ -22,8 +22,8 @@ class DesignSpace:
     def __init__(self, ranges):
         self.names = [name for name, _ in ranges]
         # Compute the array of concatenated origin and scale of ranges. Its
-        # length is the same as the sample vector's. It is used for
-        # (de)normalization of the sample vector.
+        # length is the same as the vector's. It is used for (de)normalization
+        # of the vector.
         self.origin_scale_array = np.array(
             [(a, b-a)
              for _, o_ranges in ranges for a, b in o_ranges if a != b]
@@ -39,16 +39,6 @@ class DesignSpace:
 
     def __len__(self):
         return self.origin_scale_array.shape[0]
-
-    @property
-    def free_parameters_names(self):
-        return [name
-                for name, free in zip(self.parameters_names, self.is_free.flat)
-                if free]
-
-    @property
-    def parameters_names(self):
-        return [name + "_" + c for name in self.names for c in "xyzhpr"]
 
     def vector2xforms(self, vector):
         """Convert a vector to its transforms dict representation."""
