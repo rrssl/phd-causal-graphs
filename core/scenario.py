@@ -156,10 +156,11 @@ class Scenario:
       Design space of the scenario.
 
     """
-    def __init__(self, prim_graph, causal_graph, design_space):
+    def __init__(self, prim_graph, causal_graph, design_space, velos):
         self.prim_graph = prim_graph
         self.causal_graph = causal_graph
         self.design_space = design_space
+        self.velos = velos
 
     def __eq__(self, other):
         return (
@@ -186,7 +187,7 @@ class Scenario:
                                 verbose_causal_graph=True):
         scene = Scene(geom, phys)
         xforms = self.design_space.vector2xforms(p)
-        scene.populate(self.prim_graph, xforms)
+        scene.populate(self.prim_graph, xforms, self.velos)
         emb_causal_graph = causal.embed_causal_graph(self.causal_graph, scene,
                                                      verbose_causal_graph)
         return ScenarioInstance(scene, emb_causal_graph)
@@ -333,7 +334,8 @@ def load_scenario(scenario_data):
     except KeyError:
         graph_data = None
     causal_graph = causal.load_causal_graph(graph_data)
-    scenario = Scenario(prim_graph, causal_graph, design_space)
+    velos = load_velocities(scenario_data['scene'])
+    scenario = Scenario(prim_graph, causal_graph, design_space, velos)
     return scenario
 
 
