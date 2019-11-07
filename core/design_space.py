@@ -57,7 +57,7 @@ class DesignSpace:
         return vector
 
 
-def load_design_space(scene_data):
+def load_design_space(scene_data, default_size=6):
     ranges = []
     for obj_data in scene_data:
         name = obj_data['name']
@@ -68,7 +68,7 @@ def load_design_space(scene_data):
         try:
             xform = obj_data['xform']['value']
         except KeyError:
-            xform = [0, 0, 0, 0, 0, 0]
+            xform = [0] * default_size
         if o_ranges is None:
             o_ranges = [(p, p) for p in xform]
         else:
