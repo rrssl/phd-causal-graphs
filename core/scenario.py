@@ -96,7 +96,7 @@ class Scene:
         name2nopa = {}
         # First pass: create and add simple objects.
         for name, prim in prim_graph.nodes(data='prim'):
-            if 'components' not in prim_graph.node[name]:
+            if 'components' not in prim_graph.nodes[name]:
                 nopa = prim.create(self.geom, self.phys, graph, world,
                                    velos[name])
                 xform = xforms[name]
@@ -105,8 +105,8 @@ class Scene:
                         nopa.set_pos_hpr(*xform)
                     elif len(xform) == 7:
                         nopa.set_pos_quat(tuple(xform[:3]), tuple(xform[3:]))
-                if 'tags' in prim_graph.node[name]:
-                    for tag, val in prim_graph.node[name]['tags'].items():
+                if 'tags' in prim_graph.nodes[name]:
+                    for tag, val in prim_graph.nodes[name]['tags'].items():
                         nopa.set_tag(tag, str(val))
                 name2nopa[name] = nopa
         # Second pass: scene graph hierarchy.
@@ -115,9 +115,9 @@ class Scene:
         # Third pass: instantiate complex constructs. We assume only
         # one level of nesting (i.e., components are themselves simple).
         for name, prim in prim_graph.nodes(data='prim'):
-            if 'components' in prim_graph.node[name]:
+            if 'components' in prim_graph.nodes[name]:
                 comps = [name2nopa[c]
-                         for c in prim_graph.node[name]['components']]
+                         for c in prim_graph.nodes[name]['components']]
                 nopa = prim.create(self.geom, self.phys, graph, world, comps)
                 if nopa is not None:
                     xform = xforms[name]
@@ -127,8 +127,8 @@ class Scene:
                         elif len(xform) == 7:
                             nopa.set_pos_quat(tuple(xform[:3]),
                                               tuple(xform[3:]))
-                    if 'tags' in prim_graph.node[name]:
-                        for tag, val in prim_graph.node[name]['tags'].items():
+                    if 'tags' in prim_graph.nodes[name]:
+                        for tag, val in prim_graph.nodes[name]['tags'].items():
                             nopa.set_tag(tag, str(val))
                 name2nopa[name] = nopa
         # Last pass: propagate new global transforms to bullet nodes.
@@ -306,14 +306,14 @@ def load_primitives(scene_data):
         except KeyError:
             components = None
         if components:
-            prim_graph.node[name]['components'] = components
+            prim_graph.nodes[name]['components'] = components
         # Add optional tags.
         try:
             tags = obj_data['tags']
         except KeyError:
             tags = None
         if tags:
-            prim_graph.node[name]['tags'] = tags
+            prim_graph.nodes[name]['tags'] = tags
     # Second pass for scene hierarchy.
     for obj_data in scene_data:
         try:
